@@ -6,39 +6,32 @@ let authToken = localStorage.getItem('userToken');
 let currentUser = null;
 let currentTransferId = null;
 
-// Toggle Sidebar Function for Mobile
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('sidebarOverlay');
-    
-    if (sidebar.classList.contains('open')) {
-        // Close sidebar
-        sidebar.classList.remove('open');
-        overlay.classList.remove('active');
-        document.body.style.overflow = '';
-    } else {
-        // Open sidebar
-        sidebar.classList.add('open');
-        overlay.classList.add('active');
-        document.body.style.overflow = 'hidden';
-    }
-}
-
-// Close sidebar when clicking a nav item on mobile
-function closeSidebarOnMobile() {
-    if (window.innerWidth <= 768) {
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('sidebarOverlay');
-        sidebar.classList.remove('open');
-        overlay.classList.remove('active');
-        document.body.style.overflow = '';
-    }
-}
-
 // Check auth on load
 document.addEventListener('DOMContentLoaded', async function() {
-    // Check for signup hash
-    if (window.location.hash === '#signup') {
+    // Check for referral code in URL (handles ?ref=CODE or #signup?ref=CODE)
+    const urlParams = new URLSearchParams(window.location.search);
+    let refCode = urlParams.get('ref');
+    
+    // Also check if ref is in hash (e.g., #signup?ref=CODE)
+    if (!refCode && window.location.hash) {
+        const hashParts = window.location.hash.split('?');
+        if (hashParts.length > 1) {
+            const hashParams = new URLSearchParams(hashParts[1]);
+            refCode = hashParams.get('ref');
+        }
+    }
+    
+    // If referral code exists, show signup and pre-fill
+    if (refCode) {
+        showSignup();
+        const referralInput = document.getElementById('signupReferral');
+        if (referralInput) {
+            referralInput.value = refCode;
+            // Trigger referrer lookup
+            lookupReferrer(refCode);
+        }
+    } else if (window.location.hash === '#signup') {
+        // Just #signup without ref code
         showSignup();
     }
     
@@ -221,7 +214,7 @@ function setupNavigation() {
 }
 
 function navigateTo(page) {
-    // Close sidebar on mobile when navigating
+    // Close sidebar on mobile
     closeSidebarOnMobile();
     
     // Update active nav item
@@ -309,8 +302,8 @@ async function loadDashboard() {
             document.getElementById('teamSize').textContent = user.team_size || 0;
             document.getElementById('totalWithdrawn').textContent = `$${(user.total_withdrawn || 0).toFixed(2)}`;
             
-            // Set referral link
-            const referralLink = `${window.location.origin}/api/user/#signup?ref=${user.referral_code}`;
+            // Set referral link - use query parameter format for better compatibility
+            const referralLink = `${window.location.origin}/api/user/?ref=${user.referral_code}`;
             document.getElementById('referralLink').value = referralLink;
         }
         
@@ -797,6 +790,26 @@ function copyReferralLink() {
     input.select();
     document.execCommand('copy');
     alert('Referral link copied to clipboard!');
+}
+
+// Toggle sidebar for mobile
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('show');
+    document.body.classList.toggle('sidebar-open');
+}
+
+// Close sidebar when clicking on a nav item (mobile)
+function closeSidebarOnMobile() {
+    if (window.innerWidth <= 768) {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        sidebar.classList.remove('open');
+        overlay.classList.remove('show');
+        document.body.classList.remove('sidebar-open');
+    }
 }
 
 // Referral Code Verification
