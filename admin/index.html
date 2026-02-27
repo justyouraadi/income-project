@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SS Money Resource - Admin Panel</title>
+    <link rel="stylesheet" href="/api/admin/admin-styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="login-screen">
+        <div class="login-container">
+            <div class="login-header">
+                <h1>Admin Panel</h1>
+                <p>SS Money Resource Management</p>
+            </div>
+            <form id="loginForm" class="login-form">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="adminEmail" required placeholder="admin@ssmoneyresource.com">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="adminPassword" required placeholder="Enter password">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Login to Dashboard</button>
+                <div id="loginError" class="error-message" style="display: none;"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin Dashboard -->
+    <div id="dashboard" class="dashboard" style="display: none;">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>SS Money Resource</h2>
+                <p>Admin Panel</p>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-page="overview">
+                    <span class="nav-icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-item" data-page="users">
+                    <span class="nav-icon">👥</span>
+                    <span>Users</span>
+                </a>
+                <a href="#" class="nav-item" data-page="wallets">
+                    <span class="nav-icon">💳</span>
+                    <span>Wallets</span>
+                </a>
+                <a href="#" class="nav-item" data-page="p2p">
+                    <span class="nav-icon">🔄</span>
+                    <span>P2P Transfer</span>
+                </a>
+                <a href="#" class="nav-item" data-page="withdrawals">
+                    <span class="nav-icon">💸</span>
+                    <span>Withdrawals</span>
+                </a>
+                <a href="#" class="nav-item" data-page="investments">
+                    <span class="nav-icon">💼</span>
+                    <span>Investments</span>
+                </a>
+                <a href="#" class="nav-item" data-page="transactions">
+                    <span class="nav-icon">📝</span>
+                    <span>Transactions</span>
+                </a>
+                <a href="#" class="nav-item" data-page="income">
+                    <span class="nav-icon">📈</span>
+                    <span>Income Calculator</span>
+                </a>
+                <a href="#" class="nav-item" onclick="logout()">
+                    <span class="nav-icon">🚪</span>
+                    <span>Logout</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="top-bar">
+                <h1 id="pageTitle">Dashboard Overview</h1>
+                <div class="admin-info">
+                    <span id="adminName">Admin User</span>
+                </div>
+            </div>
+
+            <div class="content-area">
+                <!-- Overview Page -->
+                <div id="overviewPage" class="page-content">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background: #3498db;">👥</div>
+                            <div class="stat-info">
+                                <div class="stat-value" id="totalUsers">0</div>
+                                <div class="stat-label">Total Users</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background: #27ae60;">💰</div>
+                            <div class="stat-info">
+                                <div class="stat-value" id="totalInvestment">$0</div>
+                                <div class="stat-label">Total Investment</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background: #f39c12;">📊</div>
+                            <div class="stat-info">
+                                <div class="stat-value" id="totalEarnings">$0</div>
+                                <div class="stat-label">Earnings Distributed</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background: #e74c3c;">💸</div>
+                            <div class="stat-info">
+                                <div class="stat-value" id="totalWithdrawals">$0</div>
+                                <div class="stat-label">Total Withdrawals</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="btn btn-success" onclick="calculateDailyROI('premium')">Calculate Premium ROI (1%)</button>
+                        <button class="btn btn-primary" onclick="calculateDailyROI('regular')">Calculate Regular ROI (0.5%)</button>
+                        <button class="btn btn-info" onclick="refreshDashboard()">Refresh Data</button>
+                    </div>
+
+                    <!-- Income Summary Cards -->
+                    <h3 style="margin: 30px 0 20px; color: #f39c12;">Income Distribution Summary</h3>
+                    <div class="stats-grid">
+                        <div class="stat-card small">
+                            <div class="stat-info">
+                                <div class="stat-value" id="totalDailyRoi">$0</div>
+                                <div class="stat-label">Daily ROI</div>
+                            </div>
+                        </div>
+                        <div class="stat-card small">
+                            <div class="stat-info">
+                                <div class="stat-value" id="totalDirectIncome">$0</div>
+                                <div class="stat-label">Direct Income</div>
+                            </div>
+                        </div>
+                        <div class="stat-card small">
+                            <div class="stat-info">
+                                <div class="stat-value" id="totalSlabIncome">$0</div>
+                                <div class="stat-label">Slab Income</div>
+                            </div>
+                        </div>
+                        <div class="stat-card small">
+                            <div class="stat-info">
+                                <div class="stat-value" id="totalRoyaltyIncome">$0</div>
+                                <div class="stat-label">Royalty Income</div>
+                            </div>
+                        </div>
+                        <div class="stat-card small">
+                            <div class="stat-info">
+                                <div class="stat-value" id="totalSalaryIncome">$0</div>
+                                <div class="stat-label">Salary Income</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Users Page -->
+                <div id="usersPage" class="page-content" style="display: none;">
+                    <div class="page-header">
+                        <h2>User Management</h2>
+                        <input type="text" id="userSearch" placeholder="Search users..." class="search-input">
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>User ID</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Referral Code</th>
+                                    <th>Status</th>
+                                    <th>Total Invested</th>
+                                    <th>Total Income</th>
+                                    <th>Joined</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody">
+                                <tr>
+                                    <td colspan="9" class="loading">Loading users...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Wallets Page -->
+                <div id="walletsPage" class="page-content" style="display: none;">
+                    <div class="page-header">
+                        <h2>Wallet Management</h2>
+                        <input type="text" id="walletSearch" placeholder="Search by email..." class="search-input">
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Daily ROI</th>
+                                    <th>Direct Income</th>
+                                    <th>Slab Income</th>
+                                    <th>Royalty Income</th>
+                                    <th>Salary Income</th>
+                                    <th>Total</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="walletsTableBody">
+                                <tr>
+                                    <td colspan="8" class="loading">Loading wallets...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Withdrawals Page -->
+                <div id="withdrawalsPage" class="page-content" style="display: none;">
+                    <div class="page-header">
+                        <h2>Withdrawal Requests</h2>
+                        <select id="withdrawalFilter" onchange="loadWithdrawals()">
+                            <option value="">All Requests</option>
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Withdrawal Summary -->
+                    <div class="stats-grid" style="margin-bottom: 30px;">
+                        <div class="stat-card small" style="border-left: 4px solid #f39c12;">
+                            <div class="stat-info">
+                                <div class="stat-value" id="pendingCount">0</div>
+                                <div class="stat-label">Pending ($<span id="pendingAmount">0</span>)</div>
+                            </div>
+                        </div>
+                        <div class="stat-card small" style="border-left: 4px solid #27ae60;">
+                            <div class="stat-info">
+                                <div class="stat-value" id="approvedCount">0</div>
+                                <div class="stat-label">Approved ($<span id="approvedAmount">0</span>)</div>
+                            </div>
+                        </div>
+                        <div class="stat-card small" style="border-left: 4px solid #e74c3c;">
+                            <div class="stat-info">
+                                <div class="stat-value" id="cancelledCount">0</div>
+                                <div class="stat-label">Cancelled ($<span id="cancelledAmount">0</span>)</div>
+                            </div>
+                        </div>
+                        <div class="stat-card small" style="border-left: 4px solid #3498db;">
+                            <div class="stat-info">
+                                <div class="stat-value" id="totalWithdrawnAmount">$0</div>
+                                <div class="stat-label">Total Withdrawn</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>User ID</th>
+                                    <th>User</th>
+                                    <th>Amount</th>
+                                    <th>Payment Details</th>
+                                    <th>Status</th>
+                                    <th>Requested</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="withdrawalsTableBody">
+                                <tr>
+                                    <td colspan="7" class="loading">Loading withdrawals...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Investments Page -->
+                <div id="investmentsPage" class="page-content" style="display: none;">
+                    <div class="page-header">
+                        <h2>All Investments</h2>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>User ID</th>
+                                    <th>User</th>
+                                    <th>Email</th>
+                                    <th>Amount</th>
+                                    <th>Slab Rate</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="investmentsTableBody">
+                                <tr>
+                                    <td colspan="7" class="loading">Loading investments...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Transactions Page -->
+                <div id="transactionsPage" class="page-content" style="display: none;">
+                    <div class="page-header">
+                        <h2>All Transactions</h2>
+                        <select id="transactionFilter" onchange="filterTransactions()">
+                            <option value="all">All Types</option>
+                            <option value="daily_roi">Daily ROI</option>
+                            <option value="direct_income">Direct Income</option>
+                            <option value="slab_income">Slab Income</option>
+                            <option value="royalty_income">Royalty Income</option>
+                            <option value="salary_income">Salary Income</option>
+                            <option value="investment">Investment</option>
+                            <option value="withdrawal">Withdrawal</option>
+                        </select>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Type</th>
+                                    <th>Amount</th>
+                                    <th>Description</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transactionsTableBody">
+                                <tr>
+                                    <td colspan="5" class="loading">Loading transactions...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Income Calculator Page -->
+                <div id="incomePage" class="page-content" style="display: none;">
+                    <div class="page-header">
+                        <h2>Income Calculator & Distribution</h2>
+                    </div>
+                    
+                    <div class="income-calculator-grid">
+                        <!-- Daily ROI Calculator -->
+                        <div class="calculator-card">
+                            <h3>📈 Daily ROI</h3>
+                            <p class="calc-desc">Premium: 1% | Regular: 0.5%</p>
+                            <div class="calc-actions">
+                                <button class="btn btn-success" onclick="calculateDailyROI('premium')">Calculate Premium (1%)</button>
+                                <button class="btn btn-primary" onclick="calculateDailyROI('regular')">Calculate Regular (0.5%)</button>
+                            </div>
+                            <div id="roiResult" class="result-message" style="display: none;"></div>
+                        </div>
+
+                        <!-- Direct Income Calculator -->
+                        <div class="calculator-card">
+                            <h3>🎁 Direct Income</h3>
+                            <p class="calc-desc">5% on referral's investment amount</p>
+                            <div class="calc-actions">
+                                <button class="btn btn-success" onclick="calculateDirectIncome()">Calculate Direct Income</button>
+                            </div>
+                            <div id="directResult" class="result-message" style="display: none;"></div>
+                        </div>
+
+                        <!-- Slab Income Calculator -->
+                        <div class="calculator-card">
+                            <h3>📊 Slab Income</h3>
+                            <div class="slab-table">
+                                <table>
+                                    <tr><td>$1K - $5K</td><td>5%</td></tr>
+                                    <tr><td>$5K - $10K</td><td>10%</td></tr>
+                                    <tr><td>$10K - $25K</td><td>15%</td></tr>
+                                    <tr><td>$25K - $50K</td><td>20%</td></tr>
+                                    <tr><td>$50K - $100K</td><td>25%</td></tr>
+                                    <tr><td>$100K - $200K</td><td>30%</td></tr>
+                                    <tr><td>$200K - $500K</td><td>35%</td></tr>
+                                    <tr><td>$500K - $1M</td><td>40%</td></tr>
+                                    <tr><td>$1M+</td><td>45%</td></tr>
+                                </table>
+                            </div>
+                            <div class="calc-actions">
+                                <button class="btn btn-success" onclick="calculateSlabIncome()">Calculate Slab Income</button>
+                            </div>
+                            <div id="slabResult" class="result-message" style="display: none;"></div>
+                        </div>
+
+                        <!-- Royalty Income Calculator -->
+                        <div class="calculator-card">
+                            <h3>👑 Royalty Income</h3>
+                            <p class="calc-desc">Level 1: 10% | Level 2: 5% | Level 3: 5%</p>
+                            <div class="calc-actions">
+                                <button class="btn btn-success" onclick="calculateRoyaltyIncome()">Calculate Royalty Income</button>
+                            </div>
+                            <div id="royaltyResult" class="result-message" style="display: none;"></div>
+                        </div>
+
+                        <!-- Salary Income (Automatic) -->
+                        <div class="calculator-card">
+                            <h3>💼 Monthly Salary Income</h3>
+                            <p class="calc-desc">Auto-distributed based on business volume (40/60 rule)</p>
+                            <div class="salary-table">
+                                <table>
+                                    <tr><th>Business</th><th>Salary/Month</th><th>Duration</th></tr>
+                                    <tr><td>$5,000+</td><td>$15</td><td>10 months</td></tr>
+                                    <tr><td>$10,000+</td><td>$30</td><td>10 months</td></tr>
+                                    <tr><td>$15,000+</td><td>$45</td><td>10 months</td></tr>
+                                    <tr><td>$30,000+</td><td>$60</td><td>10 months</td></tr>
+                                </table>
+                                <p class="calc-desc" style="margin-top: 10px; font-size: 12px;">
+                                    <strong>Condition:</strong> 40% in Power Leg, 60% in Weaker Legs
+                                </p>
+                            </div>
+                            <div class="calc-actions">
+                                <button class="btn btn-success" onclick="calculateSalaryIncome()">Calculate & Distribute Salary</button>
+                                <button class="btn btn-outline" onclick="viewSalaryStatus()" style="margin-left: 10px;">View Status</button>
+                            </div>
+                            <div id="salaryAutoResult" class="result-message" style="display: none;"></div>
+                        </div>
+
+                        <!-- Manual Salary Credit -->
+                        <div class="calculator-card">
+                            <h3>💰 Manual Salary Credit</h3>
+                            <p class="calc-desc">Manual credit for special cases</p>
+                            <div class="form-group">
+                                <select id="salaryUserId" style="width: 100%; padding: 10px; margin-bottom: 10px;">
+                                    <option value="">Select User</option>
+                                </select>
+                                <input type="number" id="salaryAmount" placeholder="Salary Amount" style="width: 100%; padding: 10px; margin-bottom: 10px;">
+                            </div>
+                            <div class="calc-actions">
+                                <button class="btn btn-success" onclick="creditSalaryIncome()">Credit Salary</button>
+                            </div>
+                            <div id="salaryResult" class="result-message" style="display: none;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Salary Status Table -->
+                    <div id="salaryStatusSection" style="display: none; margin-top: 30px;">
+                        <h3 style="color: var(--primary); margin-bottom: 20px;">Salary Eligibility Status</h3>
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>User</th>
+                                        <th>Business Volume</th>
+                                        <th>Power Leg %</th>
+                                        <th>Weaker Legs %</th>
+                                        <th>Eligible</th>
+                                        <th>Tier</th>
+                                        <th>Months Paid</th>
+                                        <th>Total Earned</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="salaryStatusTableBody">
+                                    <tr>
+                                        <td colspan="8" class="loading">Loading...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- P2P Transfer Page -->
+                <div id="p2pPage" class="page-content" style="display: none;">
+                    <div class="page-header">
+                        <h2>P2P Wallet Transfer</h2>
+                    </div>
+                    
+                    <!-- Transfer Form Card -->
+                    <div class="p2p-transfer-section">
+                        <div class="calculator-card" style="max-width: 600px;">
+                            <h3>🔄 Transfer Funds Between Users</h3>
+                            <p class="calc-desc">Transfer funds from one user's Main Wallet to another (No OTP required for admin)</p>
+                            
+                            <div class="form-group">
+                                <label>Sender User ID</label>
+                                <input type="number" id="p2pSenderUserId" placeholder="Enter sender's User ID (e.g., 100001)" style="width: 100%; padding: 12px;">
+                                <div id="senderInfo" class="user-info-preview" style="display: none;"></div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Recipient User ID</label>
+                                <input type="number" id="p2pRecipientUserId" placeholder="Enter recipient's User ID (e.g., 100002)" style="width: 100%; padding: 12px;">
+                                <div id="recipientInfo" class="user-info-preview" style="display: none;"></div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Select Wallet</label>
+                                <select id="p2pWalletType" style="width: 100%; padding: 12px;">
+                                    <option value="main">Main Wallet (All Income)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Amount ($)</label>
+                                <input type="number" id="p2pAmount" placeholder="Enter amount to transfer" step="0.01" min="0" style="width: 100%; padding: 12px;">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Description (Optional)</label>
+                                <input type="text" id="p2pDescription" placeholder="Reason for transfer" style="width: 100%; padding: 12px;">
+                            </div>
+                            
+                            <div class="calc-actions">
+                                <button class="btn btn-success btn-large" onclick="executeP2PTransfer()" style="width: 100%;">
+                                    Transfer Funds
+                                </button>
+                            </div>
+                            <div id="p2pResult" class="result-message" style="display: none;"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Transfer History -->
+                    <div style="margin-top: 40px;">
+                        <h3 style="margin-bottom: 20px; color: #f39c12;">Recent P2P Transfers</h3>
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Sender</th>
+                                        <th>Recipient</th>
+                                        <th>Amount</th>
+                                        <th>Admin Transfer</th>
+                                        <th>Description</th>
+                                        <th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="p2pTransfersTableBody">
+                                    <tr>
+                                        <td colspan="6" class="loading">Loading transfers...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- User Detail Modal -->
+    <div id="userModal" class="modal" style="display: none;">
+        <div class="modal-content modal-large">
+            <span class="close" onclick="closeUserModal()">&times;</span>
+            <h2 id="modalUserName">User Details</h2>
+            <div id="modalUserContent"></div>
+            
+            <!-- Wallet Income Details -->
+            <div class="wallet-details-section">
+                <h3>💰 Income Wallets</h3>
+                <div class="wallet-grid" id="walletGrid">
+                    <!-- Filled dynamically -->
+                </div>
+            </div>
+            
+            <!-- Manual Income Credit -->
+            <div class="modal-actions">
+                <h3>Credit Income</h3>
+                <div class="wallet-management">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Income Type</label>
+                            <select id="incomeType">
+                                <option value="daily_roi">Daily ROI</option>
+                                <option value="direct_income">Direct Income</option>
+                                <option value="slab_income">Slab Income</option>
+                                <option value="royalty_income">Royalty Income</option>
+                                <option value="salary_income">Salary Income</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Amount</label>
+                            <input type="number" id="incomeAmount" step="0.01" placeholder="Enter amount">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <input type="text" id="incomeDescription" placeholder="Reason for credit">
+                    </div>
+                    <div class="button-group">
+                        <button class="btn btn-success" onclick="creditIncome()">Credit Income</button>
+                        <button class="btn btn-danger" onclick="debitIncome()">Debit Income</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/api/admin/admin-script.js"></script>
+</body>
+</html>

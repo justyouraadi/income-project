@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SS Money Resource - User Dashboard</title>
+    <link rel="stylesheet" href="/api/user/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Auth Screen -->
+    <div id="authScreen" class="auth-screen">
+        <div class="auth-container">
+            <!-- Login Form -->
+            <div id="loginForm" class="auth-form">
+                <div class="auth-header">
+                    <h1>Welcome Back</h1>
+                    <p>SS Money Resource</p>
+                </div>
+                <form onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="loginEmail" placeholder="Enter your email" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="loginPassword" placeholder="Enter your password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full">Login</button>
+                </form>
+                <div class="auth-links">
+                    <a href="#" onclick="showForgotPassword()">Forgot Password?</a>
+                    <p>Don't have an account? <a href="#" onclick="showSignup()">Sign Up</a></p>
+                </div>
+                <div id="loginError" class="error-message"></div>
+            </div>
+
+            <!-- Signup Form -->
+            <div id="signupForm" class="auth-form" style="display: none;">
+                <div class="auth-header">
+                    <h1>Create Account</h1>
+                    <p>Join SS Money Resource</p>
+                </div>
+                <form onsubmit="handleSignup(event)">
+                    <div class="form-group">
+                        <label>Full Name</label>
+                        <input type="text" id="signupName" placeholder="Enter your full name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="signupEmail" placeholder="Enter your email" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="signupPassword" placeholder="Create a password" required minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label>Referral Code (Optional)</label>
+                        <input type="text" id="signupReferral" placeholder="Enter referral code or User ID">
+                        <div id="referrerInfo" class="referrer-info"></div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full">Create Account</button>
+                </form>
+                <div class="auth-links">
+                    <p>Already have an account? <a href="#" onclick="showLogin()">Login</a></p>
+                </div>
+                <div id="signupError" class="error-message"></div>
+                <div id="signupSuccess" class="success-message"></div>
+            </div>
+
+            <!-- Forgot Password Form -->
+            <div id="forgotForm" class="auth-form" style="display: none;">
+                <div class="auth-header">
+                    <h1>Reset Password</h1>
+                    <p>Enter your email to receive reset instructions</p>
+                </div>
+                <form onsubmit="handleForgotPassword(event)">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="forgotEmail" placeholder="Enter your email" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full">Send Reset Link</button>
+                </form>
+                <div class="auth-links">
+                    <p>Remember your password? <a href="#" onclick="showLogin()">Login</a></p>
+                </div>
+                <div id="forgotMessage" class="success-message"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="mainApp" class="main-app" style="display: none;">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>SS Money Resource</h2>
+                <p id="userNameSidebar">User</p>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-page="dashboard">
+                    <span class="nav-icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-item" data-page="wallet">
+                    <span class="nav-icon">💰</span>
+                    <span>Wallet</span>
+                </a>
+                <a href="#" class="nav-item" data-page="invest">
+                    <span class="nav-icon">📈</span>
+                    <span>Invest</span>
+                </a>
+                <a href="#" class="nav-item" data-page="p2p">
+                    <span class="nav-icon">🔄</span>
+                    <span>P2P Transfer</span>
+                </a>
+                <a href="#" class="nav-item" data-page="team">
+                    <span class="nav-icon">👥</span>
+                    <span>My Team</span>
+                </a>
+                <a href="#" class="nav-item" data-page="withdraw">
+                    <span class="nav-icon">💸</span>
+                    <span>Withdraw</span>
+                </a>
+                <a href="#" class="nav-item" data-page="learn">
+                    <span class="nav-icon">📚</span>
+                    <span>Learn</span>
+                </a>
+                <a href="#" class="nav-item" data-page="profile">
+                    <span class="nav-icon">👤</span>
+                    <span>Profile</span>
+                </a>
+                <a href="#" class="nav-item" onclick="logout()">
+                    <span class="nav-icon">🚪</span>
+                    <span>Logout</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="top-bar">
+                <h1 id="pageTitle">Dashboard</h1>
+                <div class="user-info">
+                    <span id="userIdDisplay">#000000</span>
+                    <span id="userNameDisplay">User</span>
+                </div>
+            </div>
+
+            <div class="content-area">
+                <!-- Dashboard Page -->
+                <div id="dashboardPage" class="page-content">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">💰</div>
+                            <div class="stat-info">
+                                <span class="stat-value" id="totalBalance">$0.00</span>
+                                <span class="stat-label">Total Balance</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">📈</div>
+                            <div class="stat-info">
+                                <span class="stat-value" id="totalInvestment">$0.00</span>
+                                <span class="stat-label">Total Investment</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">👥</div>
+                            <div class="stat-info">
+                                <span class="stat-value" id="teamSize">0</span>
+                                <span class="stat-label">Team Size</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">💸</div>
+                            <div class="stat-info">
+                                <span class="stat-value" id="totalWithdrawn">$0.00</span>
+                                <span class="stat-label">Total Withdrawn</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Referral Section -->
+                    <div class="referral-card">
+                        <h3>Your Referral Link</h3>
+                        <div class="referral-link-box">
+                            <input type="text" id="referralLink" readonly>
+                            <button class="btn btn-primary" onclick="copyReferralLink()">Copy</button>
+                        </div>
+                        <p class="referral-info">Share this link to earn 5% direct income on referrals!</p>
+                    </div>
+
+                    <!-- Recent Transactions -->
+                    <div class="section-card">
+                        <h3>Recent Transactions</h3>
+                        <div class="transactions-list" id="recentTransactions">
+                            <p class="empty-state">No transactions yet</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Wallet Page -->
+                <div id="walletPage" class="page-content" style="display: none;">
+                    <h2 class="page-subtitle">Your Wallets</h2>
+                    <div class="wallet-grid">
+                        <div class="wallet-card">
+                            <div class="wallet-icon">📅</div>
+                            <div class="wallet-info">
+                                <span class="wallet-name">Daily ROI</span>
+                                <span class="wallet-balance" id="dailyRoiBalance">$0.00</span>
+                            </div>
+                        </div>
+                        <div class="wallet-card">
+                            <div class="wallet-icon">👤</div>
+                            <div class="wallet-info">
+                                <span class="wallet-name">Direct Income</span>
+                                <span class="wallet-balance" id="directIncomeBalance">$0.00</span>
+                            </div>
+                        </div>
+                        <div class="wallet-card">
+                            <div class="wallet-icon">📊</div>
+                            <div class="wallet-info">
+                                <span class="wallet-name">Slab Income</span>
+                                <span class="wallet-balance" id="slabIncomeBalance">$0.00</span>
+                            </div>
+                        </div>
+                        <div class="wallet-card">
+                            <div class="wallet-icon">👑</div>
+                            <div class="wallet-info">
+                                <span class="wallet-name">Royalty Income</span>
+                                <span class="wallet-balance" id="royaltyIncomeBalance">$0.00</span>
+                            </div>
+                        </div>
+                        <div class="wallet-card">
+                            <div class="wallet-icon">💼</div>
+                            <div class="wallet-info">
+                                <span class="wallet-name">Salary Income</span>
+                                <span class="wallet-balance" id="salaryIncomeBalance">$0.00</span>
+                            </div>
+                        </div>
+                        <div class="wallet-card wallet-main">
+                            <div class="wallet-icon">🏦</div>
+                            <div class="wallet-info">
+                                <span class="wallet-name">Main Wallet (Total)</span>
+                                <span class="wallet-balance" id="mainWalletBalance">$0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Invest Page -->
+                <div id="investPage" class="page-content" style="display: none;">
+                    <h2 class="page-subtitle">Make Investment</h2>
+                    <div class="invest-card">
+                        <div class="invest-info">
+                            <h3>Investment Plans</h3>
+                            <ul class="invest-benefits">
+                                <li>Premium Plan (1% Daily ROI)</li>
+                                <li>Regular Plan (0.5% Daily ROI)</li>
+                                <li>5% Direct Referral Income</li>
+                                <li>Slab & Royalty Bonuses</li>
+                            </ul>
+                        </div>
+                        <div class="invest-form">
+                            <div class="form-group">
+                                <label>Investment Amount ($)</label>
+                                <input type="number" id="investAmount" placeholder="Enter amount" min="100">
+                            </div>
+                            <div class="form-group">
+                                <label>Select Plan</label>
+                                <select id="investPlan">
+                                    <option value="premium">Premium (1% Daily ROI)</option>
+                                    <option value="regular">Regular (0.5% Daily ROI)</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-primary btn-full" onclick="makeInvestment()">Invest Now</button>
+                            <div id="investMessage" class="message"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- P2P Transfer Page -->
+                <div id="p2pPage" class="page-content" style="display: none;">
+                    <h2 class="page-subtitle">P2P Wallet Transfer</h2>
+                    <div class="p2p-card">
+                        <div class="p2p-form">
+                            <div class="form-group">
+                                <label>Recipient User ID</label>
+                                <input type="number" id="p2pRecipientId" placeholder="Enter User ID (e.g., 100001)">
+                                <div id="p2pRecipientInfo" class="recipient-info"></div>
+                            </div>
+                            <div class="form-group">
+                                <label>Wallet</label>
+                                <select id="p2pWallet" disabled>
+                                    <option value="main">Main Wallet</option>
+                                </select>
+                                <small>P2P transfers use Main Wallet balance</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Amount ($)</label>
+                                <input type="number" id="p2pAmountInput" placeholder="Enter amount" min="1" step="0.01">
+                            </div>
+                            <button class="btn btn-primary btn-full" onclick="initiateP2PTransfer()">Send OTP & Transfer</button>
+                            <div id="p2pMessage" class="message"></div>
+                        </div>
+                    </div>
+
+                    <!-- OTP Verification Modal -->
+                    <div id="otpModal" class="modal" style="display: none;">
+                        <div class="modal-content">
+                            <h3>Verify OTP</h3>
+                            <p>Enter the OTP sent to your email</p>
+                            <div class="form-group">
+                                <input type="text" id="otpInput" placeholder="Enter 6-digit OTP" maxlength="6">
+                            </div>
+                            <div class="modal-buttons">
+                                <button class="btn btn-primary" onclick="verifyP2PTransfer()">Verify & Transfer</button>
+                                <button class="btn btn-outline" onclick="closeOtpModal()">Cancel</button>
+                            </div>
+                            <div id="otpMessage" class="message"></div>
+                        </div>
+                    </div>
+
+                    <!-- Transfer History -->
+                    <div class="section-card" style="margin-top: 30px;">
+                        <h3>Transfer History</h3>
+                        <div class="transfers-list" id="p2pHistory">
+                            <p class="empty-state">No transfers yet</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Team Page -->
+                <div id="teamPage" class="page-content" style="display: none;">
+                    <h2 class="page-subtitle">My Team</h2>
+                    <div class="team-stats">
+                        <div class="team-stat">
+                            <span class="team-stat-value" id="totalTeamMembers">0</span>
+                            <span class="team-stat-label">Total Members</span>
+                        </div>
+                        <div class="team-stat">
+                            <span class="team-stat-value" id="directReferrals">0</span>
+                            <span class="team-stat-label">Direct Referrals</span>
+                        </div>
+                    </div>
+                    <div class="section-card">
+                        <h3>Team Members</h3>
+                        <div class="team-list" id="teamList">
+                            <p class="empty-state">No team members yet. Share your referral link!</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Withdraw Page -->
+                <div id="withdrawPage" class="page-content" style="display: none;">
+                    <h2 class="page-subtitle">Withdraw Funds</h2>
+                    <div class="withdraw-card">
+                        <div class="available-balance">
+                            <span>Available Balance</span>
+                            <span class="balance-amount" id="withdrawableBalance">$0.00</span>
+                        </div>
+                        <div class="withdraw-form">
+                            <div class="form-group">
+                                <label>Amount ($)</label>
+                                <input type="number" id="withdrawAmount" placeholder="Enter amount" min="10">
+                            </div>
+                            <div class="form-group">
+                                <label>Payment Method</label>
+                                <select id="withdrawMethod">
+                                    <option value="bank">Bank Transfer</option>
+                                    <option value="upi">UPI</option>
+                                    <option value="crypto">Crypto Wallet</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Payment Details</label>
+                                <input type="text" id="withdrawDetails" placeholder="Enter account/wallet details">
+                            </div>
+                            <button class="btn btn-primary btn-full" onclick="requestWithdrawal()">Request Withdrawal</button>
+                            <div id="withdrawMessage" class="message"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Withdrawal History -->
+                    <div class="section-card" style="margin-top: 30px;">
+                        <h3>Withdrawal History</h3>
+                        <div class="withdrawals-list" id="withdrawalHistory">
+                            <p class="empty-state">No withdrawals yet</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Learn Page -->
+                <div id="learnPage" class="page-content" style="display: none;">
+                    <h2 class="page-subtitle">Learning Center</h2>
+                    <div class="learn-grid">
+                        <div class="learn-card">
+                            <div class="learn-icon">📈</div>
+                            <h3>Trading Basics</h3>
+                            <p>Learn the fundamentals of trading and market analysis.</p>
+                            <span class="learn-badge">5 Lessons</span>
+                        </div>
+                        <div class="learn-card">
+                            <div class="learn-icon">💰</div>
+                            <h3>Investment Strategies</h3>
+                            <p>Master different investment strategies for maximum returns.</p>
+                            <span class="learn-badge">8 Lessons</span>
+                        </div>
+                        <div class="learn-card">
+                            <div class="learn-icon">🎯</div>
+                            <h3>Risk Management</h3>
+                            <p>Understand how to manage and minimize investment risks.</p>
+                            <span class="learn-badge">6 Lessons</span>
+                        </div>
+                        <div class="learn-card">
+                            <div class="learn-icon">👥</div>
+                            <h3>Team Building</h3>
+                            <p>Learn effective techniques to grow your network.</p>
+                            <span class="learn-badge">4 Lessons</span>
+                        </div>
+                        <div class="learn-card">
+                            <div class="learn-icon">📊</div>
+                            <h3>Technical Analysis</h3>
+                            <p>Deep dive into charts, patterns and indicators.</p>
+                            <span class="learn-badge">10 Lessons</span>
+                        </div>
+                        <div class="learn-card">
+                            <div class="learn-icon">🏆</div>
+                            <h3>Leadership Skills</h3>
+                            <p>Develop leadership qualities for team success.</p>
+                            <span class="learn-badge">7 Lessons</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Profile Page -->
+                <div id="profilePage" class="page-content" style="display: none;">
+                    <h2 class="page-subtitle">My Profile</h2>
+                    <div class="profile-card">
+                        <div class="profile-header">
+                            <div class="profile-avatar">👤</div>
+                            <div class="profile-name" id="profileName">User Name</div>
+                            <div class="profile-id" id="profileId">#000000</div>
+                        </div>
+                        <div class="profile-details">
+                            <div class="profile-item">
+                                <span class="profile-label">Email</span>
+                                <span class="profile-value" id="profileEmail">user@example.com</span>
+                            </div>
+                            <div class="profile-item">
+                                <span class="profile-label">Referral Code</span>
+                                <span class="profile-value" id="profileReferralCode">XXXXXX</span>
+                            </div>
+                            <div class="profile-item">
+                                <span class="profile-label">Joined Date</span>
+                                <span class="profile-value" id="profileJoinDate">-</span>
+                            </div>
+                            <div class="profile-item">
+                                <span class="profile-label">Status</span>
+                                <span class="profile-value status-active" id="profileStatus">Active</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/api/user/script.js"></script>
+</body>
+</html>

@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SS Money Resource - Learn, Earn & Lead</title>
+    <link rel="stylesheet" href="/api/website/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-content">
+                <a href="#" class="logo">
+                    <img src="/api/website/logo.jpg" alt="SS Money Resource" class="logo-img">
+                    <span class="logo-text">SS Money Resource</span>
+                </a>
+                <ul class="nav-links">
+                    <li><a href="#about">About</a></li>
+                    <li><a href="#features">Features</a></li>
+                    <li><a href="#income">Income Plans</a></li>
+                    <li><a href="#learning">Learning</a></li>
+                    <li><a href="#testimonials">Success Stories</a></li>
+                    <li><a href="#contact">Contact</a></li>
+                </ul>
+                <div class="nav-buttons">
+                    <a href="/api/user/" class="btn btn-outline">Login</a>
+                    <a href="/api/user/#signup" class="btn btn-primary">Sign Up</a>
+                </div>
+                <div class="mobile-menu-toggle" onclick="toggleMobileMenu()">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+        </div>
+        <!-- Mobile Menu -->
+        <div class="mobile-menu" id="mobileMenu">
+            <ul>
+                <li><a href="#about" onclick="toggleMobileMenu()">About</a></li>
+                <li><a href="#features" onclick="toggleMobileMenu()">Features</a></li>
+                <li><a href="#income" onclick="toggleMobileMenu()">Income Plans</a></li>
+                <li><a href="#learning" onclick="toggleMobileMenu()">Learning</a></li>
+                <li><a href="#testimonials" onclick="toggleMobileMenu()">Success Stories</a></li>
+                <li><a href="#contact" onclick="toggleMobileMenu()">Contact</a></li>
+                <li><a href="/api/user/" class="btn btn-outline" onclick="toggleMobileMenu()">Login</a></li>
+                <li><a href="/api/user/#signup" class="btn btn-primary" onclick="toggleMobileMenu()">Sign Up</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-bg-effects">
+            <div class="hero-gradient"></div>
+            <div class="hero-circle circle-1"></div>
+            <div class="hero-circle circle-2"></div>
+            <div class="hero-particles"></div>
+        </div>
+        <div class="container">
+            <div class="hero-content">
+                <div class="hero-text">
+                    <div class="hero-badge">
+                        <span class="badge-icon">🚀</span>
+                        <span>Next-Gen Income Platform</span>
+                    </div>
+                    <h1 class="hero-title">
+                        Master <span class="gradient-text">Learning,</span><br>
+                        Build <span class="gradient-text">Wealth,</span><br>
+                        Create <span class="gradient-text">Freedom</span>
+                    </h1>
+                    <p class="hero-subtitle">
+                        Join thousands of successful members learning trading, building passive income, and achieving financial freedom through our revolutionary platform.
+                    </p>
+                    <div class="hero-buttons">
+                        <a href="#download" class="btn btn-primary btn-lg">
+                            <span>Start Your Journey</span>
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                <path d="M4 10H16M16 10L10 4M16 10L10 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </a>
+                        <a href="#features" class="btn btn-outline btn-lg">
+                            <span>Explore Features</span>
+                        </a>
+                    </div>
+                </div>
+                <div class="hero-image">
+                    <div class="hero-image-wrapper">
+                        <img src="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=600&h=600&fit=crop" alt="Trading Dashboard" class="hero-img">
+                        <div class="floating-card card-1">
+                            <div class="card-icon">📈</div>
+                            <div class="card-content">
+                                <span class="card-value">+1.5%</span>
+                                <span class="card-label">Daily ROI</span>
+                            </div>
+                        </div>
+                        <div class="floating-card card-2">
+                            <div class="card-icon">💰</div>
+                            <div class="card-content">
+                                <span class="card-value">5%</span>
+                                <span class="card-label">Direct Income</span>
+                            </div>
+                        </div>
+                        <div class="floating-card card-3">
+                            <div class="card-icon">👥</div>
+                            <div class="card-content">
+                                <span class="card-value">10K+</span>
+                                <span class="card-label">Active Users</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+            <div class="container">
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-number" data-count="10000">10K+</div>
+                        <div class="stat-label">Active Members</div>
+                    </div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-item">
+                        <div class="stat-number">200+</div>
+                        <div class="stat-label">Expert Courses</div>
+                    </div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-item">
+                        <div class="stat-number">$5M+</div>
+                        <div class="stat-label">Earnings Distributed</div>
+                    </div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-item">
+                        <div class="stat-number">98%</div>
+                        <div class="stat-label">Success Rate</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="about-section">
+        <div class="container">
+            <div class="about-content">
+                <div class="about-image">
+                    <div class="about-image-wrapper">
+                        <img src="logo.jpg" alt="SS Money Resource" class="about-main-img">
+                        <div class="about-decoration"></div>
+                    </div>
+                </div>
+                <div class="about-text">
+                    <span class="section-tag">About Us</span>
+                    <h2 class="section-title">Empowering Financial Freedom Through Innovation</h2>
+                    <p class="about-description">
+                        SS Money Resource is a revolutionary next-generation income platform that combines cutting-edge technology with proven wealth-building strategies. We provide individuals worldwide with the tools, knowledge, and opportunities to achieve financial independence.
+                    </p>
+                    <p class="about-description">
+                        Our platform is built on three core pillars: <strong>Learning</strong>, <strong>Earning</strong>, and <strong>Leadership</strong>. We believe that true financial freedom comes from continuous education, multiple income streams, and the ability to lead and inspire others.
+                    </p>
+                    <div class="about-features">
+                        <div class="about-feature">
+                            <div class="feature-check">✓</div>
+                            <span>Blockchain Transparency</span>
+                        </div>
+                        <div class="about-feature">
+                            <div class="feature-check">✓</div>
+                            <span>5 Income Streams</span>
+                        </div>
+                        <div class="about-feature">
+                            <div class="feature-check">✓</div>
+                            <span>Expert Education</span>
+                        </div>
+                        <div class="about-feature">
+                            <div class="feature-check">✓</div>
+                            <span>24/7 Support</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features-section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Why Choose Us</span>
+                <h2 class="section-title">Everything You Need to Succeed</h2>
+                <p class="section-subtitle">We combine cutting-edge technology with proven methods and unlimited earning potential.</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                            <path d="M22 12H18L15 21L9 3L6 12H2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Live Trading Signals</h3>
+                    <p class="feature-description">Get real-time forex and crypto signals from expert traders with proven track records.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon icon-blue">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Premium Courses</h3>
+                    <p class="feature-description">Access 200+ comprehensive courses covering everything from basics to advanced strategies.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon icon-green">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 2V22M17 5H9.5C8.57174 5 7.6815 5.36875 7.02513 6.02513C6.36875 6.6815 6 7.57174 6 8.5C6 9.42826 6.36875 10.3185 7.02513 10.9749C7.6815 11.6313 8.57174 12 9.5 12H14.5C15.4283 12 16.3185 12.3687 16.9749 13.0251C17.6313 13.6815 18 14.5717 18 15.5C18 16.4283 17.6313 17.3185 16.9749 17.9749C16.3185 18.6313 15.4283 19 14.5 19H6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Multiple Income Streams</h3>
+                    <p class="feature-description">Build unlimited income through our proven multi-level system with 5 earning types.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon icon-purple">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 22S8 18 8 12C8 9.79086 9.79086 8 12 8C14.2091 8 16 9.79086 16 12C16 18 12 22 12 22Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                            <path d="M12 2V4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M4.93 4.93L6.34 6.34" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M2 12H4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M20 12H22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M17.66 6.34L19.07 4.93" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Secure Platform</h3>
+                    <p class="feature-description">Trade with confidence on our encrypted, secure platform with 24/7 monitoring.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon icon-red">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                            <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Instant Execution</h3>
+                    <p class="feature-description">Lightning-fast trade execution with minimal slippage and maximum efficiency.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon icon-orange">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                            <path d="M3 3V21H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M7 16L12 11L16 15L21 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Goal Tracking</h3>
+                    <p class="feature-description">Set and achieve your financial goals with our advanced tracking and analytics tools.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Income Section -->
+    <section id="income" class="income-section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Income Plans</span>
+                <h2 class="section-title">5 Ways to Earn With Us</h2>
+                <p class="section-subtitle">Diversify your income with our comprehensive earning system</p>
+            </div>
+            <div class="income-grid">
+                <div class="income-card">
+                    <div class="income-icon">💰</div>
+                    <h3>Daily ROI</h3>
+                    <div class="income-percentage">1.5%</div>
+                    <p>Earn 1.5% daily returns on your investment automatically.</p>
+                    <ul class="income-features">
+                        <li>✓ Automatic daily credit</li>
+                        <li>✓ Compounding available</li>
+                        <li>✓ No minimum lock-in</li>
+                    </ul>
+                </div>
+                <div class="income-card highlight">
+                    <div class="badge">Most Popular</div>
+                    <div class="income-icon">🎁</div>
+                    <h3>Direct Income</h3>
+                    <div class="income-percentage">5%</div>
+                    <p>Instant 5% commission on every direct referral's investment.</p>
+                    <ul class="income-features">
+                        <li>✓ Instant payout</li>
+                        <li>✓ Unlimited referrals</li>
+                        <li>✓ Recurring income</li>
+                    </ul>
+                </div>
+                <div class="income-card">
+                    <div class="income-icon">📊</div>
+                    <h3>Slab Income</h3>
+                    <div class="income-percentage">Up to 15%</div>
+                    <p>Performance-based rewards tied to team business volume.</p>
+                    <ul class="income-features">
+                        <li>✓ Team performance bonuses</li>
+                        <li>✓ Monthly milestones</li>
+                        <li>✓ Growth incentives</li>
+                    </ul>
+                </div>
+                <div class="income-card">
+                    <div class="income-icon">🏆</div>
+                    <h3>Royalty Income</h3>
+                    <div class="income-percentage">20%</div>
+                    <p>Multi-level passive earnings from your team's performance.</p>
+                    <ul class="income-features">
+                        <li>✓ Level 1: 10%</li>
+                        <li>✓ Level 2: 5%</li>
+                        <li>✓ Level 3: 5%</li>
+                    </ul>
+                </div>
+                <div class="income-card">
+                    <div class="income-icon">💼</div>
+                    <h3>Salary Income</h3>
+                    <div class="income-percentage">Monthly</div>
+                    <p>Fixed monthly salary based on your leadership rank.</p>
+                    <ul class="income-features">
+                        <li>✓ Rank-based rewards</li>
+                        <li>✓ Consistent payouts</li>
+                        <li>✓ Career growth</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section id="how-it-works" class="how-it-works-section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">How It Works</span>
+                <h2 class="section-title">Start Earning in 4 Simple Steps</h2>
+                <p class="section-subtitle">Your journey from learner to leader</p>
+            </div>
+            <div class="steps-container">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>Sign Up & Learn</h3>
+                        <p>Create your account and access our comprehensive trading education platform.</p>
+                    </div>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>Make Investment</h3>
+                        <p>Start with any amount and begin earning 1.5% daily ROI immediately.</p>
+                    </div>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>Build Your Team</h3>
+                        <p>Share your referral code and earn 5% instant income on every referral.</p>
+                    </div>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <h3>Achieve Leadership</h3>
+                        <p>Unlock passive income streams and leadership rewards as your team grows.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Learning Section -->
+    <section id="learning" class="learning-section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Learning Center</span>
+                <h2 class="section-title">Master Trading Skills</h2>
+                <p class="section-subtitle">Comprehensive educational resources to help you succeed</p>
+            </div>
+            <div class="learning-grid">
+                <div class="learning-card">
+                    <div class="learning-icon" style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="white" stroke-width="2"/>
+                            <path d="M2 17L12 22L22 17" stroke="white" stroke-width="2"/>
+                            <path d="M2 12L12 17L22 12" stroke="white" stroke-width="2"/>
+                        </svg>
+                    </div>
+                    <h3>Forex Trading</h3>
+                    <p>Master currency pair analysis and forex trading strategies.</p>
+                    <span class="learning-meta">15 Hours • 30 Lessons</span>
+                </div>
+                <div class="learning-card">
+                    <div class="learning-icon" style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" stroke="white" stroke-width="2"/>
+                            <path d="M12 6V12L16 14" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <h3>Cryptocurrency</h3>
+                    <p>Understand blockchain technology and crypto trading.</p>
+                    <span class="learning-meta">20 Hours • 40 Lessons</span>
+                </div>
+                <div class="learning-card">
+                    <div class="learning-icon" style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%);">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                            <path d="M3 3V21H21" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M7 16L12 11L16 15L21 10" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <h3>Index Trading</h3>
+                    <p>Master stock index trading with proven strategies.</p>
+                    <span class="learning-meta">12 Hours • 25 Lessons</span>
+                </div>
+                <div class="learning-card">
+                    <div class="learning-icon" style="background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="white" stroke-width="2"/>
+                            <path d="M12 8V12L14 14" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <h3>Risk Management</h3>
+                    <p>Learn professional risk management techniques.</p>
+                    <span class="learning-meta">8 Hours • 18 Lessons</span>
+                </div>
+            </div>
+            <div class="learning-cta">
+                <p>🎓 All courses include lifetime access and certificate of completion</p>
+                <a href="#download" class="btn btn-primary">Start Learning Today</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials Section -->
+    <section id="testimonials" class="testimonials-section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Success Stories</span>
+                <h2 class="section-title">Hear From Our Community</h2>
+                <p class="section-subtitle">Real people, real results, real transformation</p>
+            </div>
+            <div class="testimonials-grid">
+                <div class="testimonial-card">
+                    <div class="testimonial-content">
+                        <div class="testimonial-stars">⭐⭐⭐⭐⭐</div>
+                        <p class="testimonial-text">"SS Money Resource transformed my trading journey. The courses are comprehensive and the MLM opportunity has created a sustainable income stream for my family."</p>
+                    </div>
+                    <div class="testimonial-author">
+                        <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop" alt="Sarah Johnson" class="author-img">
+                        <div class="author-info">
+                            <h4>Sarah Johnson</h4>
+                            <span>Full-Time Trader</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <div class="testimonial-content">
+                        <div class="testimonial-stars">⭐⭐⭐⭐⭐</div>
+                        <p class="testimonial-text">"I started with zero trading knowledge. Now I lead a team of 50+ traders and earn passive income while helping others succeed."</p>
+                    </div>
+                    <div class="testimonial-author">
+                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop" alt="Michael Chen" class="author-img">
+                        <div class="author-info">
+                            <h4>Michael Chen</h4>
+                            <span>Network Leader</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <div class="testimonial-content">
+                        <div class="testimonial-stars">⭐⭐⭐⭐⭐</div>
+                        <p class="testimonial-text">"The crypto trading signals are incredibly accurate. Combined with the learning resources, I have grown my portfolio by 300% in 6 months."</p>
+                    </div>
+                    <div class="testimonial-author">
+                        <img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop" alt="Emily Rodriguez" class="author-img">
+                        <div class="author-info">
+                            <h4>Emily Rodriguez</h4>
+                            <span>Crypto Enthusiast</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="contact-section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Get In Touch</span>
+                <h2 class="section-title">We're Here to Help</h2>
+                <p class="section-subtitle">Have questions? Our team is ready to assist you</p>
+            </div>
+            <div class="contact-grid">
+                <div class="contact-info">
+                    <div class="contact-card">
+                        <div class="contact-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <path d="M3 8L10.89 13.26C11.2187 13.4793 11.6049 13.5963 12 13.5963C12.3951 13.5963 12.7813 13.4793 13.11 13.26L21 8M5 19H19C20.1046 19 21 18.1046 21 17V7C21 5.89543 20.1046 5 19 5H5C3.89543 5 3 5.89543 3 7V17C3 18.1046 3.89543 19 5 19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4>Email Us</h4>
+                            <p>support@ssmoneyresource.com</p>
+                        </div>
+                    </div>
+                    <div class="contact-card">
+                        <div class="contact-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <path d="M3 5C3 3.89543 3.89543 3 5 3H8.27924C8.70967 3 9.09181 3.27543 9.22792 3.68377L10.7257 8.17721C10.8831 8.64932 10.6694 9.16531 10.2243 9.38787L7.96701 10.5165C9.06925 12.9612 11.0388 14.9308 13.4835 16.033L14.6121 13.7757C14.8347 13.3306 15.3507 13.1169 15.8228 13.2743L20.3162 14.7721C20.7246 14.9082 21 15.2903 21 15.7208V19C21 20.1046 20.1046 21 19 21H18C9.71573 21 3 14.2843 3 6V5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4>Call Us</h4>
+                            <p>+1 (555) 123-4567</p>
+                        </div>
+                    </div>
+                    <div class="contact-card">
+                        <div class="contact-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" stroke-width="2"/>
+                                <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4>Business Hours</h4>
+                            <p>24/7 Support Available</p>
+                        </div>
+                    </div>
+                    <div class="social-links">
+                        <h4>Follow Us</h4>
+                        <div class="social-icons">
+                            <a href="#" class="social-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg></a>
+                            <a href="#" class="social-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/></svg></a>
+                            <a href="#" class="social-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C8.74 0 8.333.015 7.053.072 5.775.132 4.905.333 4.14.63c-.789.306-1.459.717-2.126 1.384S.935 3.35.63 4.14C.333 4.905.131 5.775.072 7.053.012 8.333 0 8.74 0 12s.015 3.667.072 4.947c.06 1.277.261 2.148.558 2.913.306.788.717 1.459 1.384 2.126.667.666 1.336 1.079 2.126 1.384.766.296 1.636.499 2.913.558C8.333 23.988 8.74 24 12 24s3.667-.015 4.947-.072c1.277-.06 2.148-.262 2.913-.558.788-.306 1.459-.718 2.126-1.384.666-.667 1.079-1.335 1.384-2.126.296-.765.499-1.636.558-2.913.06-1.28.072-1.687.072-4.947s-.015-3.667-.072-4.947c-.06-1.277-.262-2.149-.558-2.913-.306-.789-.718-1.459-1.384-2.126C21.319 1.347 20.651.935 19.86.63c-.765-.297-1.636-.499-2.913-.558C15.667.012 15.26 0 12 0zm0 2.16c3.203 0 3.585.016 4.85.071 1.17.055 1.805.249 2.227.415.562.217.96.477 1.382.896.419.42.679.819.896 1.381.164.422.36 1.057.413 2.227.057 1.266.07 1.646.07 4.85s-.015 3.585-.074 4.85c-.061 1.17-.256 1.805-.421 2.227-.224.562-.479.96-.899 1.382-.419.419-.824.679-1.38.896-.42.164-1.065.36-2.235.413-1.274.057-1.649.07-4.859.07-3.211 0-3.586-.015-4.859-.074-1.171-.061-1.816-.256-2.236-.421-.569-.224-.96-.479-1.379-.899-.421-.419-.69-.824-.9-1.38-.165-.42-.359-1.065-.42-2.235-.045-1.26-.061-1.649-.061-4.844 0-3.196.016-3.586.061-4.861.061-1.17.255-1.814.42-2.234.21-.57.479-.96.9-1.381.419-.419.81-.689 1.379-.898.42-.166 1.051-.361 2.221-.421 1.275-.045 1.65-.06 4.859-.06l.045.03zm0 3.678c-3.405 0-6.162 2.76-6.162 6.162 0 3.405 2.76 6.162 6.162 6.162 3.405 0 6.162-2.76 6.162-6.162 0-3.405-2.76-6.162-6.162-6.162zM12 16c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4zm7.846-10.405c0 .795-.646 1.44-1.44 1.44-.795 0-1.44-.646-1.44-1.44 0-.794.646-1.439 1.44-1.439.793-.001 1.44.645 1.44 1.439z"/></svg></a>
+                            <a href="#" class="social-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>
+                        </div>
+                    </div>
+                </div>
+                <div class="contact-form-wrapper">
+                    <form class="contact-form" onsubmit="return handleContactForm(event)">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Full Name</label>
+                                <input type="text" name="name" required placeholder="John Doe">
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" name="email" required placeholder="john@example.com">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Subject</label>
+                            <input type="text" name="subject" required placeholder="How can we help you?">
+                        </div>
+                        <div class="form-group">
+                            <label>Message</label>
+                            <textarea name="message" required rows="4" placeholder="Your message..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block">Send Message</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section id="download" class="cta-section">
+        <div class="cta-bg-effects">
+            <div class="cta-gradient"></div>
+            <div class="cta-circle"></div>
+        </div>
+        <div class="container">
+            <div class="cta-content">
+                <h2 class="cta-title">Ready to Start Your Journey?</h2>
+                <p class="cta-subtitle">Join thousands of successful traders and network builders. Start learning, earning, and leading today.</p>
+                <div class="cta-buttons">
+                    <a href="#" class="btn btn-white btn-lg">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M17.05 20.28C16.07 21.23 15 21.08 13.97 20.63C12.88 20.17 11.88 20.15 10.73 20.63C9.29 21.25 8.53 21.07 7.67 20.28C2.78 15.25 3.51 7.59 9.05 7.31C10.4 7.38 11.34 8.05 12.13 8.11C13.31 7.87 14.44 7.18 15.7 7.27C17.21 7.39 18.35 7.99 19.1 9.07C15.98 10.94 16.72 15.05 19.58 16.09C19.01 17.6 18.27 19.08 17.04 20.29L17.05 20.28ZM12.03 7.25C11.88 5.02 13.69 3.18 15.77 3C16.06 5.58 13.43 7.5 12.03 7.25Z" fill="currentColor"/>
+                        </svg>
+                        Download for iOS
+                    </a>
+                    <a href="#" class="btn btn-white btn-lg">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 01-.61-.92V2.734a1 1 0 01.609-.92zm10.89 10.893l2.302 2.302-10.937 6.333 8.635-8.635zm3.199-3.198l2.807 1.626a1 1 0 010 1.73l-2.808 1.626L15.206 12l2.492-2.491zM5.864 2.658L16.802 8.99l-2.303 2.303-8.635-8.635z" fill="currentColor"/>
+                        </svg>
+                        Download for Android
+                    </a>
+                </div>
+                <p class="cta-note">No credit card required • Start earning today</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <img src="logo.jpg" alt="SS Money Resource" class="footer-logo">
+                    <p class="footer-description">Next-Gen Income Platform for Learning, Earning, and Leadership. Transform your financial future with us.</p>
+                </div>
+                <div class="footer-links">
+                    <div class="footer-column">
+                        <h4>Company</h4>
+                        <ul>
+                            <li><a href="#about">About Us</a></li>
+                            <li><a href="#features">Features</a></li>
+                            <li><a href="#income">Income Plans</a></li>
+                            <li><a href="#learning">Learning Center</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Support</h4>
+                        <ul>
+                            <li><a href="#">Help Center</a></li>
+                            <li><a href="#">Terms of Service</a></li>
+                            <li><a href="#">Privacy Policy</a></li>
+                            <li><a href="#contact">Contact Us</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Resources</h4>
+                        <ul>
+                            <li><a href="#">Blog</a></li>
+                            <li><a href="#">FAQ</a></li>
+                            <li><a href="#">Community</a></li>
+                            <li><a href="#">Webinars</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 SS Money Resource. All rights reserved.</p>
+                <div class="footer-social">
+                    <a href="#">Facebook</a>
+                    <a href="#">Twitter</a>
+                    <a href="#">Instagram</a>
+                    <a href="#">LinkedIn</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/api/website/script.js"></script>
+</body>
+</html>
