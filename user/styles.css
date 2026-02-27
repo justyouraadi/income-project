@@ -907,6 +907,87 @@ body {
     color: var(--success);
 }
 
+/* Top Bar Left Section */
+.top-bar-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+/* Hamburger Button */
+.hamburger-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    color: var(--primary);
+    transition: all 0.3s;
+    flex-shrink: 0;
+}
+
+.hamburger-btn:hover {
+    background: var(--primary);
+    color: var(--bg-primary);
+}
+
+.hamburger-btn:active {
+    transform: scale(0.95);
+}
+
+/* Sidebar Close Button */
+.sidebar-close-btn {
+    display: none;
+    position: absolute;
+    top: 20px;
+    right: 16px;
+    width: 36px;
+    height: 36px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all 0.3s;
+    align-items: center;
+    justify-content: center;
+}
+
+.sidebar-close-btn:hover {
+    background: var(--danger);
+    color: white;
+    border-color: var(--danger);
+}
+
+/* Sidebar Overlay */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 99;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.sidebar-overlay.active {
+    display: block;
+    opacity: 1;
+}
+
+/* Sidebar header relative positioning for close button */
+.sidebar-header {
+    position: relative;
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
     .sidebar {
@@ -921,38 +1002,194 @@ body {
 }
 
 @media (max-width: 768px) {
+    /* Show hamburger button */
+    .hamburger-btn {
+        display: flex;
+    }
+    
+    /* Show close button inside sidebar */
+    .sidebar-close-btn {
+        display: flex;
+    }
+    
+    /* Sidebar slides from left */
     .sidebar {
         position: fixed;
-        left: -260px;
-        width: 260px;
+        left: -280px;
+        width: 280px;
         z-index: 100;
-        transition: left 0.3s;
+        transition: left 0.3s ease;
+        box-shadow: none;
     }
+    
     .sidebar.open {
         left: 0;
+        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
     }
+    
+    /* Main content full width on mobile */
     .main-content {
         margin-left: 0;
+        padding: 16px;
     }
+    
+    /* Top bar adjustments */
     .top-bar {
-        flex-direction: column;
-        gap: 16px;
-        text-align: center;
+        flex-wrap: wrap;
+        gap: 12px;
     }
+    
+    .top-bar-left {
+        width: 100%;
+        justify-content: flex-start;
+    }
+    
+    .top-bar h1 {
+        font-size: 20px;
+    }
+    
+    .user-info {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+    
+    /* Stats grid 2 columns */
     .stats-grid {
         grid-template-columns: 1fr 1fr;
+        gap: 12px;
     }
+    
+    .stat-card {
+        padding: 16px;
+    }
+    
+    .stat-value {
+        font-size: 20px;
+    }
+    
+    /* Referral link box stack */
     .referral-link-box {
         flex-direction: column;
+    }
+    
+    /* Wallet grid */
+    .wallet-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    /* Learn grid */
+    .learn-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    /* Team stats */
+    .team-stats {
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .team-stat {
+        padding: 16px;
+    }
+    
+    /* P2P card full width */
+    .p2p-card {
+        max-width: 100%;
+    }
+    
+    /* Withdraw card full width */
+    .withdraw-card {
+        max-width: 100%;
+    }
+    
+    /* Profile card full width */
+    .profile-card {
+        max-width: 100%;
+    }
+    
+    /* Modal adjustments */
+    .modal-content {
+        width: 95%;
+        padding: 24px;
     }
 }
 
 @media (max-width: 480px) {
+    /* Single column stats */
     .stats-grid {
         grid-template-columns: 1fr;
     }
+    
+    .stat-card {
+        padding: 14px;
+    }
+    
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        font-size: 24px;
+    }
+    
+    .stat-value {
+        font-size: 18px;
+    }
+    
+    /* Auth form padding */
     .auth-form {
-        padding: 24px;
+        padding: 20px;
+    }
+    
+    .auth-header h1 {
+        font-size: 24px;
+    }
+    
+    /* Top bar */
+    .top-bar h1 {
+        font-size: 18px;
+    }
+    
+    .hamburger-btn {
+        width: 40px;
+        height: 40px;
+    }
+    
+    /* Section cards */
+    .section-card {
+        padding: 16px;
+    }
+    
+    .referral-card {
+        padding: 16px;
+    }
+    
+    /* Wallet balance font */
+    .wallet-balance {
+        font-size: 18px;
+    }
+    
+    /* Withdrawal balance */
+    .balance-amount {
+        font-size: 26px;
+    }
+    
+    /* Invest card */
+    .invest-card {
+        padding: 20px;
+    }
+    
+    .invest-benefits li {
+        padding: 8px 0;
+        font-size: 14px;
+    }
+    
+    /* Transaction items */
+    .transaction-item,
+    .team-member,
+    .withdrawal-item,
+    .transfer-item {
+        padding: 12px;
+        flex-wrap: wrap;
+        gap: 8px;
     }
 }
 

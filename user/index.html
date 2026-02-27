@@ -93,11 +93,20 @@
 
     <!-- Main App -->
     <div id="mainApp" class="main-app" style="display: none;">
+        <!-- Mobile Overlay -->
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+        
         <!-- Sidebar -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <h2>SS Money Resource</h2>
                 <p id="userNameSidebar">User</p>
+                <button class="sidebar-close-btn" onclick="toggleSidebar()" aria-label="Close menu">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
             </div>
             <nav class="sidebar-nav">
                 <a href="#" class="nav-item active" data-page="dashboard">
@@ -142,7 +151,16 @@
         <!-- Main Content -->
         <main class="main-content">
             <div class="top-bar">
-                <h1 id="pageTitle">Dashboard</h1>
+                <div class="top-bar-left">
+                    <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleSidebar()" aria-label="Open menu">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
+                    <h1 id="pageTitle">Dashboard</h1>
+                </div>
                 <div class="user-info">
                     <span id="userIdDisplay">#000000</span>
                     <span id="userNameDisplay">User</span>

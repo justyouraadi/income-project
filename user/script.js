@@ -6,6 +6,35 @@ let authToken = localStorage.getItem('userToken');
 let currentUser = null;
 let currentTransferId = null;
 
+// Toggle Sidebar Function for Mobile
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    
+    if (sidebar.classList.contains('open')) {
+        // Close sidebar
+        sidebar.classList.remove('open');
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+    } else {
+        // Open sidebar
+        sidebar.classList.add('open');
+        overlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+// Close sidebar when clicking a nav item on mobile
+function closeSidebarOnMobile() {
+    if (window.innerWidth <= 768) {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        sidebar.classList.remove('open');
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+}
+
 // Check auth on load
 document.addEventListener('DOMContentLoaded', async function() {
     // Check for signup hash
@@ -192,6 +221,9 @@ function setupNavigation() {
 }
 
 function navigateTo(page) {
+    // Close sidebar on mobile when navigating
+    closeSidebarOnMobile();
+    
     // Update active nav item
     document.querySelectorAll('.nav-item').forEach(item => {
         item.classList.remove('active');
