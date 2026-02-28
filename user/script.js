@@ -266,7 +266,7 @@ function loadPageData(page) {
             loadTeam();
             break;
         case 'withdraw':
-            loadWithdrawals();
+            loadWithdrawPage();
             break;
         case 'profile':
             loadProfile();
@@ -430,52 +430,78 @@ async function loadWallets() {
         if (response.ok) {
             const wallet = await response.json();
             
+            // Update all wallet balances including new Premium Invested Wallet
+            const premiumEl = document.getElementById('premiumInvestedBalance');
+            if (premiumEl) premiumEl.textContent = `$${(wallet.premium_invested || 0).toFixed(2)}`;
+            
             document.getElementById('dailyRoiBalance').textContent = `$${(wallet.daily_roi || 0).toFixed(2)}`;
             document.getElementById('directIncomeBalance').textContent = `$${(wallet.direct_income || 0).toFixed(2)}`;
             document.getElementById('slabIncomeBalance').textContent = `$${(wallet.slab_income || 0).toFixed(2)}`;
             document.getElementById('royaltyIncomeBalance').textContent = `$${(wallet.royalty_income || 0).toFixed(2)}`;
             document.getElementById('salaryIncomeBalance').textContent = `$${(wallet.salary_income || 0).toFixed(2)}`;
             
-            const total = (wallet.daily_roi || 0) + (wallet.direct_income || 0) + 
+            const total = (wallet.premium_invested || 0) + (wallet.daily_roi || 0) + (wallet.direct_income || 0) + 
                          (wallet.slab_income || 0) + (wallet.royalty_income || 0) + 
                          (wallet.salary_income || 0);
             document.getElementById('mainWalletBalance').textContent = `$${total.toFixed(2)}`;
-            document.getElementById('withdrawableBalance').textContent = `$${total.toFixed(2)}`;
+            
+            // Store wallet data for withdrawal page
+            window.currentWallet = wallet;
+            updateWithdrawWalletBalance();
         }
     } catch (error) {
         console.error('Error loading wallets:', error);
     }
 }
 
-// Make Investment
+// Update ROI Preview on investment amount change
+document.getElementById('investAmount')?.addEventListener('input', function() {
+    const amount = parseFloat(this.value) || 0;
+    const dailyRoi = amount * 0.015;
+    const premiumRoi = amount * 0.01;
+    const dailyRoiWallet = amount * 0.005;
+    
+    const previewEl = document.getElementById('roiPreview');
+    if (previewEl) {
+        previewEl.innerHTML = `
+            <span>Expected Daily ROI: <strong>$${dailyRoi.toFixed(2)}</strong></span>
+            <small style="display:block;margin-top:4px;color:var(--text-muted);">
+                Premium: $${premiumRoi.toFixed(2)} + Daily ROI: $${dailyRoiWallet.toFixed(2)}
+            </small>
+        `;
+    }
+});
+
+// Make Investment - Updated for single plan
 async function makeInvestment() {
     const amount = parseFloat(document.getElementById('investAmount').value);
-    const plan = document.getElementById('investPlan').value;
     const messageDiv = document.getElementById('investMessage');
     
-    if (!amount || amount < 100) {
-        messageDiv.textContent = 'Minimum investment is $100';
+    if (!amount || amount < 5) {
+        messageDiv.textContent = 'Minimum investment is $5';
         messageDiv.className = 'message error';
         return;
     }
     
     try {
-        const response = await fetch(`${API_URL}/api/wallet/invest`, {
+        const response = await fetch(`${API_URL}/api/wallet/invest?amount=${amount}`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${authToken}`,
                 'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ amount, plan })
+            }
         });
         
         const data = await response.json();
         
         if (response.ok) {
-            messageDiv.textContent = `Investment of $${amount} successful!`;
+            const dailyRoi = (amount * 0.015).toFixed(2);
+            messageDiv.textContent = `Investment of $${amount} successful! Expected daily ROI: $${dailyRoi}`;
             messageDiv.className = 'message success';
             document.getElementById('investAmount').value = '';
+            document.getElementById('roiPreview').innerHTML = '<span>Expected Daily ROI: <strong>$0.00</strong></span>';
             loadDashboard();
+            loadWallets();
         } else {
             messageDiv.textContent = data.detail || 'Investment failed';
             messageDiv.className = 'message error';
@@ -688,47 +714,75 @@ async function loadTeam() {
     }
 }
 
-// Request Withdrawal
-async function requestWithdrawal() {
-    const amount = parseFloat(document.getElementById('withdrawAmount').value);
-    const method = document.getElementById('withdrawMethod').value;
-    const details = document.getElementById('withdrawDetails').value;
-    const messageDiv = document.getElementById('withdrawMessage');
+// ==================== CRYPTO WITHDRAWAL FUNCTIONS ====================
+
+// Update selected wallet balance for withdrawal
+function updateWithdrawWalletBalance() {
+    const walletSelect = document.getElementById('withdrawWallet');
+    const balanceEl = document.getElementById('selectedWalletBalance');
     
-    if (!amount || amount < 10) {
-        messageDiv.textContent = 'Minimum withdrawal is $10';
-        messageDiv.className = 'message error';
-        return;
+    if (!walletSelect || !balanceEl || !window.currentWallet) return;
+    
+    const selectedWallet = walletSelect.value;
+    const balance = window.currentWallet[selectedWallet] || 0;
+    balanceEl.textContent = `$${balance.toFixed(2)}`;
+}
+
+// Add event listener for wallet selection change
+document.getElementById('withdrawWallet')?.addEventListener('change', updateWithdrawWalletBalance);
+
+// Load Withdraw Page
+async function loadWithdrawPage() {
+    await loadWallets();
+    
+    // Check if user has crypto wallet address
+    const warningEl = document.getElementById('cryptoWalletWarning');
+    const cardEl = document.getElementById('withdrawCard');
+    const addressEl = document.getElementById('userCryptoAddress');
+    
+    if (!currentUser?.crypto_wallet_address) {
+        if (warningEl) warningEl.style.display = 'flex';
+        if (cardEl) cardEl.style.display = 'none';
+    } else {
+        if (warningEl) warningEl.style.display = 'none';
+        if (cardEl) cardEl.style.display = 'block';
+        if (addressEl) addressEl.textContent = currentUser.crypto_wallet_address;
     }
     
-    if (!details) {
-        messageDiv.textContent = 'Please enter payment details';
+    updateWithdrawWalletBalance();
+    loadCryptoWithdrawals();
+}
+
+// Request crypto withdrawal
+async function requestCryptoWithdrawal() {
+    const amount = parseFloat(document.getElementById('withdrawAmount').value);
+    const walletType = document.getElementById('withdrawWallet').value;
+    const messageDiv = document.getElementById('withdrawMessage');
+    
+    if (!amount || amount <= 0) {
+        messageDiv.textContent = 'Please enter a valid amount';
         messageDiv.className = 'message error';
         return;
     }
     
     try {
-        const response = await fetch(`${API_URL}/api/user/withdrawal-request`, {
+        const response = await fetch(`${API_URL}/api/user/crypto-withdrawal`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${authToken}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                amount: amount,
-                payment_method: method,
-                payment_info: details
-            })
+            body: JSON.stringify({ amount, wallet_type: walletType })
         });
         
         const data = await response.json();
         
         if (response.ok) {
-            messageDiv.textContent = 'Withdrawal request submitted successfully!';
+            messageDiv.textContent = `Withdrawal request of ${amount} USDT submitted successfully!`;
             messageDiv.className = 'message success';
             document.getElementById('withdrawAmount').value = '';
-            document.getElementById('withdrawDetails').value = '';
-            loadWithdrawals();
+            loadWallets();
+            loadCryptoWithdrawals();
         } else {
             messageDiv.textContent = data.detail || 'Withdrawal request failed';
             messageDiv.className = 'message error';
@@ -739,12 +793,10 @@ async function requestWithdrawal() {
     }
 }
 
-async function loadWithdrawals() {
-    // Also update withdrawable balance
-    loadWallets();
-    
+// Load crypto withdrawals history
+async function loadCryptoWithdrawals() {
     try {
-        const response = await fetch(`${API_URL}/api/user/withdrawals`, {
+        const response = await fetch(`${API_URL}/api/user/crypto-withdrawals`, {
             headers: { 'Authorization': `Bearer ${authToken}` }
         });
         
@@ -756,7 +808,8 @@ async function loadWithdrawals() {
                 container.innerHTML = data.withdrawals.map(w => `
                     <div class="withdrawal-item">
                         <div class="withdrawal-info">
-                            <span class="withdrawal-amount">$${w.amount.toFixed(2)}</span>
+                            <span class="withdrawal-amount">${w.amount} USDT</span>
+                            <span class="withdrawal-wallet">${w.wallet_type.replace(/_/g, ' ')}</span>
                             <span class="withdrawal-date">${new Date(w.request_timestamp).toLocaleString()}</span>
                         </div>
                         <span class="withdrawal-status ${w.status}">${w.status}</span>
@@ -771,16 +824,150 @@ async function loadWithdrawals() {
     }
 }
 
-// Load Profile
-function loadProfile() {
+// ==================== PROFILE FUNCTIONS ====================
+
+// Load Profile with full data
+async function loadProfile() {
     if (currentUser) {
         document.getElementById('profileName').textContent = currentUser.full_name;
         document.getElementById('profileId').textContent = `#${currentUser.user_number || '000000'}`;
         document.getElementById('profileEmail').textContent = currentUser.email;
+        document.getElementById('profilePhone').textContent = currentUser.phone || 'Not set';
+        document.getElementById('profileCryptoWallet').textContent = currentUser.crypto_wallet_address || 'Not set';
         document.getElementById('profileReferralCode').textContent = currentUser.referral_code || '-';
-        document.getElementById('profileJoinDate').textContent = currentUser.joined_date ? 
-            new Date(currentUser.joined_date).toLocaleDateString() : '-';
+        document.getElementById('profileJoinDate').textContent = currentUser.created_at ? 
+            new Date(currentUser.created_at).toLocaleDateString() : '-';
         document.getElementById('profileStatus').textContent = currentUser.status || 'Active';
+    }
+}
+
+// Show edit profile mode
+function showEditProfile() {
+    document.getElementById('profileViewMode').style.display = 'none';
+    document.getElementById('profileEditMode').style.display = 'block';
+    
+    // Pre-fill form with current values
+    document.getElementById('editFullName').value = currentUser.full_name || '';
+    document.getElementById('editPhone').value = currentUser.phone || '';
+    document.getElementById('editCryptoWallet').value = currentUser.crypto_wallet_address || '';
+}
+
+// Cancel edit profile
+function cancelEditProfile() {
+    document.getElementById('profileViewMode').style.display = 'block';
+    document.getElementById('profileEditMode').style.display = 'none';
+    document.getElementById('profileEditMessage').textContent = '';
+}
+
+// Save profile changes
+async function saveProfile() {
+    const fullName = document.getElementById('editFullName').value.trim();
+    const phone = document.getElementById('editPhone').value.trim();
+    const cryptoWallet = document.getElementById('editCryptoWallet').value.trim();
+    const messageDiv = document.getElementById('profileEditMessage');
+    
+    // Validate TRC20 address if provided
+    if (cryptoWallet && (!cryptoWallet.startsWith('T') || cryptoWallet.length !== 34)) {
+        messageDiv.textContent = 'Invalid TRC20 address. Must start with T and be 34 characters.';
+        messageDiv.className = 'message error';
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/api/user/profile`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                full_name: fullName || null,
+                phone: phone || null,
+                crypto_wallet_address: cryptoWallet || null
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            messageDiv.textContent = 'Profile updated successfully!';
+            messageDiv.className = 'message success';
+            
+            // Update current user data
+            if (fullName) currentUser.full_name = fullName;
+            if (phone) currentUser.phone = phone;
+            if (cryptoWallet) currentUser.crypto_wallet_address = cryptoWallet;
+            
+            // Update UI
+            loadProfile();
+            
+            // Switch back to view mode after delay
+            setTimeout(() => {
+                cancelEditProfile();
+            }, 1500);
+        } else {
+            messageDiv.textContent = data.detail || 'Failed to update profile';
+            messageDiv.className = 'message error';
+        }
+    } catch (error) {
+        messageDiv.textContent = 'Network error. Please try again.';
+        messageDiv.className = 'message error';
+    }
+}
+
+// Change password
+async function changePassword() {
+    const currentPassword = document.getElementById('currentPassword').value;
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    const messageDiv = document.getElementById('passwordMessage');
+    
+    if (!currentPassword || !newPassword || !confirmPassword) {
+        messageDiv.textContent = 'Please fill all password fields';
+        messageDiv.className = 'message error';
+        return;
+    }
+    
+    if (newPassword.length < 6) {
+        messageDiv.textContent = 'New password must be at least 6 characters';
+        messageDiv.className = 'message error';
+        return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+        messageDiv.textContent = 'New passwords do not match';
+        messageDiv.className = 'message error';
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/api/user/change-password`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                current_password: currentPassword,
+                new_password: newPassword
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            messageDiv.textContent = 'Password changed successfully!';
+            messageDiv.className = 'message success';
+            document.getElementById('currentPassword').value = '';
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmPassword').value = '';
+        } else {
+            messageDiv.textContent = data.detail || 'Failed to change password';
+            messageDiv.className = 'message error';
+        }
+    } catch (error) {
+        messageDiv.textContent = 'Network error. Please try again.';
+        messageDiv.className = 'message error';
     }
 }
 

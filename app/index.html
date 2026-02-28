@@ -361,10 +361,13 @@
         <!-- Dashboard Navbar -->
         <nav class="dashboard-navbar">
             <div class="nav-container">
-                <a href="#" class="logo">
-                    <span class="logo-icon">💰</span>
-                    <span class="logo-text">SS Money Resource</span>
-                </a>
+                <div class="nav-left">
+                    <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">☰</button>
+                    <a href="#" class="logo">
+                        <span class="logo-icon">💰</span>
+                        <span class="logo-text">SS Money Resource</span>
+                    </a>
+                </div>
                 <div class="user-menu">
                     <span id="dashboardUserInfo" class="user-badge">#000000</span>
                     <button class="btn btn-outline btn-small" onclick="logout()">Logout</button>
@@ -372,10 +375,17 @@
             </div>
         </nav>
 
+        <!-- Sidebar Overlay -->
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
         <!-- Dashboard Content -->
         <div class="dashboard-layout">
             <!-- Sidebar -->
-            <aside class="dashboard-sidebar">
+            <aside class="dashboard-sidebar" id="dashboardSidebar">
+                <div class="sidebar-header-mobile">
+                    <span class="logo-text">SS Money Resource</span>
+                    <button class="sidebar-close" onclick="toggleSidebar()">×</button>
+                </div>
                 <div class="sidebar-user">
                     <div class="user-avatar">👤</div>
                     <div class="user-name" id="sidebarUserName">User</div>
@@ -402,6 +412,9 @@
                     </a>
                     <a href="#" class="nav-item" data-page="profile" onclick="navigateTo('profile')">
                         <span>👤</span> Profile
+                    </a>
+                    <a href="#" class="nav-item logout-item" onclick="logout()">
+                        <span>🚪</span> Logout
                     </a>
                 </nav>
             </aside>

@@ -52,17 +52,25 @@
                     <span class="nav-icon">💳</span>
                     <span>Wallets</span>
                 </a>
+                <a href="#" class="nav-item" data-page="cryptoWithdrawals">
+                    <span class="nav-icon">🪙</span>
+                    <span>Crypto Withdrawals</span>
+                </a>
                 <a href="#" class="nav-item" data-page="p2p">
                     <span class="nav-icon">🔄</span>
                     <span>P2P Transfer</span>
                 </a>
                 <a href="#" class="nav-item" data-page="withdrawals">
                     <span class="nav-icon">💸</span>
-                    <span>Withdrawals</span>
+                    <span>Old Withdrawals</span>
                 </a>
                 <a href="#" class="nav-item" data-page="investments">
                     <span class="nav-icon">💼</span>
                     <span>Investments</span>
+                </a>
+                <a href="#" class="nav-item" data-page="roiLogs">
+                    <span class="nav-icon">📉</span>
+                    <span>ROI Logs</span>
                 </a>
                 <a href="#" class="nav-item" data-page="transactions">
                     <span class="nav-icon">📝</span>
@@ -71,6 +79,10 @@
                 <a href="#" class="nav-item" data-page="income">
                     <span class="nav-icon">📈</span>
                     <span>Income Calculator</span>
+                </a>
+                <a href="#" class="nav-item" data-page="settings">
+                    <span class="nav-icon">⚙️</span>
+                    <span>Settings</span>
                 </a>
                 <a href="#" class="nav-item" onclick="logout()">
                     <span class="nav-icon">🚪</span>
@@ -548,6 +560,138 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Crypto Withdrawals Page -->
+                <div id="cryptoWithdrawalsPage" class="page-content" style="display: none;">
+                    <div class="page-header">
+                        <h2>Crypto Withdrawal Requests (USDT TRC20)</h2>
+                        <div class="filter-tabs">
+                            <button class="filter-tab active" onclick="filterCryptoWithdrawals('all')">All</button>
+                            <button class="filter-tab" onclick="filterCryptoWithdrawals('pending')">Pending</button>
+                            <button class="filter-tab" onclick="filterCryptoWithdrawals('approved')">Approved</button>
+                            <button class="filter-tab" onclick="filterCryptoWithdrawals('rejected')">Rejected</button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Amount (USDT)</th>
+                                    <th>Wallet Type</th>
+                                    <th>Crypto Address</th>
+                                    <th>Requested</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cryptoWithdrawalsTableBody">
+                                <tr>
+                                    <td colspan="7" class="loading">Loading withdrawals...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ROI Distribution Logs Page -->
+                <div id="roiLogsPage" class="page-content" style="display: none;">
+                    <div class="page-header">
+                        <h2>ROI Distribution Logs</h2>
+                        <button class="btn btn-primary" onclick="distributeROI()">
+                            Distribute Daily ROI
+                        </button>
+                    </div>
+                    <div id="roiDistributionResult" class="result-message" style="display: none; margin-bottom: 20px;"></div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Invested Amount</th>
+                                    <th>Premium (1%)</th>
+                                    <th>Daily ROI (0.5%)</th>
+                                    <th>Total ROI</th>
+                                    <th>Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody id="roiLogsTableBody">
+                                <tr>
+                                    <td colspan="6" class="loading">Loading ROI logs...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Settings Page -->
+                <div id="settingsPage" class="page-content" style="display: none;">
+                    <div class="page-header">
+                        <h2>Platform Settings</h2>
+                    </div>
+                    
+                    <!-- Investment Settings -->
+                    <div class="settings-card">
+                        <h3>Investment Settings</h3>
+                        <div class="setting-item">
+                            <span>Investment Feature</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="investmentToggle" onchange="toggleInvestment()">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span id="investmentStatus" class="status-badge">Active</span>
+                        </div>
+                        <div class="setting-info">
+                            <p>Current ROI: <strong>1.5% Daily</strong> (1% Premium + 0.5% Daily ROI)</p>
+                            <p>Minimum Investment: <strong>$5</strong></p>
+                        </div>
+                    </div>
+                    
+                    <!-- Admin Password Change -->
+                    <div class="settings-card">
+                        <h3>Change Admin Password</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Current Password</label>
+                                <input type="password" id="adminCurrentPassword" placeholder="Enter current password">
+                            </div>
+                            <div class="form-group">
+                                <label>New Password</label>
+                                <input type="password" id="adminNewPassword" placeholder="Enter new password">
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" onclick="changeAdminPassword()">Change Password</button>
+                        <div id="adminPasswordResult" class="result-message" style="margin-top: 10px;"></div>
+                    </div>
+                    
+                    <!-- Admin Email Change -->
+                    <div class="settings-card">
+                        <h3>Change Admin Email</h3>
+                        <div class="form-group">
+                            <label>New Email</label>
+                            <input type="email" id="adminNewEmail" placeholder="Enter new email">
+                        </div>
+                        <button class="btn btn-primary" onclick="changeAdminEmail()">Update Email</button>
+                        <div id="adminEmailResult" class="result-message" style="margin-top: 10px;"></div>
+                    </div>
+                    
+                    <!-- Change User Password -->
+                    <div class="settings-card">
+                        <h3>Change User Password (Admin Override)</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>User ID</label>
+                                <input type="text" id="targetUserId" placeholder="Enter user ID">
+                            </div>
+                            <div class="form-group">
+                                <label>New Password</label>
+                                <input type="password" id="userNewPassword" placeholder="Enter new password">
+                            </div>
+                        </div>
+                        <button class="btn btn-warning" onclick="changeUserPassword()">Change User Password</button>
+                        <div id="userPasswordResult" class="result-message" style="margin-top: 10px;"></div>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
@@ -575,6 +719,7 @@
                         <div class="form-group">
                             <label>Income Type</label>
                             <select id="incomeType">
+                                <option value="premium_invested">Premium Invested</option>
                                 <option value="daily_roi">Daily ROI</option>
                                 <option value="direct_income">Direct Income</option>
                                 <option value="slab_income">Slab Income</option>
