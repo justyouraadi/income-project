@@ -99,7 +99,7 @@
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <button class="sidebar-close" onclick="toggleSidebar()" aria-label="Close menu">✕</button>
+                <button class="sidebar-close" onclick="toggleSidebar()" aria-label="Close menu">×</button>
                 <h2>SS Money Resource</h2>
                 <p id="userNameSidebar">User</p>
             </div>
@@ -147,7 +147,7 @@
         <main class="main-content">
             <div class="top-bar">
                 <div class="top-bar-left">
-                    <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleSidebar()" aria-label="Open menu">
+                    <button class="hamburger-menu" id="hamburgerBtn" onclick="toggleSidebar()" aria-label="Open menu">
                         <span></span>
                         <span></span>
                         <span></span>
@@ -217,20 +217,11 @@
                 <div id="walletPage" class="page-content" style="display: none;">
                     <h2 class="page-subtitle">Your Wallets</h2>
                     <div class="wallet-grid">
-                        <div class="wallet-card wallet-premium">
-                            <div class="wallet-icon">💎</div>
-                            <div class="wallet-info">
-                                <span class="wallet-name">Premium Invested Wallet</span>
-                                <span class="wallet-balance" id="premiumInvestedBalance">$0.00</span>
-                                <span class="wallet-note">1% Daily Credit</span>
-                            </div>
-                        </div>
                         <div class="wallet-card">
                             <div class="wallet-icon">📅</div>
                             <div class="wallet-info">
-                                <span class="wallet-name">Daily ROI Wallet</span>
+                                <span class="wallet-name">Daily ROI</span>
                                 <span class="wallet-balance" id="dailyRoiBalance">$0.00</span>
-                                <span class="wallet-note">0.5% Daily Credit</span>
                             </div>
                         </div>
                         <div class="wallet-card">
@@ -264,41 +255,37 @@
                         <div class="wallet-card wallet-main">
                             <div class="wallet-icon">🏦</div>
                             <div class="wallet-info">
-                                <span class="wallet-name">Total Balance</span>
+                                <span class="wallet-name">Main Wallet (Total)</span>
                                 <span class="wallet-balance" id="mainWalletBalance">$0.00</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Invest Page - Updated Single Plan -->
+                <!-- Invest Page -->
                 <div id="investPage" class="page-content" style="display: none;">
                     <h2 class="page-subtitle">Make Investment</h2>
                     <div class="invest-card">
                         <div class="invest-info">
-                            <h3>Investment Plan</h3>
-                            <div class="plan-highlight">
-                                <span class="plan-roi">1.5% Daily ROI</span>
-                            </div>
+                            <h3>Investment Plans</h3>
                             <ul class="invest-benefits">
-                                <li>1% credited to Premium Invested Wallet</li>
-                                <li>0.5% credited to Daily ROI Wallet</li>
+                                <li>Premium Plan (1% Daily ROI)</li>
+                                <li>Regular Plan (0.5% Daily ROI)</li>
                                 <li>5% Direct Referral Income</li>
-                                <li>Minimum Investment: $5</li>
-                                <li>No Maximum Limit</li>
+                                <li>Slab & Royalty Bonuses</li>
                             </ul>
-                            <div class="roi-example">
-                                <strong>Example:</strong> $1000 investment = $15/day
-                                <br><small>($10 Premium + $5 Daily ROI)</small>
-                            </div>
                         </div>
                         <div class="invest-form">
                             <div class="form-group">
-                                <label>Investment Amount (USD)</label>
-                                <input type="number" id="investAmount" placeholder="Enter amount (min $5)" min="5" step="0.01">
+                                <label>Investment Amount ($)</label>
+                                <input type="number" id="investAmount" placeholder="Enter amount" min="100">
                             </div>
-                            <div class="daily-roi-preview" id="roiPreview">
-                                <span>Expected Daily ROI: <strong>$0.00</strong></span>
+                            <div class="form-group">
+                                <label>Select Plan</label>
+                                <select id="investPlan">
+                                    <option value="premium">Premium (1% Daily ROI)</option>
+                                    <option value="regular">Regular (0.5% Daily ROI)</option>
+                                </select>
                             </div>
                             <button class="btn btn-primary btn-full" onclick="makeInvestment()">Invest Now</button>
                             <div id="investMessage" class="message"></div>
@@ -378,46 +365,32 @@
                     </div>
                 </div>
 
-                <!-- Withdraw Page - Crypto Only -->
+                <!-- Withdraw Page -->
                 <div id="withdrawPage" class="page-content" style="display: none;">
-                    <h2 class="page-subtitle">Withdraw Funds (USDT TRC20)</h2>
-                    
-                    <!-- Crypto Wallet Warning -->
-                    <div id="cryptoWalletWarning" class="warning-card" style="display: none;">
-                        <span class="warning-icon">⚠️</span>
-                        <div class="warning-text">
-                            <strong>Crypto Wallet Required</strong>
-                            <p>Please add your USDT TRC20 wallet address in Profile section before withdrawing.</p>
-                            <button class="btn btn-primary btn-sm" onclick="navigateTo('profile')">Go to Profile</button>
-                        </div>
-                    </div>
-                    
-                    <div class="withdraw-card" id="withdrawCard">
-                        <div class="crypto-info">
-                            <span class="crypto-badge">USDT TRC20</span>
-                            <span id="userCryptoAddress">Not Set</span>
+                    <h2 class="page-subtitle">Withdraw Funds</h2>
+                    <div class="withdraw-card">
+                        <div class="available-balance">
+                            <span>Available Balance</span>
+                            <span class="balance-amount" id="withdrawableBalance">$0.00</span>
                         </div>
                         <div class="withdraw-form">
                             <div class="form-group">
-                                <label>Select Wallet to Withdraw From</label>
-                                <select id="withdrawWallet">
-                                    <option value="daily_roi">Daily ROI Wallet</option>
-                                    <option value="premium_invested">Premium Invested Wallet</option>
-                                    <option value="direct_income">Direct Income</option>
-                                    <option value="slab_income">Slab Income</option>
-                                    <option value="royalty_income">Royalty Income</option>
-                                    <option value="salary_income">Salary Income</option>
-                                </select>
-                            </div>
-                            <div class="wallet-balance-info">
-                                <span>Selected Wallet Balance:</span>
-                                <span class="balance-amount" id="selectedWalletBalance">$0.00</span>
+                                <label>Amount ($)</label>
+                                <input type="number" id="withdrawAmount" placeholder="Enter amount" min="10">
                             </div>
                             <div class="form-group">
-                                <label>Amount (USDT)</label>
-                                <input type="number" id="withdrawAmount" placeholder="Enter amount" min="1" step="0.01">
+                                <label>Payment Method</label>
+                                <select id="withdrawMethod">
+                                    <option value="bank">Bank Transfer</option>
+                                    <option value="upi">UPI</option>
+                                    <option value="crypto">Crypto Wallet</option>
+                                </select>
                             </div>
-                            <button class="btn btn-primary btn-full" onclick="requestCryptoWithdrawal()">Request Withdrawal</button>
+                            <div class="form-group">
+                                <label>Payment Details</label>
+                                <input type="text" id="withdrawDetails" placeholder="Enter account/wallet details">
+                            </div>
+                            <button class="btn btn-primary btn-full" onclick="requestWithdrawal()">Request Withdrawal</button>
                             <div id="withdrawMessage" class="message"></div>
                         </div>
                     </div>
@@ -474,7 +447,7 @@
                     </div>
                 </div>
 
-                <!-- Profile Page - Editable -->
+                <!-- Profile Page -->
                 <div id="profilePage" class="page-content" style="display: none;">
                     <h2 class="page-subtitle">My Profile</h2>
                     <div class="profile-card">
@@ -483,20 +456,10 @@
                             <div class="profile-name" id="profileName">User Name</div>
                             <div class="profile-id" id="profileId">#000000</div>
                         </div>
-                        
-                        <!-- View Mode -->
-                        <div id="profileViewMode" class="profile-details">
+                        <div class="profile-details">
                             <div class="profile-item">
                                 <span class="profile-label">Email</span>
                                 <span class="profile-value" id="profileEmail">user@example.com</span>
-                            </div>
-                            <div class="profile-item">
-                                <span class="profile-label">Phone</span>
-                                <span class="profile-value" id="profilePhone">Not set</span>
-                            </div>
-                            <div class="profile-item">
-                                <span class="profile-label">Crypto Wallet (TRC20)</span>
-                                <span class="profile-value crypto-address" id="profileCryptoWallet">Not set</span>
                             </div>
                             <div class="profile-item">
                                 <span class="profile-label">Referral Code</span>
@@ -510,49 +473,7 @@
                                 <span class="profile-label">Status</span>
                                 <span class="profile-value status-active" id="profileStatus">Active</span>
                             </div>
-                            <button class="btn btn-primary btn-full" onclick="showEditProfile()" style="margin-top: 20px;">Edit Profile</button>
                         </div>
-                        
-                        <!-- Edit Mode -->
-                        <div id="profileEditMode" class="profile-edit" style="display: none;">
-                            <div class="form-group">
-                                <label>Full Name</label>
-                                <input type="text" id="editFullName" placeholder="Enter full name">
-                            </div>
-                            <div class="form-group">
-                                <label>Phone Number</label>
-                                <input type="tel" id="editPhone" placeholder="Enter phone number">
-                            </div>
-                            <div class="form-group">
-                                <label>USDT TRC20 Wallet Address</label>
-                                <input type="text" id="editCryptoWallet" placeholder="Enter TRC20 address (starts with T)">
-                                <small>Required for withdrawals. Must start with 'T' and be 34 characters.</small>
-                            </div>
-                            <div class="profile-edit-buttons">
-                                <button class="btn btn-primary" onclick="saveProfile()">Save Changes</button>
-                                <button class="btn btn-outline" onclick="cancelEditProfile()">Cancel</button>
-                            </div>
-                            <div id="profileEditMessage" class="message"></div>
-                        </div>
-                    </div>
-                    
-                    <!-- Change Password Section -->
-                    <div class="profile-card" style="margin-top: 20px;">
-                        <h3 style="color: var(--primary); margin-bottom: 20px;">Change Password</h3>
-                        <div class="form-group">
-                            <label>Current Password</label>
-                            <input type="password" id="currentPassword" placeholder="Enter current password">
-                        </div>
-                        <div class="form-group">
-                            <label>New Password</label>
-                            <input type="password" id="newPassword" placeholder="Enter new password (min 6 chars)">
-                        </div>
-                        <div class="form-group">
-                            <label>Confirm New Password</label>
-                            <input type="password" id="confirmPassword" placeholder="Confirm new password">
-                        </div>
-                        <button class="btn btn-primary" onclick="changePassword()">Change Password</button>
-                        <div id="passwordMessage" class="message"></div>
                     </div>
                 </div>
             </div>

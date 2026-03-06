@@ -933,32 +933,12 @@ body {
     
     .sidebar.open {
         left: 0;
-        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
     }
     
-    /* Sidebar close button */
-    .sidebar-close {
-        display: block;
-        position: absolute;
-        top: 16px;
-        right: 16px;
-        background: transparent;
-        border: none;
-        color: var(--text-muted);
-        font-size: 20px;
-        cursor: pointer;
-        padding: 8px;
-        line-height: 1;
-        transition: color 0.3s;
-    }
-    
-    .sidebar-close:hover {
-        color: var(--primary);
-    }
-    
-    /* Overlay */
+    /* Overlay when sidebar is open */
     .sidebar-overlay {
-        display: block;
+        display: none;
         position: fixed;
         top: 0;
         left: 0;
@@ -967,45 +947,38 @@ body {
         background: rgba(0, 0, 0, 0.6);
         z-index: 1000;
         opacity: 0;
-        visibility: hidden;
-        transition: opacity 0.3s, visibility 0.3s;
+        transition: opacity 0.3s ease;
     }
     
     .sidebar-overlay.show {
-        opacity: 1;
-        visibility: visible;
-    }
-    
-    /* Hamburger button */
-    .hamburger-btn {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        gap: 5px;
-        width: 36px;
-        height: 36px;
-        background: var(--bg-card);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        cursor: pointer;
-        padding: 8px;
-        transition: all 0.3s;
-    }
-    
-    .hamburger-btn:hover {
-        border-color: var(--primary);
-    }
-    
-    .hamburger-btn span {
         display: block;
-        width: 100%;
-        height: 2px;
-        background: var(--primary);
-        border-radius: 2px;
-        transition: all 0.3s;
+        opacity: 1;
     }
     
-    /* Main content mobile */
+    /* Close button in sidebar header */
+    .sidebar-close {
+        display: block;
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        font-size: 28px;
+        cursor: pointer;
+        padding: 0;
+        line-height: 1;
+        transition: color 0.2s;
+    }
+    
+    .sidebar-close:hover {
+        color: var(--primary);
+    }
+    
+    .sidebar-header {
+        position: relative;
+    }
+    
     .main-content {
         margin-left: 0;
         padding: 16px;
@@ -1014,25 +987,61 @@ body {
     /* Top bar mobile */
     .top-bar {
         flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
         gap: 12px;
-        text-align: left;
-        padding-bottom: 16px;
     }
     
     .top-bar-left {
         display: flex;
         align-items: center;
         gap: 12px;
-        flex: 1;
     }
     
     .top-bar h1 {
-        font-size: 18px;
+        font-size: 20px;
     }
     
-    .user-info {
-        padding: 8px 12px;
-        font-size: 12px;
+    /* Hamburger menu button */
+    .hamburger-menu {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 5px;
+        width: 40px;
+        height: 40px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .hamburger-menu:hover {
+        background: var(--bg-secondary);
+        border-color: var(--primary);
+    }
+    
+    .hamburger-menu span {
+        display: block;
+        width: 20px;
+        height: 2px;
+        background: var(--primary);
+        border-radius: 1px;
+        transition: all 0.2s;
+    }
+    
+    .hamburger-menu.active span:nth-child(1) {
+        transform: rotate(45deg) translate(5px, 5px);
+    }
+    
+    .hamburger-menu.active span:nth-child(2) {
+        opacity: 0;
+    }
+    
+    .hamburger-menu.active span:nth-child(3) {
+        transform: rotate(-45deg) translate(5px, -5px);
     }
     
     /* Stats grid mobile */
@@ -1048,14 +1057,18 @@ body {
         gap: 10px;
     }
     
+    .stat-icon {
+        width: 44px;
+        height: 44px;
+        font-size: 24px;
+    }
+    
     .stat-value {
         font-size: 20px;
     }
     
-    .stat-icon {
-        font-size: 24px;
-        width: 44px;
-        height: 44px;
+    .stat-label {
+        font-size: 11px;
     }
     
     /* Referral card mobile */
@@ -1063,8 +1076,19 @@ body {
         flex-direction: column;
     }
     
-    .referral-link-box input {
-        font-size: 12px;
+    .referral-card {
+        padding: 16px;
+    }
+    
+    /* User info mobile */
+    .user-info {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+    
+    /* Section card mobile */
+    .section-card {
+        padding: 16px;
     }
     
     /* Wallet grid mobile */
@@ -1077,18 +1101,25 @@ body {
         padding: 16px;
     }
     
-    .wallet-balance {
-        font-size: 18px;
-    }
-    
     /* Team stats mobile */
     .team-stats {
-        flex-direction: column;
+        flex-direction: row;
         gap: 12px;
     }
     
     .team-stat {
-        padding: 16px;
+        flex: 1;
+        padding: 16px 12px;
+    }
+    
+    .team-stat-value {
+        font-size: 24px;
+    }
+    
+    /* P2P card mobile */
+    .p2p-card, .withdraw-card, .profile-card {
+        padding: 20px;
+        max-width: 100%;
     }
     
     /* Learn grid mobile */
@@ -1097,44 +1128,20 @@ body {
         gap: 12px;
     }
     
-    /* Cards mobile */
-    .invest-card,
-    .p2p-card,
-    .withdraw-card,
-    .profile-card,
-    .section-card {
+    .learn-card {
+        padding: 16px;
+    }
+    
+    /* Invest card mobile */
+    .invest-card {
         padding: 20px;
+        gap: 20px;
     }
     
     /* Modal mobile */
     .modal-content {
-        width: 95%;
         padding: 20px;
-    }
-    
-    /* Page subtitle mobile */
-    .page-subtitle {
-        font-size: 18px;
-    }
-}
-
-/* Hide hamburger on desktop */
-@media (min-width: 769px) {
-    .hamburger-btn {
-        display: none;
-    }
-    
-    .sidebar-overlay {
-        display: none !important;
-    }
-    
-    .sidebar-close {
-        display: none;
-    }
-    
-    .top-bar-left {
-        display: flex;
-        align-items: center;
+        margin: 16px;
     }
 }
 
@@ -1143,37 +1150,67 @@ body {
         grid-template-columns: 1fr;
     }
     
-    .stat-card {
-        flex-direction: row;
-        text-align: left;
-    }
-    
     .auth-form {
-        padding: 20px;
+        padding: 24px 20px;
     }
     
     .auth-header h1 {
         font-size: 24px;
     }
     
-    .top-bar {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    
-    .top-bar-left {
-        width: 100%;
-        justify-content: space-between;
+    .top-bar h1 {
+        font-size: 18px;
     }
     
     .user-info {
-        width: 100%;
-        justify-content: center;
+        display: none;
     }
     
-    /* Smaller balance text */
+    .stat-card {
+        flex-direction: row;
+        text-align: left;
+    }
+    
+    .team-stats {
+        flex-direction: column;
+    }
+    
+    .team-stat {
+        padding: 16px;
+    }
+    
+    .profile-avatar {
+        width: 60px;
+        height: 60px;
+        font-size: 30px;
+    }
+    
+    .profile-name {
+        font-size: 18px;
+    }
+    
     .balance-amount {
-        font-size: 24px;
+        font-size: 28px;
+    }
+}
+
+/* Desktop - hide hamburger and close button */
+@media (min-width: 769px) {
+    .hamburger-menu {
+        display: none;
+    }
+    
+    .sidebar-close {
+        display: none;
+    }
+    
+    .sidebar-overlay {
+        display: none !important;
+    }
+    
+    .top-bar-left {
+        display: flex;
+        align-items: center;
     }
 }
 
@@ -1301,197 +1338,4 @@ body {
 .salary-tier-table tr.active-tier td {
     color: var(--primary);
     font-weight: bold;
-}
-
-
-/* ==================== NEW INVESTMENT SYSTEM STYLES ==================== */
-
-/* Plan Highlight */
-.plan-highlight {
-    text-align: center;
-    margin: 20px 0;
-}
-
-.plan-roi {
-    font-size: 32px;
-    font-weight: bold;
-    color: var(--primary);
-    background: linear-gradient(135deg, var(--primary), #f1c40f);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-.roi-example {
-    margin-top: 20px;
-    padding: 16px;
-    background: rgba(243, 156, 18, 0.1);
-    border-left: 3px solid var(--primary);
-    border-radius: 0 8px 8px 0;
-    font-size: 14px;
-}
-
-.daily-roi-preview {
-    margin-bottom: 16px;
-    padding: 12px;
-    background: var(--bg-secondary);
-    border-radius: 8px;
-    text-align: center;
-    font-size: 14px;
-}
-
-.daily-roi-preview strong {
-    color: var(--primary);
-    font-size: 18px;
-}
-
-/* Premium Wallet Card */
-.wallet-card.wallet-premium {
-    border: 2px solid var(--primary);
-    background: linear-gradient(135deg, rgba(243, 156, 18, 0.1), transparent);
-}
-
-.wallet-note {
-    display: block;
-    font-size: 11px;
-    color: var(--text-muted);
-    margin-top: 4px;
-}
-
-/* ==================== CRYPTO WITHDRAWAL STYLES ==================== */
-
-/* Warning Card */
-.warning-card {
-    display: flex;
-    align-items: flex-start;
-    gap: 16px;
-    padding: 20px;
-    background: rgba(231, 76, 60, 0.1);
-    border: 1px solid var(--danger);
-    border-radius: 12px;
-    margin-bottom: 24px;
-}
-
-.warning-icon {
-    font-size: 32px;
-}
-
-.warning-text strong {
-    color: var(--danger);
-    font-size: 16px;
-}
-
-.warning-text p {
-    margin: 8px 0;
-    color: var(--text-muted);
-}
-
-.btn-sm {
-    padding: 8px 16px;
-    font-size: 13px;
-}
-
-/* Crypto Info */
-.crypto-info {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 20px;
-    padding: 12px;
-    background: var(--bg-secondary);
-    border-radius: 8px;
-}
-
-.crypto-badge {
-    background: var(--primary);
-    color: var(--bg);
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: bold;
-}
-
-#userCryptoAddress {
-    font-family: monospace;
-    font-size: 13px;
-    color: var(--text-muted);
-    word-break: break-all;
-}
-
-/* Wallet Balance Info */
-.wallet-balance-info {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px;
-    background: var(--bg-secondary);
-    border-radius: 8px;
-    margin-bottom: 16px;
-    font-size: 14px;
-}
-
-.wallet-balance-info .balance-amount {
-    color: var(--primary);
-    font-weight: bold;
-    font-size: 18px;
-}
-
-/* Withdrawal Item Updates */
-.withdrawal-wallet {
-    display: block;
-    font-size: 12px;
-    color: var(--text-muted);
-    text-transform: capitalize;
-}
-
-/* ==================== PROFILE EDIT STYLES ==================== */
-
-.profile-edit {
-    padding: 20px 0;
-}
-
-.profile-edit-buttons {
-    display: flex;
-    gap: 12px;
-    margin-top: 20px;
-}
-
-.profile-edit-buttons .btn {
-    flex: 1;
-}
-
-.crypto-address {
-    font-family: monospace;
-    font-size: 12px;
-    word-break: break-all;
-}
-
-/* Password Change Card */
-.profile-card h3 {
-    margin-bottom: 20px;
-}
-
-/* Form Small Text */
-.form-group small {
-    display: block;
-    margin-top: 6px;
-    color: var(--text-muted);
-    font-size: 12px;
-}
-
-/* ==================== ADMIN WITHDRAWAL STATUS COLORS ==================== */
-
-.withdrawal-status.approved {
-    background: rgba(39, 174, 96, 0.2);
-    color: var(--success);
-}
-
-.withdrawal-status.rejected {
-    background: rgba(231, 76, 60, 0.2);
-    color: var(--danger);
-}
-
-.withdrawal-status.pending {
-    background: rgba(243, 156, 18, 0.2);
-    color: var(--primary);
 }
