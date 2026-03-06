@@ -498,7 +498,7 @@ async def get_transactions(current_user: dict = Depends(get_current_user)):
 
 # ==================== TEAM/REFERRAL ROUTES ====================
 
-@api_router.get("/team/members", response_model=List[TeamMember])
+@api_router.get("/team/members")
 async def get_team_members(current_user: dict = Depends(get_current_user)):
     # Get direct referrals
     referrals = await db.users.find({"referred_by": current_user["id"]}).to_list(100)
@@ -508,14 +508,20 @@ async def get_team_members(current_user: dict = Depends(get_current_user)):
         wallet = await db.wallets.find_one({"user_id": referral["id"]})
         team_members.append({
             "user_id": referral["id"],
+            "user_number": referral.get("user_number", "N/A"),
             "full_name": referral["full_name"],
             "email": referral["email"],
-            "joined_date": referral["created_at"],
+            "joined_date": referral["created_at"].isoformat() if hasattr(referral["created_at"], 'isoformat') else str(referral["created_at"]),
             "total_investment": wallet.get("total_invested", 0) if wallet else 0,
             "level": 1
         })
     
-    return team_members
+    # Return wrapped response with totals
+    return {
+        "total_team": len(team_members),
+        "direct_referrals": len(team_members),
+        "members": team_members
+    }
 
 @api_router.get("/team/income")
 async def get_team_income(current_user: dict = Depends(get_current_user)):

@@ -670,19 +670,36 @@ async function loadTeam() {
         if (response.ok) {
             const data = await response.json();
             
-            document.getElementById('totalTeamMembers').textContent = data.total_team || 0;
-            document.getElementById('directReferrals').textContent = data.direct_referrals || 0;
+            // Handle both array response (old API) and object response (new API)
+            let members = [];
+            let totalTeam = 0;
+            let directReferrals = 0;
+            
+            if (Array.isArray(data)) {
+                // Old API format: returns array directly
+                members = data;
+                totalTeam = data.length;
+                directReferrals = data.length;
+            } else {
+                // New API format: returns object with members array
+                members = data.members || [];
+                totalTeam = data.total_team || 0;
+                directReferrals = data.direct_referrals || 0;
+            }
+            
+            document.getElementById('totalTeamMembers').textContent = totalTeam;
+            document.getElementById('directReferrals').textContent = directReferrals;
             
             const container = document.getElementById('teamList');
             
-            if (data.members && data.members.length > 0) {
-                container.innerHTML = data.members.map(m => `
+            if (members.length > 0) {
+                container.innerHTML = members.map(m => `
                     <div class="team-member">
                         <div class="team-member-info">
                             <span class="team-member-name">${m.full_name}</span>
                             <span class="team-member-date">Joined: ${new Date(m.joined_date).toLocaleDateString()}</span>
                         </div>
-                        <span>#${m.user_number}</span>
+                        <span>${m.user_number ? '#' + m.user_number : ''}</span>
                     </div>
                 `).join('');
             } else {
