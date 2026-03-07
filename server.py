@@ -118,6 +118,9 @@ class Investment(BaseModel):
     amount: float
     date: datetime
     status: str  # active, completed
+    plan: Optional[str] = "premium"
+    validity_days: Optional[int] = 100
+    end_date: Optional[datetime] = None
 
 class InvestRequest(BaseModel):
     amount: float
@@ -408,12 +411,18 @@ async def create_investment(request: InvestRequest, current_user: dict = Depends
         }
     )
     
-    # Create investment record
+    # Create investment record with 100 days validity
+    start_date = datetime.utcnow()
+    end_date = start_date + timedelta(days=100)
+    
     investment = {
         "id": str(uuid.uuid4()),
         "user_id": current_user["id"],
         "amount": amount,
-        "date": datetime.utcnow(),
+        "plan": plan,
+        "date": start_date,
+        "end_date": end_date,
+        "validity_days": 100,
         "status": "active"
     }
     await db.investments.insert_one(investment)
@@ -516,6 +525,52 @@ async def get_transactions(current_user: dict = Depends(get_current_user)):
         {"user_id": current_user["id"]}
     ).sort("date", -1).limit(50).to_list(50)
     return transactions
+
+
+@api_router.get("/investments/active")
+async def get_active_investments(current_user: dict = Depends(get_current_user)):
+    """Get user's active investments with progress info"""
+    investments = await db.investments.find(
+        {"user_id": current_user["id"], "status": "active"}
+    ).sort("date", -1).to_list(100)
+    
+    now = datetime.utcnow()
+    result = []
+    
+    for inv in investments:
+        start_date = inv.get("date", now)
+        validity_days = inv.get("validity_days", 100)
+        end_date = inv.get("end_date", start_date + timedelta(days=validity_days))
+        
+        # Calculate days elapsed and remaining
+        days_elapsed = (now - start_date).days
+        days_remaining = max(0, (end_date - now).days)
+        progress_percent = min(100, (days_elapsed / validity_days) * 100) if validity_days > 0 else 100
+        
+        # Check if investment has completed
+        if now >= end_date:
+            # Mark as completed if end date has passed
+            await db.investments.update_one(
+                {"id": inv["id"]},
+                {"$set": {"status": "completed"}}
+            )
+            continue
+        
+        result.append({
+            "id": inv["id"],
+            "amount": inv["amount"],
+            "plan": inv.get("plan", "premium"),
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
+            "validity_days": validity_days,
+            "days_elapsed": days_elapsed,
+            "days_remaining": days_remaining,
+            "progress_percent": round(progress_percent, 1),
+            "status": inv["status"]
+        })
+    
+    return result
+
 
 # ==================== TEAM/REFERRAL ROUTES ====================
 

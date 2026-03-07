@@ -341,6 +341,44 @@ async function loadDashboard() {
                 container.innerHTML = '<p class="empty-state">No transactions yet</p>';
             }
         }
+        
+        // Load active investments with progress
+        const invRes = await fetch(`${API_URL}/api/investments/active`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        if (invRes.ok) {
+            const investments = await invRes.json();
+            const invContainer = document.getElementById('activeInvestments');
+            
+            if (investments.length > 0) {
+                invContainer.innerHTML = investments.map(inv => `
+                    <div class="investment-item">
+                        <div class="investment-header">
+                            <span class="investment-amount">$${inv.amount.toFixed(2)}</span>
+                            <span class="investment-plan">${inv.plan}</span>
+                        </div>
+                        <div class="investment-progress-container">
+                            <div class="investment-progress-bar">
+                                <div class="investment-progress-fill" style="width: ${inv.progress_percent}%"></div>
+                            </div>
+                        </div>
+                        <div class="investment-details">
+                            <div class="investment-days">
+                                <span>${inv.days_elapsed}</span> / ${inv.validity_days} days completed
+                            </div>
+                            <div class="investment-status">Active</div>
+                        </div>
+                        <div class="investment-dates">
+                            <span>Started: ${new Date(inv.start_date).toLocaleDateString()}</span>
+                            <span>Ends: ${new Date(inv.end_date).toLocaleDateString()}</span>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                invContainer.innerHTML = '<p class="empty-state">No active investments. <a href="#" onclick="showPage(\'invest\')">Invest now!</a></p>';
+            }
+        }
     } catch (error) {
         console.error('Error loading dashboard:', error);
     }
