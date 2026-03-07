@@ -119,6 +119,10 @@ class Investment(BaseModel):
     date: datetime
     status: str  # active, completed
 
+class InvestRequest(BaseModel):
+    amount: float
+    plan: Optional[str] = "premium"
+
 class Transaction(BaseModel):
     id: str
     user_id: str
@@ -372,9 +376,12 @@ async def get_wallet(current_user: dict = Depends(get_current_user)):
     return wallet
 
 @api_router.post("/wallet/invest")
-async def create_investment(amount: float, current_user: dict = Depends(get_current_user)):
-    if amount <= 0:
-        raise HTTPException(status_code=400, detail="Invalid amount")
+async def create_investment(request: InvestRequest, current_user: dict = Depends(get_current_user)):
+    amount = request.amount
+    plan = request.plan
+    
+    if amount < 20:
+        raise HTTPException(status_code=400, detail="Minimum investment is $20")
     
     # Update wallet - add to total invested
     await db.wallets.update_one(

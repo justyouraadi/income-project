@@ -483,7 +483,9 @@ async function makeInvestment() {
             document.getElementById('investAmount').value = '';
             loadDashboard();
         } else {
-            messageDiv.textContent = data.detail || 'Investment failed';
+            // Handle error - extract detail message properly
+            const errorMsg = typeof data === 'object' ? (data.detail || data.message || 'Investment failed') : String(data);
+            messageDiv.textContent = errorMsg;
             messageDiv.className = 'message error';
         }
     } catch (error) {
