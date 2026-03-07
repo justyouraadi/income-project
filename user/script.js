@@ -459,8 +459,8 @@ async function makeInvestment() {
     const plan = document.getElementById('investPlan').value;
     const messageDiv = document.getElementById('investMessage');
     
-    if (!amount || amount < 100) {
-        messageDiv.textContent = 'Minimum investment is $100';
+    if (!amount || amount < 20) {
+        messageDiv.textContent = 'Minimum investment is $20';
         messageDiv.className = 'message error';
         return;
     }
