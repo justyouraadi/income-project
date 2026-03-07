@@ -350,6 +350,20 @@ async def admin_login(user_data: UserLogin):
 
 @api_router.get("/auth/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
+    # Get wallet data for investment/balance info
+    wallet = await db.wallets.find_one({"user_id": current_user["id"]})
+    total_invested = wallet.get("total_invested", 0) if wallet else 0
+    
+    # Get team size (count of direct referrals)
+    team_size = await db.users.count_documents({"referred_by": current_user["id"]})
+    
+    # Get total withdrawn
+    total_withdrawn = await db.withdrawals.aggregate([
+        {"$match": {"user_id": current_user["id"], "status": "approved"}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+    ]).to_list(1)
+    withdrawn_amount = total_withdrawn[0]["total"] if total_withdrawn else 0
+    
     return {
         "id": current_user["id"],
         "email": current_user["email"],
@@ -360,9 +374,9 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         "is_admin": current_user.get("is_admin", False),
         "user_number": current_user.get("user_number"),
         "status": current_user.get("status", "active"),
-        "total_investment": current_user.get("total_investment", 0),
-        "total_withdrawn": current_user.get("total_withdrawn", 0),
-        "team_size": current_user.get("team_size", 0),
+        "total_investment": total_invested,
+        "total_withdrawn": withdrawn_amount,
+        "team_size": team_size,
         "joined_date": current_user.get("created_at")
     }
 

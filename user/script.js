@@ -322,8 +322,11 @@ async function loadDashboard() {
             const data = await txRes.json();
             const container = document.getElementById('recentTransactions');
             
-            if (data.transactions && data.transactions.length > 0) {
-                container.innerHTML = data.transactions.map(tx => `
+            // Handle both array response (old API) and object response (new API)
+            const transactions = Array.isArray(data) ? data : (data.transactions || []);
+            
+            if (transactions.length > 0) {
+                container.innerHTML = transactions.slice(0, 5).map(tx => `
                     <div class="transaction-item">
                         <div class="transaction-info">
                             <span class="transaction-type">${tx.type.replace(/_/g, ' ')}</span>
