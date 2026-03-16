@@ -805,30 +805,85 @@ body {
 }
 
 
-/* Investment Item with Progress */
+/* Investment Item with Circular Progress */
 .investment-item {
     background: var(--bg-secondary);
     border-radius: 12px;
     padding: 20px;
     margin-bottom: 12px;
     border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.investment-circular-progress {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    flex-shrink: 0;
+}
+
+.investment-circular-progress svg {
+    transform: rotate(-90deg);
+    width: 80px;
+    height: 80px;
+}
+
+.investment-circular-progress .progress-bg {
+    fill: none;
+    stroke: var(--bg-card);
+    stroke-width: 8;
+}
+
+.investment-circular-progress .progress-fill {
+    fill: none;
+    stroke: url(#progressGradient);
+    stroke-width: 8;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.5s ease;
+}
+
+.investment-circular-progress .progress-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.investment-circular-progress .progress-percent {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--primary);
+    display: block;
+}
+
+.investment-circular-progress .progress-label {
+    font-size: 9px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.investment-details-container {
+    flex: 1;
 }
 
 .investment-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
 }
 
 .investment-amount {
-    font-size: 20px;
+    font-size: 22px;
     font-weight: 700;
     color: var(--primary);
 }
 
 .investment-plan {
-    font-size: 12px;
+    font-size: 11px;
     padding: 4px 10px;
     background: rgba(243, 156, 18, 0.15);
     color: var(--primary);
@@ -837,33 +892,15 @@ body {
     font-weight: 600;
 }
 
-.investment-progress-container {
-    margin: 12px 0;
-}
-
-.investment-progress-bar {
-    height: 8px;
-    background: var(--bg-card);
-    border-radius: 4px;
-    overflow: hidden;
-}
-
-.investment-progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--primary), var(--success));
-    border-radius: 4px;
-    transition: width 0.5s ease;
-}
-
-.investment-details {
+.investment-info-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: 12px;
-    font-size: 13px;
+    margin-top: 8px;
 }
 
 .investment-days {
+    font-size: 13px;
     color: var(--text-muted);
 }
 
@@ -877,6 +914,7 @@ body {
     gap: 16px;
     font-size: 12px;
     color: var(--text-muted);
+    margin-top: 8px;
 }
 
 .investment-status {
@@ -899,6 +937,35 @@ body {
 @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
+}
+
+/* Investments list grid for multiple items */
+.investments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Mobile responsive for investment items */
+@media (max-width: 480px) {
+    .investment-item {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .investment-header {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .investment-info-row {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .investment-dates {
+        justify-content: center;
+    }
 }
 
 

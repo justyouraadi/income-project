@@ -352,29 +352,57 @@ async function loadDashboard() {
             const invContainer = document.getElementById('activeInvestments');
             
             if (investments.length > 0) {
-                invContainer.innerHTML = investments.map(inv => `
+                // Add SVG gradient definition once
+                const gradientDef = `
+                    <svg width="0" height="0" style="position:absolute">
+                        <defs>
+                            <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:#f39c12" />
+                                <stop offset="100%" style="stop-color:#27ae60" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                `;
+                
+                invContainer.innerHTML = gradientDef + investments.map(inv => {
+                    // Calculate SVG circle properties
+                    const radius = 32;
+                    const circumference = 2 * Math.PI * radius;
+                    const strokeDashoffset = circumference - (inv.progress_percent / 100) * circumference;
+                    
+                    return `
                     <div class="investment-item">
-                        <div class="investment-header">
-                            <span class="investment-amount">$${inv.amount.toFixed(2)}</span>
-                            <span class="investment-plan">${inv.plan}</span>
-                        </div>
-                        <div class="investment-progress-container">
-                            <div class="investment-progress-bar">
-                                <div class="investment-progress-fill" style="width: ${inv.progress_percent}%"></div>
+                        <div class="investment-circular-progress">
+                            <svg viewBox="0 0 80 80">
+                                <circle class="progress-bg" cx="40" cy="40" r="${radius}"></circle>
+                                <circle class="progress-fill" cx="40" cy="40" r="${radius}" 
+                                    stroke-dasharray="${circumference}" 
+                                    stroke-dashoffset="${strokeDashoffset}">
+                                </circle>
+                            </svg>
+                            <div class="progress-text">
+                                <span class="progress-percent">${Math.round(inv.progress_percent)}%</span>
+                                <span class="progress-label">Complete</span>
                             </div>
                         </div>
-                        <div class="investment-details">
-                            <div class="investment-days">
-                                <span>${inv.days_elapsed}</span> / ${inv.validity_days} days completed
+                        <div class="investment-details-container">
+                            <div class="investment-header">
+                                <span class="investment-amount">$${inv.amount.toFixed(2)}</span>
+                                <span class="investment-plan">${inv.plan}</span>
                             </div>
-                            <div class="investment-status">Active</div>
-                        </div>
-                        <div class="investment-dates">
-                            <span>Started: ${new Date(inv.start_date).toLocaleDateString()}</span>
-                            <span>Ends: ${new Date(inv.end_date).toLocaleDateString()}</span>
+                            <div class="investment-info-row">
+                                <div class="investment-days">
+                                    Day <span>${inv.days_elapsed}</span> of ${inv.validity_days}
+                                </div>
+                                <div class="investment-status">Active</div>
+                            </div>
+                            <div class="investment-dates">
+                                <span>Started: ${new Date(inv.start_date).toLocaleDateString()}</span>
+                                <span>Ends: ${new Date(inv.end_date).toLocaleDateString()}</span>
+                            </div>
                         </div>
                     </div>
-                `).join('');
+                `}).join('');
             } else {
                 invContainer.innerHTML = '<p class="empty-state">No active investments. <a href="#" onclick="showPage(\'invest\')">Invest now!</a></p>';
             }
