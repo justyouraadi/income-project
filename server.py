@@ -2769,6 +2769,18 @@ async def serve_user_files(file_path: str):
             media_type = "application/javascript"
         elif file_path.endswith('.html'):
             media_type = "text/html"
+        elif file_path.endswith('.json'):
+            media_type = "application/json"
+        elif file_path.endswith('.png'):
+            media_type = "image/png"
+        elif file_path.endswith('.jpg') or file_path.endswith('.jpeg'):
+            media_type = "image/jpeg"
+        elif file_path.endswith('.svg'):
+            media_type = "image/svg+xml"
+        elif file_path.endswith('.ico'):
+            media_type = "image/x-icon"
+        elif file_path.endswith('.webp'):
+            media_type = "image/webp"
         return FileResponse(user_file, media_type=media_type)
     raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
 
