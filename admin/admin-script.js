@@ -104,13 +104,10 @@ document.querySelectorAll('.nav-item').forEach(item => {
                 'users': 'User Management',
                 'wallets': 'Wallet Management',
                 'p2p': 'P2P Wallet Transfer',
-                'cryptoWithdrawals': 'Crypto Withdrawals (USDT TRC20)',
                 'withdrawals': 'Withdrawal Requests',
                 'investments': 'Investments',
-                'roiLogs': 'ROI Distribution Logs',
                 'transactions': 'Transactions',
-                'income': 'Income Calculator',
-                'settings': 'Platform Settings'
+                'income': 'Income Calculator'
             };
             document.getElementById('pageTitle').textContent = titles[page];
             
@@ -133,26 +130,17 @@ function loadPageData(page) {
         case 'p2p':
             loadP2PTransfers();
             break;
-        case 'cryptoWithdrawals':
-            loadCryptoWithdrawals();
-            break;
         case 'withdrawals':
             loadWithdrawals();
             break;
         case 'investments':
             loadInvestments();
             break;
-        case 'roiLogs':
-            loadROILogs();
-            break;
         case 'transactions':
             loadTransactions();
             break;
         case 'income':
             loadUsersForSalary();
-            break;
-        case 'settings':
-            loadSettings();
             break;
     }
 }
@@ -372,6 +360,190 @@ async function viewUser(userId) {
 function closeUserModal() {
     document.getElementById('userModal').style.display = 'none';
     currentUserId = null;
+    // Reset to first tab
+    showUserTab('details');
+}
+
+// ==================== USER MODAL TABS ====================
+
+function showUserTab(tabName) {
+    // Hide all tab contents
+    document.querySelectorAll('.modal-tab-content').forEach(tab => {
+        tab.style.display = 'none';
+    });
+    
+    // Remove active class from all tabs
+    document.querySelectorAll('.modal-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Show selected tab content and mark button as active
+    if (tabName === 'details') {
+        document.getElementById('userDetailsTab').style.display = 'block';
+        document.querySelector('.modal-tab[onclick="showUserTab(\'details\')"]').classList.add('active');
+    } else if (tabName === 'transactions') {
+        document.getElementById('userTransactionsTab').style.display = 'block';
+        document.querySelector('.modal-tab[onclick="showUserTab(\'transactions\')"]').classList.add('active');
+        loadUserTransactions(currentUserId);
+    } else if (tabName === 'referrals') {
+        document.getElementById('userReferralsTab').style.display = 'block';
+        document.querySelector('.modal-tab[onclick="showUserTab(\'referrals\')"]').classList.add('active');
+        loadUserReferrals(currentUserId);
+    }
+}
+
+async function loadUserTransactions(userId) {
+    if (!userId) return;
+    
+    try {
+        const response = await fetch(`${API_URL}/api/admin/users/${userId}/transactions`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            
+            // Render summary
+            document.getElementById('transactionSummary').innerHTML = `
+                <div class="summary-card">
+                    <div class="summary-value">${data.summary.total_transactions}</div>
+                    <div class="summary-label">Total Transactions</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-value">${data.summary.total_investments}</div>
+                    <div class="summary-label">Investments</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-value">$${data.summary.total_invested_amount.toFixed(2)}</div>
+                    <div class="summary-label">Total Invested</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-value">$${data.summary.total_withdrawn_amount.toFixed(2)}</div>
+                    <div class="summary-label">Total Withdrawn</div>
+                </div>
+            `;
+            
+            // Render investments table
+            const invTable = document.getElementById('userInvestmentsTable');
+            if (data.investments.length > 0) {
+                invTable.innerHTML = data.investments.map(inv => `
+                    <tr>
+                        <td><strong>$${inv.amount.toFixed(2)}</strong></td>
+                        <td>${inv.plan}</td>
+                        <td><span class="status-${inv.status}">${inv.status}</span></td>
+                        <td>${new Date(inv.start_date).toLocaleDateString()}</td>
+                        <td>${inv.end_date ? new Date(inv.end_date).toLocaleDateString() : 'N/A'}</td>
+                    </tr>
+                `).join('');
+            } else {
+                invTable.innerHTML = '<tr><td colspan="5" class="empty">No investments found</td></tr>';
+            }
+            
+            // Render transactions table
+            const txTable = document.getElementById('userTransactionsTable');
+            if (data.transactions.length > 0) {
+                txTable.innerHTML = data.transactions.map(tx => `
+                    <tr>
+                        <td>${tx.type.replace(/_/g, ' ')}</td>
+                        <td class="${tx.amount >= 0 ? 'amount-positive' : 'amount-negative'}">
+                            ${tx.amount >= 0 ? '+' : ''}$${Math.abs(tx.amount).toFixed(2)}
+                        </td>
+                        <td>${tx.description || '-'}</td>
+                        <td>${new Date(tx.date).toLocaleString()}</td>
+                    </tr>
+                `).join('');
+            } else {
+                txTable.innerHTML = '<tr><td colspan="4" class="empty">No transactions found</td></tr>';
+            }
+            
+            // Render withdrawals table
+            const wdTable = document.getElementById('userWithdrawalsTable');
+            if (data.withdrawals.length > 0) {
+                wdTable.innerHTML = data.withdrawals.map(w => `
+                    <tr>
+                        <td><strong>$${w.amount.toFixed(2)}</strong></td>
+                        <td><span class="status-${w.status}">${w.status}</span></td>
+                        <td>${new Date(w.request_date).toLocaleDateString()}</td>
+                        <td>${w.processed_date ? new Date(w.processed_date).toLocaleDateString() : '-'}</td>
+                    </tr>
+                `).join('');
+            } else {
+                wdTable.innerHTML = '<tr><td colspan="4" class="empty">No withdrawals found</td></tr>';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading user transactions:', error);
+    }
+}
+
+async function loadUserReferrals(userId) {
+    if (!userId) return;
+    
+    try {
+        const response = await fetch(`${API_URL}/api/admin/users/${userId}/referrals`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            
+            // Render summary
+            document.getElementById('referralSummary').innerHTML = `
+                <div class="summary-card">
+                    <div class="summary-value">${data.summary.total_direct_referrals}</div>
+                    <div class="summary-label">Direct Referrals</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-value">${data.summary.active_referrals}</div>
+                    <div class="summary-label">Active</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-value">${data.summary.inactive_referrals}</div>
+                    <div class="summary-label">Inactive</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-value">$${data.summary.total_team_investment.toFixed(2)}</div>
+                    <div class="summary-label">Team Investment</div>
+                </div>
+            `;
+            
+            // Show referred by section if applicable
+            const referredBySection = document.getElementById('referredBySection');
+            if (data.referred_by) {
+                referredBySection.style.display = 'block';
+                document.getElementById('referredByInfo').innerHTML = `
+                    <div class="avatar">${data.referred_by.full_name.charAt(0).toUpperCase()}</div>
+                    <div class="info">
+                        <div class="name">${data.referred_by.full_name}</div>
+                        <div class="email">${data.referred_by.email}</div>
+                        <div class="user-number">#${data.referred_by.user_number || 'N/A'}</div>
+                    </div>
+                `;
+            } else {
+                referredBySection.style.display = 'none';
+            }
+            
+            // Render referrals table
+            const refTable = document.getElementById('userReferralsTable');
+            if (data.direct_referrals.length > 0) {
+                refTable.innerHTML = data.direct_referrals.map(ref => `
+                    <tr>
+                        <td><strong>#${ref.user_number || 'N/A'}</strong></td>
+                        <td>${ref.full_name}</td>
+                        <td>${ref.email}</td>
+                        <td><span class="status-${ref.status}">${ref.status}</span></td>
+                        <td>$${ref.total_invested.toFixed(2)}</td>
+                        <td>${ref.level2_referrals}</td>
+                        <td>${new Date(ref.joined_date).toLocaleDateString()}</td>
+                    </tr>
+                `).join('');
+            } else {
+                refTable.innerHTML = '<tr><td colspan="7" class="empty">No referrals found</td></tr>';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading user referrals:', error);
+    }
 }
 
 // ==================== WITHDRAWALS MANAGEMENT ====================
@@ -1272,317 +1444,3 @@ document.getElementById('p2pRecipientUserId')?.addEventListener('blur', async fu
         console.error('Error looking up user:', error);
     }
 });
-
-
-// ==================== CRYPTO WITHDRAWAL FUNCTIONS ====================
-
-let cryptoWithdrawalsFilter = 'all';
-
-async function loadCryptoWithdrawals() {
-    const statusParam = cryptoWithdrawalsFilter !== 'all' ? `?status=${cryptoWithdrawalsFilter}` : '';
-    
-    try {
-        const response = await fetch(`${API_URL}/api/admin/crypto-withdrawals${statusParam}`, {
-            headers: { 'Authorization': `Bearer ${authToken}` }
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            const tbody = document.getElementById('cryptoWithdrawalsTableBody');
-            
-            if (data.withdrawals && data.withdrawals.length > 0) {
-                tbody.innerHTML = data.withdrawals.map(w => {
-                    // Format date properly
-                    let dateStr = '-';
-                    if (w.request_timestamp) {
-                        try {
-                            const date = new Date(w.request_timestamp);
-                            if (!isNaN(date.getTime())) {
-                                dateStr = date.toLocaleString();
-                            }
-                        } catch (e) {
-                            dateStr = w.request_timestamp;
-                        }
-                    }
-                    
-                    return `
-                    <tr>
-                        <td>
-                            <strong>${w.user_name || 'Unknown'}</strong><br>
-                            <small>${w.user_email || 'Unknown'}</small>
-                        </td>
-                        <td><strong>${w.amount} USDT</strong></td>
-                        <td>${(w.wallet_type || '').replace(/_/g, ' ')}</td>
-                        <td><code style="font-size:11px;">${w.crypto_address || 'Not set'}</code></td>
-                        <td>${dateStr}</td>
-                        <td><span class="status-badge ${w.status}">${w.status}</span></td>
-                        <td>
-                            ${w.status === 'pending' ? `
-                                <button class="btn btn-success btn-sm" onclick="approveWithdrawal('${w.id}')">Approve</button>
-                                <button class="btn btn-danger btn-sm" onclick="rejectWithdrawal('${w.id}')">Reject</button>
-                            ` : '-'}
-                        </td>
-                    </tr>
-                `}).join('');
-            } else {
-                tbody.innerHTML = '<tr><td colspan="7" class="empty">No withdrawals found</td></tr>';
-            }
-        }
-    } catch (error) {
-        console.error('Error loading crypto withdrawals:', error);
-    }
-}
-
-function filterCryptoWithdrawals(status) {
-    cryptoWithdrawalsFilter = status;
-    
-    // Update filter tabs
-    document.querySelectorAll('#cryptoWithdrawalsPage .filter-tab').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    event.target.classList.add('active');
-    
-    loadCryptoWithdrawals();
-}
-
-async function approveWithdrawal(withdrawalId) {
-    if (!confirm('Are you sure you want to approve this withdrawal?')) return;
-    
-    try {
-        const response = await fetch(`${API_URL}/api/admin/crypto-withdrawals/${withdrawalId}/approve`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${authToken}` }
-        });
-        
-        if (response.ok) {
-            alert('Withdrawal approved successfully!');
-            loadCryptoWithdrawals();
-        } else {
-            const data = await response.json();
-            alert(data.detail || 'Failed to approve withdrawal');
-        }
-    } catch (error) {
-        alert('Error approving withdrawal');
-    }
-}
-
-async function rejectWithdrawal(withdrawalId) {
-    const reason = prompt('Enter rejection reason (optional):');
-    
-    try {
-        const response = await fetch(`${API_URL}/api/admin/crypto-withdrawals/${withdrawalId}/reject?admin_notes=${encodeURIComponent(reason || '')}`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${authToken}` }
-        });
-        
-        if (response.ok) {
-            alert('Withdrawal rejected and funds refunded.');
-            loadCryptoWithdrawals();
-        } else {
-            const data = await response.json();
-            alert(data.detail || 'Failed to reject withdrawal');
-        }
-    } catch (error) {
-        alert('Error rejecting withdrawal');
-    }
-}
-
-// ==================== ROI LOGS FUNCTIONS ====================
-
-async function loadROILogs() {
-    try {
-        const response = await fetch(`${API_URL}/api/admin/roi-logs`, {
-            headers: { 'Authorization': `Bearer ${authToken}` }
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            const tbody = document.getElementById('roiLogsTableBody');
-            
-            if (data.logs && data.logs.length > 0) {
-                tbody.innerHTML = data.logs.map(log => `
-                    <tr>
-                        <td><strong>${log.user_name}</strong></td>
-                        <td>$${log.invested_amount.toFixed(2)}</td>
-                        <td style="color: #f39c12;">$${log.premium_amount.toFixed(2)}</td>
-                        <td style="color: #27ae60;">$${log.daily_roi_amount.toFixed(2)}</td>
-                        <td><strong>$${log.total_roi.toFixed(2)}</strong></td>
-                        <td>${new Date(log.timestamp).toLocaleString()}</td>
-                    </tr>
-                `).join('');
-            } else {
-                tbody.innerHTML = '<tr><td colspan="6" class="empty">No ROI distribution logs yet</td></tr>';
-            }
-        }
-    } catch (error) {
-        console.error('Error loading ROI logs:', error);
-    }
-}
-
-async function distributeROI() {
-    if (!confirm('This will distribute daily ROI to all users with active investments. Continue?')) return;
-    
-    const resultDiv = document.getElementById('roiDistributionResult');
-    resultDiv.style.display = 'block';
-    resultDiv.innerHTML = '<span style="color: #f39c12;">Distributing ROI...</span>';
-    
-    try {
-        const response = await fetch(`${API_URL}/api/admin/distribute-roi`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${authToken}` }
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            resultDiv.innerHTML = `
-                <span style="color: #27ae60;">✓ ${data.message}</span><br>
-                <small>Premium Distributed: $${data.total_premium_distributed?.toFixed(2) || 0}</small><br>
-                <small>Daily ROI Distributed: $${data.total_daily_roi_distributed?.toFixed(2) || 0}</small>
-            `;
-            loadROILogs();
-        } else {
-            resultDiv.innerHTML = `<span style="color: #e74c3c;">✗ ${data.detail || data.message}</span>`;
-        }
-    } catch (error) {
-        resultDiv.innerHTML = '<span style="color: #e74c3c;">✗ Error distributing ROI</span>';
-    }
-}
-
-// ==================== SETTINGS FUNCTIONS ====================
-
-async function loadSettings() {
-    try {
-        const response = await fetch(`${API_URL}/api/admin/settings`, {
-            headers: { 'Authorization': `Bearer ${authToken}` }
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            document.getElementById('investmentToggle').checked = data.investment_enabled;
-            document.getElementById('investmentStatus').textContent = data.investment_enabled ? 'Active' : 'Disabled';
-            document.getElementById('investmentStatus').className = `status-badge ${data.investment_enabled ? 'approved' : 'rejected'}`;
-        }
-    } catch (error) {
-        console.error('Error loading settings:', error);
-    }
-}
-
-async function toggleInvestment() {
-    try {
-        const response = await fetch(`${API_URL}/api/admin/settings/toggle-investment`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${authToken}` }
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            document.getElementById('investmentStatus').textContent = data.investment_enabled ? 'Active' : 'Disabled';
-            document.getElementById('investmentStatus').className = `status-badge ${data.investment_enabled ? 'approved' : 'rejected'}`;
-        }
-    } catch (error) {
-        console.error('Error toggling investment:', error);
-    }
-}
-
-async function changeAdminPassword() {
-    const currentPassword = document.getElementById('adminCurrentPassword').value;
-    const newPassword = document.getElementById('adminNewPassword').value;
-    const resultDiv = document.getElementById('adminPasswordResult');
-    
-    if (!currentPassword || !newPassword) {
-        resultDiv.innerHTML = '<span style="color: #e74c3c;">Please fill all fields</span>';
-        return;
-    }
-    
-    if (newPassword.length < 6) {
-        resultDiv.innerHTML = '<span style="color: #e74c3c;">Password must be at least 6 characters</span>';
-        return;
-    }
-    
-    try {
-        const response = await fetch(`${API_URL}/api/admin/change-password`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${authToken}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            resultDiv.innerHTML = '<span style="color: #27ae60;">✓ Password changed successfully</span>';
-            document.getElementById('adminCurrentPassword').value = '';
-            document.getElementById('adminNewPassword').value = '';
-        } else {
-            resultDiv.innerHTML = `<span style="color: #e74c3c;">✗ ${data.detail}</span>`;
-        }
-    } catch (error) {
-        resultDiv.innerHTML = '<span style="color: #e74c3c;">✗ Error changing password</span>';
-    }
-}
-
-async function changeAdminEmail() {
-    const newEmail = document.getElementById('adminNewEmail').value;
-    const resultDiv = document.getElementById('adminEmailResult');
-    
-    if (!newEmail) {
-        resultDiv.innerHTML = '<span style="color: #e74c3c;">Please enter an email</span>';
-        return;
-    }
-    
-    try {
-        const response = await fetch(`${API_URL}/api/admin/update-email?new_email=${encodeURIComponent(newEmail)}`, {
-            method: 'PUT',
-            headers: { 'Authorization': `Bearer ${authToken}` }
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            resultDiv.innerHTML = `<span style="color: #27ae60;">✓ Email updated to ${data.new_email}</span>`;
-            document.getElementById('adminNewEmail').value = '';
-        } else {
-            resultDiv.innerHTML = `<span style="color: #e74c3c;">✗ ${data.detail}</span>`;
-        }
-    } catch (error) {
-        resultDiv.innerHTML = '<span style="color: #e74c3c;">✗ Error updating email</span>';
-    }
-}
-
-async function changeUserPassword() {
-    const userId = document.getElementById('targetUserId').value;
-    const newPassword = document.getElementById('userNewPassword').value;
-    const resultDiv = document.getElementById('userPasswordResult');
-    
-    if (!userId || !newPassword) {
-        resultDiv.innerHTML = '<span style="color: #e74c3c;">Please fill all fields</span>';
-        return;
-    }
-    
-    if (newPassword.length < 6) {
-        resultDiv.innerHTML = '<span style="color: #e74c3c;">Password must be at least 6 characters</span>';
-        return;
-    }
-    
-    try {
-        const response = await fetch(`${API_URL}/api/admin/users/${userId}/change-password?new_password=${encodeURIComponent(newPassword)}`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${authToken}` }
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            resultDiv.innerHTML = `<span style="color: #27ae60;">✓ ${data.message}</span>`;
-            document.getElementById('targetUserId').value = '';
-            document.getElementById('userNewPassword').value = '';
-        } else {
-            resultDiv.innerHTML = `<span style="color: #e74c3c;">✗ ${data.detail}</span>`;
-        }
-    } catch (error) {
-        resultDiv.innerHTML = '<span style="color: #e74c3c;">✗ Error changing password</span>';
-    }
-}

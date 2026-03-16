@@ -877,6 +877,123 @@ async def get_user_details(user_id: str, admin_user: dict = Depends(get_admin_us
         "referrals": [{"id": r["id"], "full_name": r["full_name"], "email": r["email"]} for r in referrals]
     }
 
+@api_router.get("/admin/users/{user_id}/transactions")
+async def get_user_transactions(user_id: str, admin_user: dict = Depends(get_admin_user)):
+    """Get complete transaction history for a specific user"""
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get all transactions
+    transactions = await db.transactions.find({"user_id": user_id}).sort("date", -1).to_list(500)
+    
+    # Get all investments
+    investments = await db.investments.find({"user_id": user_id}).sort("date", -1).to_list(100)
+    
+    # Get all withdrawals
+    withdrawals = await db.withdrawals.find({"user_id": user_id}).sort("request_timestamp", -1).to_list(100)
+    
+    return {
+        "user_id": user_id,
+        "user_name": user["full_name"],
+        "transactions": [
+            {
+                "id": t.get("id"),
+                "type": t.get("type"),
+                "amount": t.get("amount"),
+                "description": t.get("description", ""),
+                "date": t.get("date").isoformat() if hasattr(t.get("date"), 'isoformat') else str(t.get("date", ""))
+            } for t in transactions
+        ],
+        "investments": [
+            {
+                "id": i.get("id"),
+                "amount": i.get("amount"),
+                "plan": i.get("plan", "premium"),
+                "status": i.get("status"),
+                "validity_days": i.get("validity_days", 100),
+                "start_date": i.get("date").isoformat() if hasattr(i.get("date"), 'isoformat') else str(i.get("date", "")),
+                "end_date": i.get("end_date").isoformat() if hasattr(i.get("end_date"), 'isoformat') else str(i.get("end_date", ""))
+            } for i in investments
+        ],
+        "withdrawals": [
+            {
+                "id": w.get("id"),
+                "amount": w.get("amount"),
+                "status": w.get("status"),
+                "request_date": w.get("request_timestamp").isoformat() if hasattr(w.get("request_timestamp"), 'isoformat') else str(w.get("request_timestamp", "")),
+                "processed_date": w.get("processed_timestamp").isoformat() if w.get("processed_timestamp") and hasattr(w.get("processed_timestamp"), 'isoformat') else ""
+            } for w in withdrawals
+        ],
+        "summary": {
+            "total_transactions": len(transactions),
+            "total_investments": len(investments),
+            "total_withdrawals": len(withdrawals),
+            "total_invested_amount": sum(i.get("amount", 0) for i in investments),
+            "total_withdrawn_amount": sum(w.get("amount", 0) for w in withdrawals if w.get("status") == "approved")
+        }
+    }
+
+@api_router.get("/admin/users/{user_id}/referrals")
+async def get_user_referrals(user_id: str, admin_user: dict = Depends(get_admin_user)):
+    """Get detailed referral information for a specific user"""
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get direct referrals (level 1)
+    direct_referrals = await db.users.find({"referred_by": user_id}).to_list(100)
+    
+    referrals_data = []
+    total_team_investment = 0
+    
+    for ref in direct_referrals:
+        # Get wallet for each referral
+        ref_wallet = await db.wallets.find_one({"user_id": ref["id"]})
+        ref_invested = ref_wallet.get("total_invested", 0) if ref_wallet else 0
+        total_team_investment += ref_invested
+        
+        # Get their direct referrals count (level 2)
+        level2_count = await db.users.count_documents({"referred_by": ref["id"]})
+        
+        referrals_data.append({
+            "id": ref["id"],
+            "user_number": ref.get("user_number"),
+            "full_name": ref["full_name"],
+            "email": ref["email"],
+            "status": ref.get("status", "active"),
+            "total_invested": ref_invested,
+            "joined_date": ref["created_at"].isoformat() if hasattr(ref["created_at"], 'isoformat') else str(ref["created_at"]),
+            "referral_code": ref.get("referral_code"),
+            "level2_referrals": level2_count
+        })
+    
+    # Get who referred this user
+    referred_by_user = None
+    if user.get("referred_by"):
+        referrer = await db.users.find_one({"id": user["referred_by"]})
+        if referrer:
+            referred_by_user = {
+                "id": referrer["id"],
+                "user_number": referrer.get("user_number"),
+                "full_name": referrer["full_name"],
+                "email": referrer["email"]
+            }
+    
+    return {
+        "user_id": user_id,
+        "user_name": user["full_name"],
+        "referral_code": user.get("referral_code"),
+        "referred_by": referred_by_user,
+        "direct_referrals": referrals_data,
+        "summary": {
+            "total_direct_referrals": len(referrals_data),
+            "total_team_investment": total_team_investment,
+            "active_referrals": len([r for r in referrals_data if r["status"] == "active"]),
+            "inactive_referrals": len([r for r in referrals_data if r["status"] != "active"])
+        }
+    }
+
 @api_router.post("/admin/users/{user_id}/credit")
 async def credit_user_wallet(
     user_id: str,
