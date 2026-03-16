@@ -8,8 +8,32 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/api/user/manifest.json">
+    <meta name="theme-color" content="#f39c12">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SS Money">
 </head>
 <body>
+    <!-- PWA Install Popup -->
+    <div id="installPopup" class="install-popup" style="display: none;">
+        <div class="install-popup-content">
+            <div class="install-popup-icon">
+                <svg viewBox="0 0 100 100" width="60" height="60">
+                    <rect fill="#f39c12" width="100" height="100" rx="20"/>
+                    <text x="50" y="65" font-size="40" text-anchor="middle" fill="#000" font-weight="bold">SS</text>
+                </svg>
+            </div>
+            <h3>Install SS Money Resource</h3>
+            <p>Add this app to your home screen for quick and easy access!</p>
+            <div class="install-popup-buttons">
+                <button class="btn btn-primary" onclick="installApp()">Yes, Install</button>
+                <button class="btn btn-secondary" onclick="dismissInstallPopup()">No, Thanks</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Auth Screen -->
     <div id="authScreen" class="auth-screen">
         <div class="auth-container">

@@ -6,6 +6,93 @@ let authToken = localStorage.getItem('userToken');
 let currentUser = null;
 let currentTransferId = null;
 
+// PWA Install prompt
+let deferredPrompt = null;
+
+// Register Service Worker for PWA
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/api/user/sw.js')
+        .then(reg => console.log('Service Worker registered'))
+        .catch(err => console.log('Service Worker registration failed:', err));
+}
+
+// Listen for beforeinstallprompt event
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    // Show install popup if user hasn't dismissed it before
+    checkAndShowInstallPopup();
+});
+
+// Check if we should show install popup
+function checkAndShowInstallPopup() {
+    const dismissed = localStorage.getItem('installPopupDismissed');
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    
+    // Don't show if already installed or dismissed
+    if (dismissed || isStandalone) {
+        return;
+    }
+    
+    // Show popup only on auth screen (login/signup)
+    const authScreen = document.getElementById('authScreen');
+    if (authScreen && authScreen.style.display !== 'none') {
+        setTimeout(() => {
+            showInstallPopup();
+        }, 1500); // Show after 1.5 seconds
+    }
+}
+
+// Show install popup
+function showInstallPopup() {
+    const popup = document.getElementById('installPopup');
+    if (popup) {
+        // Show popup (works with or without beforeinstallprompt for demo)
+        popup.style.display = 'flex';
+    }
+}
+
+// Install the app
+async function installApp() {
+    const popup = document.getElementById('installPopup');
+    
+    if (deferredPrompt) {
+        // Show the native install prompt
+        deferredPrompt.prompt();
+        
+        // Wait for user response
+        const { outcome } = await deferredPrompt.userChoice;
+        
+        if (outcome === 'accepted') {
+            console.log('App installed successfully');
+        }
+        
+        // Clear the deferred prompt
+        deferredPrompt = null;
+    } else {
+        // Fallback: Show instructions for manual installation
+        alert('To install this app:\n\n• iOS: Tap the Share button, then "Add to Home Screen"\n• Android: Tap the menu (⋮), then "Add to Home Screen"\n• Desktop: Look for the install icon in the address bar');
+    }
+    
+    // Hide popup
+    if (popup) {
+        popup.style.display = 'none';
+    }
+    
+    // Mark as dismissed so it doesn't show again
+    localStorage.setItem('installPopupDismissed', 'true');
+}
+
+// Dismiss install popup
+function dismissInstallPopup() {
+    const popup = document.getElementById('installPopup');
+    if (popup) {
+        popup.style.display = 'none';
+    }
+    // Remember user's choice
+    localStorage.setItem('installPopupDismissed', 'true');
+}
+
 // Check auth on load
 document.addEventListener('DOMContentLoaded', async function() {
     // Check for signup hash with optional referral code
@@ -50,6 +137,14 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // Setup mobile navigation (close sidebar on nav click)
     setupMobileNavigation();
+    
+    // Check and show install popup if on auth screen and not already installed
+    if (!authToken) {
+        // Delay to allow beforeinstallprompt to fire first
+        setTimeout(() => {
+            checkAndShowInstallPopup();
+        }, 2000);
+    }
 });
 
 // Check authentication
