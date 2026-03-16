@@ -29,25 +29,22 @@ function checkAndShowInstallPopup() {
     const dismissed = localStorage.getItem('installPopupDismissed');
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
     
-    // Don't show if already installed or dismissed
-    if (dismissed || isStandalone) {
+    // Don't show if already installed, dismissed, or no install prompt available
+    if (dismissed || isStandalone || !deferredPrompt) {
         return;
     }
     
     // Show popup only on auth screen (login/signup)
     const authScreen = document.getElementById('authScreen');
     if (authScreen && authScreen.style.display !== 'none') {
-        setTimeout(() => {
-            showInstallPopup();
-        }, 1500); // Show after 1.5 seconds
+        showInstallPopup();
     }
 }
 
 // Show install popup
 function showInstallPopup() {
     const popup = document.getElementById('installPopup');
-    if (popup) {
-        // Show popup (works with or without beforeinstallprompt for demo)
+    if (popup && deferredPrompt) {
         popup.style.display = 'flex';
     }
 }
@@ -63,15 +60,10 @@ async function installApp() {
         // Wait for user response
         const { outcome } = await deferredPrompt.userChoice;
         
-        if (outcome === 'accepted') {
-            console.log('App installed successfully');
-        }
+        console.log('Install outcome:', outcome);
         
         // Clear the deferred prompt
         deferredPrompt = null;
-    } else {
-        // Fallback: Show instructions for manual installation
-        alert('To install this app:\n\n• iOS: Tap the Share button, then "Add to Home Screen"\n• Android: Tap the menu (⋮), then "Add to Home Screen"\n• Desktop: Look for the install icon in the address bar');
     }
     
     // Hide popup
