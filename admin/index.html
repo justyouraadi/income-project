@@ -168,7 +168,11 @@
                 <div id="usersPage" class="page-content" style="display: none;">
                     <div class="page-header">
                         <h2>User Management</h2>
-                        <input type="text" id="userSearch" placeholder="Search users..." class="search-input">
+                        <div class="header-actions">
+                            <button class="btn btn-success" onclick="showAddUserModal()">+ Add User</button>
+                            <button class="btn btn-info" onclick="showAdminCreatedUsers()">📋 Admin Created Users</button>
+                            <input type="text" id="userSearch" placeholder="Search users..." class="search-input">
+                        </div>
                     </div>
                     <div class="table-container">
                         <table class="data-table">
@@ -714,6 +718,71 @@
                         </table>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add User Modal -->
+    <div id="addUserModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close" onclick="closeAddUserModal()">&times;</span>
+            <h2>Add New User</h2>
+            <div class="form-group">
+                <label>Full Name *</label>
+                <input type="text" id="newUserName" placeholder="Enter full name" required>
+            </div>
+            <div class="form-group">
+                <label>Email *</label>
+                <input type="email" id="newUserEmail" placeholder="Enter email" required>
+            </div>
+            <div class="form-group">
+                <label>Password *</label>
+                <input type="password" id="newUserPassword" placeholder="Enter password" required>
+            </div>
+            <div class="form-group">
+                <label>Status</label>
+                <select id="newUserStatus">
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Referrer Code (Optional)</label>
+                <input type="text" id="newUserReferrer" placeholder="Enter referrer code">
+            </div>
+            <div class="button-group">
+                <button class="btn btn-success" onclick="createUser()">Create User</button>
+                <button class="btn btn-secondary" onclick="closeAddUserModal()">Cancel</button>
+            </div>
+            <div id="addUserMessage" class="message" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- Admin Created Users Modal -->
+    <div id="adminCreatedUsersModal" class="modal" style="display: none;">
+        <div class="modal-content modal-large">
+            <span class="close" onclick="closeAdminCreatedUsersModal()">&times;</span>
+            <h2>Users Created by Admin</h2>
+            <div class="summary-info" id="adminCreatedSummary">
+                <span class="badge">Total: 0</span>
+            </div>
+            <div class="table-container" style="max-height: 500px; overflow-y: auto;">
+                <table class="data-table compact">
+                    <thead>
+                        <tr>
+                            <th>User #</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Status</th>
+                            <th>Invested</th>
+                            <th>Created By</th>
+                            <th>Created At</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminCreatedUsersTable">
+                        <tr><td colspan="7" class="loading">Loading...</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>

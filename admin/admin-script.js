@@ -1444,3 +1444,127 @@ document.getElementById('p2pRecipientUserId')?.addEventListener('blur', async fu
         console.error('Error looking up user:', error);
     }
 });
+
+// ==================== ADMIN CREATE USER ====================
+
+function showAddUserModal() {
+    document.getElementById('addUserModal').style.display = 'flex';
+    // Clear form
+    document.getElementById('newUserName').value = '';
+    document.getElementById('newUserEmail').value = '';
+    document.getElementById('newUserPassword').value = '';
+    document.getElementById('newUserStatus').value = 'active';
+    document.getElementById('newUserReferrer').value = '';
+    document.getElementById('addUserMessage').style.display = 'none';
+}
+
+function closeAddUserModal() {
+    document.getElementById('addUserModal').style.display = 'none';
+}
+
+async function createUser() {
+    const name = document.getElementById('newUserName').value.trim();
+    const email = document.getElementById('newUserEmail').value.trim();
+    const password = document.getElementById('newUserPassword').value;
+    const status = document.getElementById('newUserStatus').value;
+    const referrer = document.getElementById('newUserReferrer').value.trim();
+    const messageDiv = document.getElementById('addUserMessage');
+    
+    if (!name || !email || !password) {
+        messageDiv.textContent = 'Please fill in all required fields';
+        messageDiv.className = 'message error';
+        messageDiv.style.display = 'block';
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/api/admin/users/create`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                full_name: name,
+                email: email,
+                password: password,
+                status: status,
+                referral_code: referrer || null
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            messageDiv.textContent = `User created successfully! User #${data.user.user_number}`;
+            messageDiv.className = 'message success';
+            messageDiv.style.display = 'block';
+            
+            // Refresh users list
+            setTimeout(() => {
+                closeAddUserModal();
+                loadUsers();
+            }, 1500);
+        } else {
+            messageDiv.textContent = data.detail || 'Failed to create user';
+            messageDiv.className = 'message error';
+            messageDiv.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error creating user:', error);
+        messageDiv.textContent = 'Network error. Please try again.';
+        messageDiv.className = 'message error';
+        messageDiv.style.display = 'block';
+    }
+}
+
+// ==================== ADMIN CREATED USERS HISTORY ====================
+
+function showAdminCreatedUsers() {
+    document.getElementById('adminCreatedUsersModal').style.display = 'flex';
+    loadAdminCreatedUsers();
+}
+
+function closeAdminCreatedUsersModal() {
+    document.getElementById('adminCreatedUsersModal').style.display = 'none';
+}
+
+async function loadAdminCreatedUsers() {
+    try {
+        const response = await fetch(`${API_URL}/api/admin/users/created-by-admin`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            
+            // Update summary
+            document.getElementById('adminCreatedSummary').innerHTML = `
+                <span class="badge" style="background: var(--primary); color: #000; padding: 8px 16px; border-radius: 20px;">
+                    Total Users Created: ${data.total}
+                </span>
+            `;
+            
+            // Render table
+            const tbody = document.getElementById('adminCreatedUsersTable');
+            
+            if (data.users && data.users.length > 0) {
+                tbody.innerHTML = data.users.map(user => `
+                    <tr>
+                        <td><strong>#${user.user_number || 'N/A'}</strong></td>
+                        <td>${user.full_name}</td>
+                        <td>${user.email}</td>
+                        <td><span class="status-${user.status}">${user.status}</span></td>
+                        <td>$${user.total_invested.toFixed(2)}</td>
+                        <td>${user.created_by_admin_email}</td>
+                        <td>${new Date(user.created_at).toLocaleDateString()}</td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty">No users created by admin yet</td></tr>';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading admin created users:', error);
+    }
+}

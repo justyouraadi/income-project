@@ -848,6 +848,115 @@ async def get_all_users(
         "limit": limit
     }
 
+class AdminCreateUser(BaseModel):
+    email: str
+    password: str
+    full_name: str
+    status: str = "active"  # Admin can set active or inactive
+    referral_code: Optional[str] = None  # Optional: assign to a referrer
+
+@api_router.post("/admin/users/create")
+async def admin_create_user(user_data: AdminCreateUser, admin_user: dict = Depends(get_admin_user)):
+    """Admin can create a user directly with active status"""
+    # Check if user exists
+    existing_user = await db.users.find_one({"email": user_data.email})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Validate referral code if provided
+    referrer = None
+    if user_data.referral_code:
+        clean_code = user_data.referral_code.lstrip('#')
+        try:
+            user_number_ref = int(clean_code)
+            referrer = await db.users.find_one({"user_number": user_number_ref})
+        except ValueError:
+            pass
+        if not referrer:
+            referrer = await db.users.find_one({"referral_code": clean_code.upper()})
+        if not referrer:
+            referrer = await db.users.find_one({"referral_code": clean_code})
+    
+    # Generate unique user ID number
+    last_user = await db.users.find_one(sort=[("user_number", -1)])
+    user_number = (last_user.get("user_number", 100000) + 1) if last_user else 100001
+    
+    # Create user
+    user_id = str(uuid.uuid4())
+    hashed_password = get_password_hash(user_data.password)
+    referral_code = generate_referral_code()
+    
+    user = {
+        "id": user_id,
+        "user_number": user_number,
+        "email": user_data.email,
+        "password": hashed_password,
+        "full_name": user_data.full_name,
+        "referral_code": referral_code,
+        "referred_by": referrer["id"] if referrer else None,
+        "status": user_data.status,  # Admin can set status directly
+        "created_at": datetime.utcnow(),
+        "created_by_admin": True,  # Track that this user was created by admin
+        "created_by_admin_id": admin_user["id"],
+        "created_by_admin_email": admin_user["email"]
+    }
+    
+    await db.users.insert_one(user)
+    
+    # Create wallet for user
+    wallet = {
+        "user_id": user_id,
+        "daily_roi": 0.0,
+        "direct_income": 0.0,
+        "slab_income": 0.0,
+        "royalty_income": 0.0,
+        "salary_income": 0.0,
+        "withdrawal_balance": 0.0,
+        "total_balance": 0.0,
+        "total_invested": 0.0,
+        "total_withdrawn": 0.0,
+        "last_roi_date": None
+    }
+    await db.wallets.insert_one(wallet)
+    
+    return {
+        "message": "User created successfully",
+        "user": {
+            "id": user_id,
+            "user_number": user_number,
+            "email": user_data.email,
+            "full_name": user_data.full_name,
+            "referral_code": referral_code,
+            "status": user_data.status
+        }
+    }
+
+@api_router.get("/admin/users/created-by-admin")
+async def get_admin_created_users(admin_user: dict = Depends(get_admin_user)):
+    """Get history of all users created by admin"""
+    users = await db.users.find({"created_by_admin": True}).sort("created_at", -1).to_list(500)
+    
+    users_list = []
+    for user in users:
+        wallet = await db.wallets.find_one({"user_id": user["id"]})
+        
+        users_list.append({
+            "id": user["id"],
+            "user_number": user.get("user_number"),
+            "email": user["email"],
+            "full_name": user["full_name"],
+            "referral_code": user.get("referral_code"),
+            "status": user.get("status", "active"),
+            "total_invested": wallet.get("total_invested", 0) if wallet else 0,
+            "created_at": user["created_at"].isoformat() if hasattr(user["created_at"], 'isoformat') else str(user["created_at"]),
+            "created_by_admin_email": user.get("created_by_admin_email", "Unknown")
+        })
+    
+    return {
+        "total": len(users_list),
+        "users": users_list
+    }
+
 @api_router.get("/admin/users/{user_id}")
 async def get_user_details(user_id: str, admin_user: dict = Depends(get_admin_user)):
     """Get detailed user information"""
