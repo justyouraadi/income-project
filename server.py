@@ -284,7 +284,7 @@ async def register(user_data: UserCreate):
         "full_name": user_data.full_name,
         "referral_code": referral_code,
         "referred_by": referrer["id"] if referrer else None,
-        "status": "active",  # active or inactive
+        "status": "inactive",  # inactive until first investment
         "created_at": datetime.utcnow()
     }
     
@@ -400,6 +400,9 @@ async def create_investment(request: InvestRequest, current_user: dict = Depends
     if amount < 20:
         raise HTTPException(status_code=400, detail="Minimum investment is $20")
     
+    # Check if this is user's first investment
+    is_first_investment = current_user.get("status") == "inactive"
+    
     # Update wallet - add to total invested
     await db.wallets.update_one(
         {"user_id": current_user["id"]},
@@ -410,6 +413,13 @@ async def create_investment(request: InvestRequest, current_user: dict = Depends
             }
         }
     )
+    
+    # If first investment, activate the user
+    if is_first_investment:
+        await db.users.update_one(
+            {"id": current_user["id"]},
+            {"$set": {"status": "active"}}
+        )
     
     # Create investment record with 100 days validity
     start_date = datetime.utcnow()
@@ -438,39 +448,43 @@ async def create_investment(request: InvestRequest, current_user: dict = Depends
     }
     await db.transactions.insert_one(transaction)
     
-    # Process referral income (5% direct income)
+    # Process referral income (5% direct income) - ONLY if referrer is ACTIVE
     if current_user.get("referred_by"):
-        referral_amount = amount * 0.05
-        await db.wallets.update_one(
-            {"user_id": current_user["referred_by"]},
-            {
-                "$inc": {
-                    "direct_income": referral_amount,
-                    "total_balance": referral_amount
+        # Check if referrer is active
+        referrer = await db.users.find_one({"id": current_user["referred_by"]})
+        
+        if referrer and referrer.get("status") == "active":
+            referral_amount = amount * 0.05
+            await db.wallets.update_one(
+                {"user_id": current_user["referred_by"]},
+                {
+                    "$inc": {
+                        "direct_income": referral_amount,
+                        "total_balance": referral_amount
+                    }
                 }
+            )
+            
+            # Record referral income
+            referral_income = {
+                "id": str(uuid.uuid4()),
+                "user_id": current_user["referred_by"],
+                "referred_user_id": current_user["id"],
+                "amount": referral_amount,
+                "date": datetime.utcnow()
             }
-        )
-        
-        # Record referral income
-        referral_income = {
-            "id": str(uuid.uuid4()),
-            "user_id": current_user["referred_by"],
-            "referred_user_id": current_user["id"],
-            "amount": referral_amount,
-            "date": datetime.utcnow()
-        }
-        await db.referral_income.insert_one(referral_income)
-        
-        # Create transaction for referrer
-        referrer_transaction = {
-            "id": str(uuid.uuid4()),
-            "user_id": current_user["referred_by"],
-            "type": "direct_income",
-            "amount": referral_amount,
-            "description": f"Direct referral income from {current_user['full_name']}",
-            "date": datetime.utcnow()
-        }
-        await db.transactions.insert_one(referrer_transaction)
+            await db.referral_income.insert_one(referral_income)
+            
+            # Create transaction for referrer
+            referrer_transaction = {
+                "id": str(uuid.uuid4()),
+                "user_id": current_user["referred_by"],
+                "type": "direct_income",
+                "amount": referral_amount,
+                "description": f"Direct referral income from {current_user['full_name']}",
+                "date": datetime.utcnow()
+            }
+            await db.transactions.insert_one(referrer_transaction)
     
     return {"message": "Investment successful", "amount": amount}
 
