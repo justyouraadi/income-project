@@ -190,6 +190,9 @@ function refreshDashboard() {
 
 // ==================== USERS MANAGEMENT ====================
 
+// Store all users for filtering
+let allUsersData = [];
+
 async function loadUsers() {
     const tbody = document.getElementById('usersTableBody');
     tbody.innerHTML = '<tr><td colspan="10" class="loading">Loading users...</td></tr>';
@@ -199,7 +202,7 @@ async function loadUsers() {
     updateUserBulkActions();
     
     try {
-        const response = await fetch(`${API_URL}/api/admin/users?limit=100`, {
+        const response = await fetch(`${API_URL}/api/admin/users?limit=1000`, {
             headers: {
                 'Authorization': `Bearer ${authToken}`
             }
@@ -207,48 +210,96 @@ async function loadUsers() {
         
         if (response.ok) {
             const data = await response.json();
+            allUsersData = data.users || [];
             
-            if (data.users.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="10" class="loading">No users found</td></tr>';
-                return;
-            }
-            
-            tbody.innerHTML = '';
-            data.users.forEach(user => {
-                const wallet = user.wallet || {};
-                const totalIncome = (wallet.daily_roi || 0) + (wallet.direct_income || 0) + 
-                                   (wallet.slab_income || 0) + (wallet.royalty_income || 0) + 
-                                   (wallet.salary_income || 0);
-                
-                const statusClass = user.status === 'active' ? 'status-active' : 'status-inactive';
-                const statusText = user.status === 'active' ? 'Active' : 'Inactive';
-                
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td><input type="checkbox" value="${user.id}" onchange="toggleUserSelection('${user.id}')"></td>
-                    <td><strong>#${user.user_number || 'N/A'}</strong></td>
-                    <td>${user.full_name}</td>
-                    <td>${user.email}</td>
-                    <td><code>${user.referral_code}</code></td>
-                    <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                    <td>$${(wallet.total_invested || 0).toFixed(2)}</td>
-                    <td>$${totalIncome.toFixed(2)}</td>
-                    <td>${new Date(user.created_at).toLocaleDateString()}</td>
-                    <td class="action-buttons">
-                        <button class="btn btn-info btn-sm" onclick="viewUser('${user.id}')">Manage</button>
-                        ${!user.is_admin ? `
-                            <button class="btn ${user.status === 'active' ? 'btn-warning' : 'btn-success'} btn-sm" onclick="toggleUserStatus('${user.id}')">${user.status === 'active' ? 'Deact.' : 'Act.'}</button>
-                            <button class="btn btn-danger btn-sm" onclick="deleteUser('${user.id}')">Del</button>
-                        ` : ''}
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
+            // Apply date filter
+            const filteredUsers = filterUsersByDate(allUsersData);
+            renderUsersTable(filteredUsers);
         }
     } catch (error) {
         console.error('Error loading users:', error);
         tbody.innerHTML = '<tr><td colspan="10" class="loading">Error loading users</td></tr>';
     }
+}
+
+function filterUsersByDate(users) {
+    const filter = document.getElementById('userDateFilter').value;
+    if (!filter || filter === '') return users;
+    
+    const now = new Date();
+    let startDate = null;
+    let endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+    
+    if (filter === 'weekly') {
+        // Start of this week (Sunday)
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - now.getDay());
+        startDate.setHours(0, 0, 0, 0);
+    } else if (filter === 'monthly') {
+        // Start of this month
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else if (filter === 'quarterly') {
+        // Start of this quarter
+        const quarter = Math.floor(now.getMonth() / 3);
+        startDate = new Date(now.getFullYear(), quarter * 3, 1);
+    } else if (filter === 'yearly') {
+        // Start of this year
+        startDate = new Date(now.getFullYear(), 0, 1);
+    } else if (filter === 'custom') {
+        const customStart = document.getElementById('userStartDate').value;
+        const customEnd = document.getElementById('userEndDate').value;
+        if (customStart) startDate = new Date(customStart);
+        if (customEnd) {
+            endDate = new Date(customEnd);
+            endDate.setHours(23, 59, 59, 999);
+        }
+    }
+    
+    if (!startDate) return users;
+    
+    return users.filter(user => {
+        const userDate = new Date(user.created_at);
+        return userDate >= startDate && userDate <= endDate;
+    });
+}
+
+function renderUsersTable(users) {
+    const tbody = document.getElementById('usersTableBody');
+    
+    if (!users || users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" class="loading">No users found for selected period</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = '';
+    users.forEach(user => {
+        const wallet = user.wallet || {};
+        const totalIncome = (wallet.daily_roi || 0) + (wallet.direct_income || 0) + 
+                           (wallet.slab_income || 0) + (wallet.royalty_income || 0) + 
+                           (wallet.salary_income || 0);
+        
+        const statusClass = user.status === 'active' ? 'status-active' : 'status-inactive';
+        const statusText = user.status === 'active' ? 'Active' : 'Inactive';
+        
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><input type="checkbox" value="${user.id}" onchange="toggleUserSelection('${user.id}')"></td>
+            <td><strong>#${user.user_number || 'N/A'}</strong></td>
+            <td><code>${user.referral_code}</code></td>
+            <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+            <td>$${(wallet.total_invested || 0).toFixed(2)}</td>
+            <td>$${totalIncome.toFixed(2)}</td>
+            <td>${new Date(user.created_at).toLocaleDateString()}</td>
+            <td class="action-buttons">
+                <button class="btn btn-info btn-sm" onclick="viewUser('${user.id}')">Manage</button>
+                ${!user.is_admin ? `
+                    <button class="btn ${user.status === 'active' ? 'btn-warning' : 'btn-success'} btn-sm" onclick="toggleUserStatus('${user.id}')">${user.status === 'active' ? 'Deact.' : 'Act.'}</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteUser('${user.id}')">Del</button>
+                ` : ''}
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
 }
 
 // Toggle User Status
@@ -549,14 +600,17 @@ async function loadUserReferrals(userId) {
 
 // ==================== WITHDRAWALS MANAGEMENT ====================
 
+// Store all withdrawals for filtering
+let allWithdrawalsData = [];
+
 async function loadWithdrawals() {
     const tbody = document.getElementById('withdrawalsTableBody');
     tbody.innerHTML = '<tr><td colspan="7" class="loading">Loading withdrawals...</td></tr>';
     
-    const filter = document.getElementById('withdrawalFilter').value;
+    const statusFilter = document.getElementById('withdrawalFilter').value;
     let url = `${API_URL}/api/admin/withdrawals`;
-    if (filter) {
-        url += `?status=${filter}`;
+    if (statusFilter) {
+        url += `?status=${statusFilter}`;
     }
     
     try {
@@ -568,53 +622,129 @@ async function loadWithdrawals() {
         
         if (response.ok) {
             const data = await response.json();
+            allWithdrawalsData = data.withdrawals || [];
             
-            // Update summary
-            document.getElementById('pendingCount').textContent = data.summary.total_pending;
-            document.getElementById('pendingAmount').textContent = (data.summary.pending_amount || 0).toFixed(2);
-            document.getElementById('approvedCount').textContent = data.summary.total_approved;
-            document.getElementById('approvedAmount').textContent = (data.summary.approved_amount || 0).toFixed(2);
-            document.getElementById('cancelledCount').textContent = data.summary.total_cancelled;
-            document.getElementById('cancelledAmount').textContent = (data.summary.cancelled_amount || 0).toFixed(2);
-            document.getElementById('totalWithdrawnAmount').textContent = `$${(data.summary.total_withdrawn || 0).toFixed(2)}`;
+            // Apply date filter
+            const filteredWithdrawals = filterWithdrawalsByDate(allWithdrawalsData);
             
-            if (!data.withdrawals || data.withdrawals.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="loading">No withdrawal requests found</td></tr>';
-                return;
-            }
+            // Calculate summary from filtered data
+            const summary = calculateWithdrawalsSummary(filteredWithdrawals);
+            document.getElementById('pendingCount').textContent = summary.total_pending;
+            document.getElementById('pendingAmount').textContent = summary.pending_amount.toFixed(2);
+            document.getElementById('approvedCount').textContent = summary.total_approved;
+            document.getElementById('approvedAmount').textContent = summary.approved_amount.toFixed(2);
+            document.getElementById('cancelledCount').textContent = summary.total_cancelled;
+            document.getElementById('cancelledAmount').textContent = summary.cancelled_amount.toFixed(2);
+            document.getElementById('totalWithdrawnAmount').textContent = `$${summary.total_withdrawn.toFixed(2)}`;
             
-            tbody.innerHTML = '';
-            data.withdrawals.forEach(w => {
-                const statusColors = {
-                    'pending': '#f39c12',
-                    'approved': '#27ae60',
-                    'cancelled': '#e74c3c'
-                };
-                
-                const paymentDetails = w.upi_id ? `UPI: ${w.upi_id}` : (w.bank_details || 'N/A');
-                
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td><strong>#${w.user_number || 'N/A'}</strong></td>
-                    <td>${w.user_name}<br><small>${w.user_email}</small></td>
-                    <td><strong>$${w.amount.toFixed(2)}</strong></td>
-                    <td>${paymentDetails}</td>
-                    <td><span class="type-badge" style="background: ${statusColors[w.status]}">${w.status}</span></td>
-                    <td>${new Date(w.created_at).toLocaleString()}</td>
-                    <td>
-                        ${w.status === 'pending' ? `
-                            <button class="action-btn btn-success" onclick="approveWithdrawal('${w.id}')">Approve</button>
-                            <button class="action-btn btn-danger" onclick="cancelWithdrawal('${w.id}')">Cancel</button>
-                        ` : '-'}
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
+            renderWithdrawalsTable(filteredWithdrawals);
         }
     } catch (error) {
         console.error('Error loading withdrawals:', error);
         tbody.innerHTML = '<tr><td colspan="7" class="loading">Error loading withdrawals</td></tr>';
     }
+}
+
+function filterWithdrawalsByDate(withdrawals) {
+    const filter = document.getElementById('withdrawalDateFilter').value;
+    if (!filter || filter === '') return withdrawals;
+    
+    const now = new Date();
+    let startDate = null;
+    let endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+    
+    if (filter === 'weekly') {
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - now.getDay());
+        startDate.setHours(0, 0, 0, 0);
+    } else if (filter === 'monthly') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else if (filter === 'quarterly') {
+        const quarter = Math.floor(now.getMonth() / 3);
+        startDate = new Date(now.getFullYear(), quarter * 3, 1);
+    } else if (filter === 'yearly') {
+        startDate = new Date(now.getFullYear(), 0, 1);
+    } else if (filter === 'custom') {
+        const customStart = document.getElementById('withdrawalStartDate').value;
+        const customEnd = document.getElementById('withdrawalEndDate').value;
+        if (customStart) startDate = new Date(customStart);
+        if (customEnd) {
+            endDate = new Date(customEnd);
+            endDate.setHours(23, 59, 59, 999);
+        }
+    }
+    
+    if (!startDate) return withdrawals;
+    
+    return withdrawals.filter(w => {
+        const wDate = new Date(w.created_at);
+        return wDate >= startDate && wDate <= endDate;
+    });
+}
+
+function calculateWithdrawalsSummary(withdrawals) {
+    const summary = {
+        total_pending: 0,
+        pending_amount: 0,
+        total_approved: 0,
+        approved_amount: 0,
+        total_cancelled: 0,
+        cancelled_amount: 0,
+        total_withdrawn: 0
+    };
+    
+    withdrawals.forEach(w => {
+        if (w.status === 'pending') {
+            summary.total_pending++;
+            summary.pending_amount += w.amount || 0;
+        } else if (w.status === 'approved') {
+            summary.total_approved++;
+            summary.approved_amount += w.amount || 0;
+            summary.total_withdrawn += w.amount || 0;
+        } else if (w.status === 'cancelled') {
+            summary.total_cancelled++;
+            summary.cancelled_amount += w.amount || 0;
+        }
+    });
+    
+    return summary;
+}
+
+function renderWithdrawalsTable(withdrawals) {
+    const tbody = document.getElementById('withdrawalsTableBody');
+    
+    if (!withdrawals || withdrawals.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="loading">No withdrawal requests found for selected period</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = '';
+    withdrawals.forEach(w => {
+        const statusColors = {
+            'pending': '#f39c12',
+            'approved': '#27ae60',
+            'cancelled': '#e74c3c'
+        };
+        
+        const paymentDetails = w.upi_id ? `UPI: ${w.upi_id}` : (w.bank_details || 'N/A');
+        
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><strong>#${w.user_number || 'N/A'}</strong></td>
+            <td>${w.user_name}<br><small>${w.user_email}</small></td>
+            <td><strong>$${w.amount.toFixed(2)}</strong></td>
+            <td>${paymentDetails}</td>
+            <td><span class="type-badge" style="background: ${statusColors[w.status]}">${w.status}</span></td>
+            <td>${new Date(w.created_at).toLocaleString()}</td>
+            <td>
+                ${w.status === 'pending' ? `
+                    <button class="action-btn btn-success" onclick="approveWithdrawal('${w.id}')">Approve</button>
+                    <button class="action-btn btn-danger" onclick="cancelWithdrawal('${w.id}')">Cancel</button>
+                ` : '-'}
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
 }
 
 async function approveWithdrawal(withdrawalId) {
@@ -1774,9 +1904,16 @@ function applyUserDateFilter() {
     
     if (filter === 'custom') {
         customRange.style.display = 'flex';
+        // Don't reload, wait for user to click Apply with dates
     } else {
         customRange.style.display = 'none';
-        loadUsers();
+        // Re-filter the existing data
+        if (allUsersData.length > 0) {
+            const filteredUsers = filterUsersByDate(allUsersData);
+            renderUsersTable(filteredUsers);
+        } else {
+            loadUsers();
+        }
     }
 }
 
@@ -1918,6 +2055,8 @@ async function deleteUser(userId) {
 
 // ==================== EXPORT TO EXCEL ====================
 
+let currentExportType = null;
+
 function exportToExcel(data, filename) {
     // Convert data to CSV format
     if (!data || data.length === 0) {
@@ -1946,7 +2085,103 @@ function exportToExcel(data, filename) {
     link.click();
 }
 
-async function exportUsersToExcel() {
+// Show export date modal
+function showExportDateModal(exportType) {
+    currentExportType = exportType;
+    document.getElementById('exportDateQuickSelect').value = '';
+    document.getElementById('exportCustomDateRange').style.display = 'none';
+    document.getElementById('exportStartDate').value = '';
+    document.getElementById('exportEndDate').value = '';
+    document.getElementById('exportDateModal').style.display = 'flex';
+}
+
+function closeExportDateModal() {
+    document.getElementById('exportDateModal').style.display = 'none';
+    currentExportType = null;
+}
+
+function updateExportDateRange() {
+    const quickSelect = document.getElementById('exportDateQuickSelect').value;
+    const customRange = document.getElementById('exportCustomDateRange');
+    
+    if (quickSelect === 'custom') {
+        customRange.style.display = 'block';
+    } else {
+        customRange.style.display = 'none';
+    }
+}
+
+function getExportDateRange() {
+    const quickSelect = document.getElementById('exportDateQuickSelect').value;
+    if (!quickSelect || quickSelect === '') {
+        return { startDate: null, endDate: null };
+    }
+    
+    const now = new Date();
+    let startDate = null;
+    let endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+    
+    if (quickSelect === 'weekly') {
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - now.getDay());
+        startDate.setHours(0, 0, 0, 0);
+    } else if (quickSelect === 'monthly') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else if (quickSelect === 'quarterly') {
+        const quarter = Math.floor(now.getMonth() / 3);
+        startDate = new Date(now.getFullYear(), quarter * 3, 1);
+    } else if (quickSelect === 'yearly') {
+        startDate = new Date(now.getFullYear(), 0, 1);
+    } else if (quickSelect === 'custom') {
+        const customStart = document.getElementById('exportStartDate').value;
+        const customEnd = document.getElementById('exportEndDate').value;
+        if (customStart) startDate = new Date(customStart);
+        if (customEnd) {
+            endDate = new Date(customEnd);
+            endDate.setHours(23, 59, 59, 999);
+        }
+    }
+    
+    return { startDate, endDate };
+}
+
+function filterDataByDateRange(data, dateField, startDate, endDate) {
+    if (!startDate) return data;
+    
+    return data.filter(item => {
+        const itemDate = new Date(item[dateField]);
+        return itemDate >= startDate && itemDate <= endDate;
+    });
+}
+
+async function executeExport() {
+    const { startDate, endDate } = getExportDateRange();
+    
+    switch (currentExportType) {
+        case 'users':
+            await doExportUsers(startDate, endDate);
+            break;
+        case 'withdrawals':
+            await doExportWithdrawals(startDate, endDate);
+            break;
+        case 'admin_created':
+            await doExportAdminCreatedUsers(startDate, endDate);
+            break;
+    }
+    
+    closeExportDateModal();
+}
+
+// These functions now open the modal instead of exporting directly
+function exportUsersToExcel() {
+    showExportDateModal('users');
+}
+
+function exportWithdrawalsToExcel() {
+    showExportDateModal('withdrawals');
+}
+
+async function doExportUsers(startDate, endDate) {
     try {
         const response = await fetch(`${API_URL}/api/admin/users?limit=1000`, {
             headers: { 'Authorization': `Bearer ${authToken}` }
@@ -1954,7 +2189,17 @@ async function exportUsersToExcel() {
         
         if (response.ok) {
             const data = await response.json();
-            const exportData = data.users.map(u => ({
+            let users = data.users || [];
+            
+            // Apply date filter if specified
+            if (startDate) {
+                users = users.filter(u => {
+                    const userDate = new Date(u.created_at);
+                    return userDate >= startDate && userDate <= endDate;
+                });
+            }
+            
+            const exportData = users.map(u => ({
                 'User ID': u.user_number || 'N/A',
                 'Name': u.full_name,
                 'Email': u.email,
@@ -1964,7 +2209,9 @@ async function exportUsersToExcel() {
                 'Total Income': (u.wallet?.daily_roi || 0) + (u.wallet?.direct_income || 0) + (u.wallet?.slab_income || 0) + (u.wallet?.royalty_income || 0) + (u.wallet?.salary_income || 0),
                 'Joined': new Date(u.created_at).toLocaleDateString()
             }));
-            exportToExcel(exportData, 'users');
+            
+            const dateLabel = startDate ? `_${startDate.toISOString().split('T')[0]}_to_${endDate.toISOString().split('T')[0]}` : '';
+            exportToExcel(exportData, `users${dateLabel}`);
         }
     } catch (error) {
         console.error('Error exporting:', error);
@@ -1972,7 +2219,7 @@ async function exportUsersToExcel() {
     }
 }
 
-async function exportWithdrawalsToExcel() {
+async function doExportWithdrawals(startDate, endDate) {
     try {
         const response = await fetch(`${API_URL}/api/admin/withdrawals`, {
             headers: { 'Authorization': `Bearer ${authToken}` }
@@ -1980,14 +2227,28 @@ async function exportWithdrawalsToExcel() {
         
         if (response.ok) {
             const data = await response.json();
-            const exportData = data.map(w => ({
-                'User': w.user?.full_name || 'Unknown',
-                'Email': w.user?.email || '',
+            let withdrawals = data.withdrawals || [];
+            
+            // Apply date filter if specified
+            if (startDate) {
+                withdrawals = withdrawals.filter(w => {
+                    const wDate = new Date(w.created_at);
+                    return wDate >= startDate && wDate <= endDate;
+                });
+            }
+            
+            const exportData = withdrawals.map(w => ({
+                'User #': w.user_number || 'N/A',
+                'User': w.user_name || 'Unknown',
+                'Email': w.user_email || '',
                 'Amount': w.amount,
                 'Status': w.status,
-                'Request Date': new Date(w.request_timestamp).toLocaleDateString()
+                'Payment Details': w.upi_id ? `UPI: ${w.upi_id}` : (w.bank_details || 'N/A'),
+                'Request Date': new Date(w.created_at).toLocaleDateString()
             }));
-            exportToExcel(exportData, 'withdrawals');
+            
+            const dateLabel = startDate ? `_${startDate.toISOString().split('T')[0]}_to_${endDate.toISOString().split('T')[0]}` : '';
+            exportToExcel(exportData, `withdrawals${dateLabel}`);
         }
     } catch (error) {
         console.error('Error exporting:', error);
@@ -1996,6 +2257,10 @@ async function exportWithdrawalsToExcel() {
 }
 
 async function exportAdminCreatedUsersToExcel() {
+    showExportDateModal('admin_created');
+}
+
+async function doExportAdminCreatedUsers(startDate, endDate) {
     try {
         const response = await fetch(`${API_URL}/api/admin/users/created-by-admin`, {
             headers: { 'Authorization': `Bearer ${authToken}` }
@@ -2003,7 +2268,17 @@ async function exportAdminCreatedUsersToExcel() {
         
         if (response.ok) {
             const data = await response.json();
-            const exportData = data.users.map(u => ({
+            let users = data.users || [];
+            
+            // Apply date filter if specified
+            if (startDate) {
+                users = users.filter(u => {
+                    const userDate = new Date(u.created_at);
+                    return userDate >= startDate && userDate <= endDate;
+                });
+            }
+            
+            const exportData = users.map(u => ({
                 'User #': u.user_number || 'N/A',
                 'Name': u.full_name,
                 'Email': u.email,
@@ -2012,7 +2287,9 @@ async function exportAdminCreatedUsersToExcel() {
                 'Created By': u.created_by_admin_email,
                 'Created At': new Date(u.created_at).toLocaleDateString()
             }));
-            exportToExcel(exportData, 'admin_created_users');
+            
+            const dateLabel = startDate ? `_${startDate.toISOString().split('T')[0]}_to_${endDate.toISOString().split('T')[0]}` : '';
+            exportToExcel(exportData, `admin_created_users${dateLabel}`);
         }
     } catch (error) {
         console.error('Error exporting:', error);
@@ -2138,8 +2415,23 @@ function applyWithdrawalDateFilter() {
     
     if (filter === 'custom') {
         customRange.style.display = 'flex';
+        // Don't reload, wait for user to click Apply with dates
     } else {
         customRange.style.display = 'none';
-        loadWithdrawals();
+        // Re-filter the existing data
+        if (allWithdrawalsData.length > 0) {
+            const filteredWithdrawals = filterWithdrawalsByDate(allWithdrawalsData);
+            const summary = calculateWithdrawalsSummary(filteredWithdrawals);
+            document.getElementById('pendingCount').textContent = summary.total_pending;
+            document.getElementById('pendingAmount').textContent = summary.pending_amount.toFixed(2);
+            document.getElementById('approvedCount').textContent = summary.total_approved;
+            document.getElementById('approvedAmount').textContent = summary.approved_amount.toFixed(2);
+            document.getElementById('cancelledCount').textContent = summary.total_cancelled;
+            document.getElementById('cancelledAmount').textContent = summary.cancelled_amount.toFixed(2);
+            document.getElementById('totalWithdrawnAmount').textContent = `$${summary.total_withdrawn.toFixed(2)}`;
+            renderWithdrawalsTable(filteredWithdrawals);
+        } else {
+            loadWithdrawals();
+        }
     }
 }

@@ -210,8 +210,6 @@
                                 <tr>
                                     <th><input type="checkbox" id="selectAllUsers" onchange="toggleSelectAllUsers()"></th>
                                     <th>User ID</th>
-                                    <th>Name</th>
-                                    <th>Email</th>
                                     <th>Referral Code</th>
                                     <th>Status</th>
                                     <th>Total Invested</th>
@@ -222,7 +220,7 @@
                             </thead>
                             <tbody id="usersTableBody">
                                 <tr>
-                                    <td colspan="10" class="loading">Loading users...</td>
+                                    <td colspan="8" class="loading">Loading users...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -865,6 +863,45 @@
                         <tr><td colspan="9" class="loading">Loading...</td></tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Date Filter Modal -->
+    <div id="exportDateModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 450px;">
+            <span class="close" onclick="closeExportDateModal()">&times;</span>
+            <h2>📥 Export to Excel</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 20px;">Select a date range for the export</p>
+            
+            <div class="form-group">
+                <label>Quick Select:</label>
+                <select id="exportDateQuickSelect" onchange="updateExportDateRange()">
+                    <option value="">All Time</option>
+                    <option value="weekly">This Week</option>
+                    <option value="monthly">This Month</option>
+                    <option value="quarterly">This Quarter</option>
+                    <option value="yearly">This Year</option>
+                    <option value="custom">Custom Range</option>
+                </select>
+            </div>
+            
+            <div id="exportCustomDateRange" style="display: none;">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Start Date</label>
+                        <input type="date" id="exportStartDate">
+                    </div>
+                    <div class="form-group">
+                        <label>End Date</label>
+                        <input type="date" id="exportEndDate">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="button-group" style="margin-top: 24px;">
+                <button class="btn btn-success" onclick="executeExport()">Export Now</button>
+                <button class="btn btn-secondary" onclick="closeExportDateModal()">Cancel</button>
             </div>
         </div>
     </div>

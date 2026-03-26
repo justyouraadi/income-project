@@ -1254,3 +1254,43 @@ code {
     padding: 4px 8px;
     font-size: 11px;
 }
+
+/* Fix Select Dropdown Options Visibility */
+select,
+.filter-group select {
+    background-color: var(--bg-card);
+    color: var(--text);
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23f39c12' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+}
+
+select option {
+    background-color: #1a1a1a;
+    color: #ffffff;
+    padding: 10px;
+}
+
+select:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+/* Custom styled select for better cross-browser support */
+.styled-select {
+    position: relative;
+    display: inline-block;
+}
+
+.styled-select select {
+    background-color: #1a1a1a;
+    color: #f5f5f5;
+}
