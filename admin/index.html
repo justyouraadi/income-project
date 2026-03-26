@@ -33,11 +33,22 @@
 
     <!-- Admin Dashboard -->
     <div id="dashboard" class="dashboard" style="display: none;">
+        <!-- Mobile Hamburger Menu -->
+        <button class="hamburger-menu" id="hamburgerMenu" onclick="toggleMobileSidebar()">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+        
+        <!-- Mobile Sidebar Overlay -->
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleMobileSidebar()"></div>
+        
         <!-- Sidebar -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <h2>SS Money Resource</h2>
                 <p>Admin Panel</p>
+                <button class="sidebar-close" onclick="toggleMobileSidebar()">&times;</button>
             </div>
             <nav class="sidebar-nav">
                 <a href="#" class="nav-item active" data-page="overview">
@@ -319,7 +330,29 @@
                 <div id="investmentsPage" class="page-content" style="display: none;">
                     <div class="page-header">
                         <h2>All Investments</h2>
+                        <div class="filters-row">
+                            <div class="filter-group">
+                                <label>Date Filter:</label>
+                                <select id="investmentDateFilter" onchange="applyInvestmentDateFilter()">
+                                    <option value="">All Time</option>
+                                    <option value="weekly">This Week</option>
+                                    <option value="monthly">This Month</option>
+                                    <option value="quarterly">This Quarter</option>
+                                    <option value="yearly">This Year</option>
+                                    <option value="custom">Custom Range</option>
+                                </select>
+                            </div>
+                            <div class="filter-group custom-date-range" id="investmentCustomDateRange" style="display: none;">
+                                <input type="date" id="investmentStartDate">
+                                <input type="date" id="investmentEndDate">
+                                <button class="btn btn-sm btn-primary" onclick="loadInvestments()">Apply</button>
+                            </div>
+                            <div class="filter-group">
+                                <button class="btn btn-success btn-sm" onclick="exportInvestmentsToExcel()">📥 Export Excel</button>
+                            </div>
+                        </div>
                     </div>
+                    <div id="investmentSummary" class="summary-info" style="margin-bottom: 15px;"></div>
                     <div class="table-container">
                         <table class="data-table">
                             <thead>
@@ -346,17 +379,42 @@
                 <div id="transactionsPage" class="page-content" style="display: none;">
                     <div class="page-header">
                         <h2>All Transactions</h2>
-                        <select id="transactionFilter" onchange="filterTransactions()">
-                            <option value="all">All Types</option>
-                            <option value="daily_roi">Daily ROI</option>
-                            <option value="direct_income">Direct Income</option>
-                            <option value="slab_income">Slab Income</option>
-                            <option value="royalty_income">Royalty Income</option>
-                            <option value="salary_income">Salary Income</option>
-                            <option value="investment">Investment</option>
-                            <option value="withdrawal">Withdrawal</option>
-                        </select>
+                        <div class="filters-row">
+                            <div class="filter-group">
+                                <label>Type:</label>
+                                <select id="transactionFilter" onchange="filterTransactions()">
+                                    <option value="all">All Types</option>
+                                    <option value="daily_roi">Daily ROI</option>
+                                    <option value="direct_income">Direct Income</option>
+                                    <option value="slab_income">Slab Income</option>
+                                    <option value="royalty_income">Royalty Income</option>
+                                    <option value="salary_income">Salary Income</option>
+                                    <option value="investment">Investment</option>
+                                    <option value="withdrawal">Withdrawal</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Date Filter:</label>
+                                <select id="transactionDateFilter" onchange="applyTransactionDateFilter()">
+                                    <option value="">All Time</option>
+                                    <option value="weekly">This Week</option>
+                                    <option value="monthly">This Month</option>
+                                    <option value="quarterly">This Quarter</option>
+                                    <option value="yearly">This Year</option>
+                                    <option value="custom">Custom Range</option>
+                                </select>
+                            </div>
+                            <div class="filter-group custom-date-range" id="transactionCustomDateRange" style="display: none;">
+                                <input type="date" id="transactionStartDate">
+                                <input type="date" id="transactionEndDate">
+                                <button class="btn btn-sm btn-primary" onclick="filterTransactions()">Apply</button>
+                            </div>
+                            <div class="filter-group">
+                                <button class="btn btn-success btn-sm" onclick="exportTransactionsToExcel()">📥 Export Excel</button>
+                            </div>
+                        </div>
                     </div>
+                    <div id="transactionSummary" class="summary-info" style="margin-bottom: 15px;"></div>
                     <div class="table-container">
                         <table class="data-table">
                             <thead>

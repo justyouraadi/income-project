@@ -4,6 +4,28 @@ let authToken = localStorage.getItem('admin_token');
 let currentUserId = null;
 let allTransactions = [];
 
+// ==================== MOBILE SIDEBAR FUNCTIONS ====================
+
+function toggleMobileSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const hamburger = document.getElementById('hamburgerMenu');
+    
+    sidebar.classList.toggle('active');
+    overlay.classList.toggle('active');
+    hamburger.classList.toggle('active');
+}
+
+function closeMobileSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const hamburger = document.getElementById('hamburgerMenu');
+    
+    sidebar.classList.remove('active');
+    overlay.classList.remove('active');
+    hamburger.classList.remove('active');
+}
+
 // Check authentication on load
 window.addEventListener('DOMContentLoaded', function() {
     if (authToken) {
@@ -113,6 +135,9 @@ document.querySelectorAll('.nav-item').forEach(item => {
             
             loadPageData(page);
         }
+        
+        // Close mobile sidebar after navigation
+        closeMobileSidebar();
     });
 });
 
@@ -1220,42 +1245,166 @@ async function creditSalaryIncome() {
 
 // ==================== INVESTMENTS ====================
 
+// Store all investments for filtering
+let allInvestmentsData = [];
+
 async function loadInvestments() {
     const tbody = document.getElementById('investmentsTableBody');
     tbody.innerHTML = '<tr><td colspan="7" class="loading">Loading investments...</td></tr>';
     
     try {
-        const response = await fetch(`${API_URL}/api/admin/investments?limit=100`, {
+        const response = await fetch(`${API_URL}/api/admin/investments?limit=1000`, {
             headers: { 'Authorization': `Bearer ${authToken}` }
         });
         
         if (response.ok) {
             const data = await response.json();
+            allInvestmentsData = data.investments || [];
             
-            if (!data.investments || data.investments.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="loading">No investments found</td></tr>';
-                return;
-            }
-            
-            tbody.innerHTML = '';
-            data.investments.forEach(investment => {
-                const slabRate = getSlabRate(investment.amount);
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td><strong>#${investment.user_number || 'N/A'}</strong></td>
-                    <td>${investment.user_name || 'Unknown'}</td>
-                    <td>${investment.user_email || 'N/A'}</td>
-                    <td><strong>$${(investment.amount || 0).toFixed(2)}</strong></td>
-                    <td><span class="slab-badge">${slabRate}%</span></td>
-                    <td>${new Date(investment.date).toLocaleString()}</td>
-                    <td><span class="status-${investment.status}">${investment.status}</span></td>
-                `;
-                tbody.appendChild(row);
-            });
+            // Apply date filter
+            const filteredInvestments = filterInvestmentsByDate(allInvestmentsData);
+            renderInvestmentsTable(filteredInvestments);
         }
     } catch (error) {
         console.error('Error:', error);
         tbody.innerHTML = '<tr><td colspan="7" class="loading">Error loading investments</td></tr>';
+    }
+}
+
+function filterInvestmentsByDate(investments) {
+    const filter = document.getElementById('investmentDateFilter')?.value;
+    if (!filter || filter === '') return investments;
+    
+    const now = new Date();
+    let startDate = null;
+    let endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+    
+    if (filter === 'weekly') {
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - now.getDay());
+        startDate.setHours(0, 0, 0, 0);
+    } else if (filter === 'monthly') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else if (filter === 'quarterly') {
+        const quarter = Math.floor(now.getMonth() / 3);
+        startDate = new Date(now.getFullYear(), quarter * 3, 1);
+    } else if (filter === 'yearly') {
+        startDate = new Date(now.getFullYear(), 0, 1);
+    } else if (filter === 'custom') {
+        const customStart = document.getElementById('investmentStartDate')?.value;
+        const customEnd = document.getElementById('investmentEndDate')?.value;
+        if (customStart) startDate = new Date(customStart);
+        if (customEnd) {
+            endDate = new Date(customEnd);
+            endDate.setHours(23, 59, 59, 999);
+        }
+    }
+    
+    if (!startDate) return investments;
+    
+    return investments.filter(inv => {
+        const invDate = new Date(inv.date);
+        return invDate >= startDate && invDate <= endDate;
+    });
+}
+
+function renderInvestmentsTable(investments) {
+    const tbody = document.getElementById('investmentsTableBody');
+    
+    // Update summary
+    const totalAmount = investments.reduce((sum, inv) => sum + (inv.amount || 0), 0);
+    const summaryEl = document.getElementById('investmentSummary');
+    if (summaryEl) {
+        summaryEl.innerHTML = `
+            <span class="badge" style="background: var(--success); color: #fff; padding: 6px 12px; border-radius: 20px; margin-right: 10px;">
+                ${investments.length} Investments
+            </span>
+            <span class="badge" style="background: var(--primary); color: #000; padding: 6px 12px; border-radius: 20px;">
+                Total: $${totalAmount.toFixed(2)}
+            </span>
+        `;
+    }
+    
+    if (!investments || investments.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="loading">No investments found for selected period</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = '';
+    investments.forEach(investment => {
+        const slabRate = getSlabRate(investment.amount);
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><strong>#${investment.user_number || 'N/A'}</strong></td>
+            <td>${investment.user_name || 'Unknown'}</td>
+            <td>${investment.user_email || 'N/A'}</td>
+            <td><strong>$${(investment.amount || 0).toFixed(2)}</strong></td>
+            <td><span class="slab-badge">${slabRate}%</span></td>
+            <td>${new Date(investment.date).toLocaleString()}</td>
+            <td><span class="status-${investment.status}">${investment.status}</span></td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function applyInvestmentDateFilter() {
+    const filter = document.getElementById('investmentDateFilter').value;
+    const customRange = document.getElementById('investmentCustomDateRange');
+    
+    if (filter === 'custom') {
+        customRange.style.display = 'flex';
+    } else {
+        customRange.style.display = 'none';
+        if (allInvestmentsData.length > 0) {
+            const filteredInvestments = filterInvestmentsByDate(allInvestmentsData);
+            renderInvestmentsTable(filteredInvestments);
+        } else {
+            loadInvestments();
+        }
+    }
+}
+
+function exportInvestmentsToExcel() {
+    showExportDateModal('investments');
+}
+
+async function doExportInvestments(startDate, endDate) {
+    try {
+        let investments = [...allInvestmentsData];
+        
+        if (investments.length === 0) {
+            const response = await fetch(`${API_URL}/api/admin/investments?limit=1000`, {
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                investments = data.investments || [];
+            }
+        }
+        
+        // Apply date filter if specified
+        if (startDate) {
+            investments = investments.filter(inv => {
+                const invDate = new Date(inv.date);
+                return invDate >= startDate && invDate <= endDate;
+            });
+        }
+        
+        const exportData = investments.map(inv => ({
+            'User #': inv.user_number || 'N/A',
+            'Name': inv.user_name || 'Unknown',
+            'Email': inv.user_email || 'N/A',
+            'Amount': inv.amount,
+            'Slab Rate': getSlabRate(inv.amount) + '%',
+            'Status': inv.status,
+            'Date': new Date(inv.date).toLocaleDateString()
+        }));
+        
+        const dateLabel = startDate ? `_${startDate.toISOString().split('T')[0]}_to_${endDate.toISOString().split('T')[0]}` : '';
+        exportToExcel(exportData, `investments${dateLabel}`);
+    } catch (error) {
+        console.error('Error exporting:', error);
+        alert('Failed to export data');
     }
 }
 
@@ -1274,19 +1423,26 @@ function getSlabRate(amount) {
 
 // ==================== TRANSACTIONS ====================
 
+// Store all transactions for filtering
+let allTransactionsData = [];
+
 async function loadTransactions() {
     const tbody = document.getElementById('transactionsTableBody');
     tbody.innerHTML = '<tr><td colspan="5" class="loading">Loading transactions...</td></tr>';
     
     try {
-        const response = await fetch(`${API_URL}/api/admin/transactions?limit=200`, {
+        const response = await fetch(`${API_URL}/api/admin/transactions?limit=1000`, {
             headers: { 'Authorization': `Bearer ${authToken}` }
         });
         
         if (response.ok) {
             const data = await response.json();
-            allTransactions = data.transactions || [];
-            renderTransactions(allTransactions);
+            allTransactionsData = data.transactions || [];
+            allTransactions = [...allTransactionsData]; // For existing filter compatibility
+            
+            // Apply both type and date filters
+            const filteredTransactions = filterTransactionsByDate(allTransactionsData);
+            renderTransactions(filteredTransactions);
         }
     } catch (error) {
         console.error('Error:', error);
@@ -1294,11 +1450,62 @@ async function loadTransactions() {
     }
 }
 
+function filterTransactionsByDate(transactions) {
+    const filter = document.getElementById('transactionDateFilter')?.value;
+    if (!filter || filter === '') return transactions;
+    
+    const now = new Date();
+    let startDate = null;
+    let endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+    
+    if (filter === 'weekly') {
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - now.getDay());
+        startDate.setHours(0, 0, 0, 0);
+    } else if (filter === 'monthly') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else if (filter === 'quarterly') {
+        const quarter = Math.floor(now.getMonth() / 3);
+        startDate = new Date(now.getFullYear(), quarter * 3, 1);
+    } else if (filter === 'yearly') {
+        startDate = new Date(now.getFullYear(), 0, 1);
+    } else if (filter === 'custom') {
+        const customStart = document.getElementById('transactionStartDate')?.value;
+        const customEnd = document.getElementById('transactionEndDate')?.value;
+        if (customStart) startDate = new Date(customStart);
+        if (customEnd) {
+            endDate = new Date(customEnd);
+            endDate.setHours(23, 59, 59, 999);
+        }
+    }
+    
+    if (!startDate) return transactions;
+    
+    return transactions.filter(t => {
+        const tDate = new Date(t.date);
+        return tDate >= startDate && tDate <= endDate;
+    });
+}
+
 function renderTransactions(transactions) {
     const tbody = document.getElementById('transactionsTableBody');
     
+    // Update summary
+    const totalAmount = transactions.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
+    const summaryEl = document.getElementById('transactionSummary');
+    if (summaryEl) {
+        summaryEl.innerHTML = `
+            <span class="badge" style="background: var(--info); color: #fff; padding: 6px 12px; border-radius: 20px; margin-right: 10px;">
+                ${transactions.length} Transactions
+            </span>
+            <span class="badge" style="background: var(--primary); color: #000; padding: 6px 12px; border-radius: 20px;">
+                Total: $${totalAmount.toFixed(2)}
+            </span>
+        `;
+    }
+    
     if (!transactions || transactions.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="loading">No transactions found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="loading">No transactions found for selected period</td></tr>';
         return;
     }
     
@@ -1327,13 +1534,70 @@ function renderTransactions(transactions) {
 }
 
 function filterTransactions() {
-    const filter = document.getElementById('transactionFilter').value;
+    const typeFilter = document.getElementById('transactionFilter').value;
     
-    if (filter === 'all') {
-        renderTransactions(allTransactions);
+    // Start with date-filtered data
+    let filtered = filterTransactionsByDate(allTransactionsData);
+    
+    // Then apply type filter
+    if (typeFilter !== 'all') {
+        filtered = filtered.filter(t => t.type === typeFilter);
+    }
+    
+    renderTransactions(filtered);
+}
+
+function applyTransactionDateFilter() {
+    const filter = document.getElementById('transactionDateFilter').value;
+    const customRange = document.getElementById('transactionCustomDateRange');
+    
+    if (filter === 'custom') {
+        customRange.style.display = 'flex';
     } else {
-        const filtered = allTransactions.filter(t => t.type === filter);
-        renderTransactions(filtered);
+        customRange.style.display = 'none';
+        filterTransactions(); // Re-apply all filters
+    }
+}
+
+function exportTransactionsToExcel() {
+    showExportDateModal('transactions');
+}
+
+async function doExportTransactions(startDate, endDate) {
+    try {
+        let transactions = [...allTransactionsData];
+        
+        if (transactions.length === 0) {
+            const response = await fetch(`${API_URL}/api/admin/transactions?limit=1000`, {
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                transactions = data.transactions || [];
+            }
+        }
+        
+        // Apply date filter if specified
+        if (startDate) {
+            transactions = transactions.filter(t => {
+                const tDate = new Date(t.date);
+                return tDate >= startDate && tDate <= endDate;
+            });
+        }
+        
+        const exportData = transactions.map(t => ({
+            'User': t.user_name || 'Unknown',
+            'Type': t.type?.replace(/_/g, ' ') || 'N/A',
+            'Amount': t.amount,
+            'Description': t.description || '-',
+            'Date': new Date(t.date).toLocaleDateString()
+        }));
+        
+        const dateLabel = startDate ? `_${startDate.toISOString().split('T')[0]}_to_${endDate.toISOString().split('T')[0]}` : '';
+        exportToExcel(exportData, `transactions${dateLabel}`);
+    } catch (error) {
+        console.error('Error exporting:', error);
+        alert('Failed to export data');
     }
 }
 
@@ -1660,10 +1924,16 @@ function closeAdminCreatedUsersModal() {
     document.getElementById('adminCreatedUsersModal').style.display = 'none';
 }
 
+// Store admin created users for filtering
+let allAdminCreatedUsersData = [];
+
 async function loadAdminCreatedUsers() {
     // Reset selection
     selectedAdminCreatedIds = [];
     updateAdminCreatedBulkActions();
+    
+    const tbody = document.getElementById('adminCreatedUsersTable');
+    tbody.innerHTML = '<tr><td colspan="9" class="loading">Loading...</td></tr>';
     
     try {
         const response = await fetch(`${API_URL}/api/admin/users/created-by-admin`, {
@@ -1672,42 +1942,87 @@ async function loadAdminCreatedUsers() {
         
         if (response.ok) {
             const data = await response.json();
+            allAdminCreatedUsersData = data.users || [];
             
-            // Update summary
-            document.getElementById('adminCreatedSummary').innerHTML = `
-                <span class="badge" style="background: var(--primary); color: #000; padding: 8px 16px; border-radius: 20px;">
-                    Total Users Created: ${data.total}
-                </span>
-            `;
-            
-            // Render table
-            const tbody = document.getElementById('adminCreatedUsersTable');
-            
-            if (data.users && data.users.length > 0) {
-                tbody.innerHTML = data.users.map(user => `
-                    <tr>
-                        <td><input type="checkbox" value="${user.id}" onchange="toggleAdminCreatedSelection('${user.id}')"></td>
-                        <td><strong>#${user.user_number || 'N/A'}</strong></td>
-                        <td>${user.full_name}</td>
-                        <td>${user.email}</td>
-                        <td><span class="status-${user.status}">${user.status}</span></td>
-                        <td>$${user.total_invested.toFixed(2)}</td>
-                        <td>${user.created_by_admin_email}</td>
-                        <td>${new Date(user.created_at).toLocaleDateString()}</td>
-                        <td class="action-buttons">
-                            <button class="btn btn-info btn-sm" onclick="viewUser('${user.id}')">Manage</button>
-                            <button class="btn ${user.status === 'active' ? 'btn-warning' : 'btn-success'} btn-sm" onclick="deactivateUser('${user.id}')">${user.status === 'active' ? 'Deact.' : 'Act.'}</button>
-                            <button class="btn btn-danger btn-sm" onclick="deleteUser('${user.id}')">Del</button>
-                        </td>
-                    </tr>
-                `).join('');
-            } else {
-                tbody.innerHTML = '<tr><td colspan="9" class="empty">No users created by admin yet</td></tr>';
-            }
+            // Apply date filter
+            const filteredUsers = filterAdminCreatedUsersByDate(allAdminCreatedUsersData);
+            renderAdminCreatedUsersTable(filteredUsers);
         }
     } catch (error) {
         console.error('Error loading admin created users:', error);
+        tbody.innerHTML = '<tr><td colspan="9" class="empty">Error loading users</td></tr>';
     }
+}
+
+function filterAdminCreatedUsersByDate(users) {
+    const filter = document.getElementById('adminCreatedDateFilter').value;
+    if (!filter || filter === '') return users;
+    
+    const now = new Date();
+    let startDate = null;
+    let endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+    
+    if (filter === 'weekly') {
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - now.getDay());
+        startDate.setHours(0, 0, 0, 0);
+    } else if (filter === 'monthly') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else if (filter === 'quarterly') {
+        const quarter = Math.floor(now.getMonth() / 3);
+        startDate = new Date(now.getFullYear(), quarter * 3, 1);
+    } else if (filter === 'yearly') {
+        startDate = new Date(now.getFullYear(), 0, 1);
+    } else if (filter === 'custom') {
+        const customStart = document.getElementById('adminCreatedStartDate').value;
+        const customEnd = document.getElementById('adminCreatedEndDate').value;
+        if (customStart) startDate = new Date(customStart);
+        if (customEnd) {
+            endDate = new Date(customEnd);
+            endDate.setHours(23, 59, 59, 999);
+        }
+    }
+    
+    if (!startDate) return users;
+    
+    return users.filter(user => {
+        const userDate = new Date(user.created_at);
+        return userDate >= startDate && userDate <= endDate;
+    });
+}
+
+function renderAdminCreatedUsersTable(users) {
+    const tbody = document.getElementById('adminCreatedUsersTable');
+    
+    // Update summary with filtered count
+    document.getElementById('adminCreatedSummary').innerHTML = `
+        <span class="badge" style="background: var(--primary); color: #000; padding: 8px 16px; border-radius: 20px;">
+            Total Users Created: ${users.length}
+        </span>
+    `;
+    
+    if (!users || users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="empty">No users found for selected period</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = users.map(user => `
+        <tr>
+            <td><input type="checkbox" value="${user.id}" onchange="toggleAdminCreatedSelection('${user.id}')"></td>
+            <td><strong>#${user.user_number || 'N/A'}</strong></td>
+            <td>${user.full_name}</td>
+            <td>${user.email}</td>
+            <td><span class="status-${user.status}">${user.status}</span></td>
+            <td>$${(user.total_invested || 0).toFixed(2)}</td>
+            <td>${user.created_by_admin_email}</td>
+            <td>${new Date(user.created_at).toLocaleDateString()}</td>
+            <td class="action-buttons">
+                <button class="btn btn-info btn-sm" onclick="viewUser('${user.id}')">Manage</button>
+                <button class="btn ${user.status === 'active' ? 'btn-warning' : 'btn-success'} btn-sm" onclick="deactivateUser('${user.id}')">${user.status === 'active' ? 'Deact.' : 'Act.'}</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteUser('${user.id}')">Del</button>
+            </td>
+        </tr>
+    `).join('');
 }
 
 // ==================== EDIT USER EMAIL ====================
@@ -2167,6 +2482,12 @@ async function executeExport() {
         case 'admin_created':
             await doExportAdminCreatedUsers(startDate, endDate);
             break;
+        case 'investments':
+            await doExportInvestments(startDate, endDate);
+            break;
+        case 'transactions':
+            await doExportTransactions(startDate, endDate);
+            break;
     }
     
     closeExportDateModal();
@@ -2307,9 +2628,16 @@ function applyAdminCreatedDateFilter() {
     
     if (filter === 'custom') {
         customRange.style.display = 'flex';
+        // Don't reload, wait for user to click Apply
     } else {
         customRange.style.display = 'none';
-        loadAdminCreatedUsers();
+        // Re-filter the existing data
+        if (allAdminCreatedUsersData.length > 0) {
+            const filteredUsers = filterAdminCreatedUsersByDate(allAdminCreatedUsersData);
+            renderAdminCreatedUsersTable(filteredUsers);
+        } else {
+            loadAdminCreatedUsers();
+        }
     }
 }
 
