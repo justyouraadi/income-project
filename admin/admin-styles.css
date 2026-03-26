@@ -1136,3 +1136,40 @@ code {
     color: var(--text-secondary);
     padding: 24px !important;
 }
+
+/* Edit User Section */
+.edit-user-section {
+    background: rgba(255, 255, 255, 0.03);
+    padding: 16px;
+    border-radius: 10px;
+}
+
+.edit-user-section .form-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    margin-bottom: 16px;
+}
+
+.edit-user-section .form-group {
+    flex: 1;
+}
+
+.edit-user-section .form-group:last-child {
+    flex: 0;
+}
+
+.edit-user-section small {
+    display: block;
+    font-size: 12px;
+}
+
+.btn-warning {
+    background: #e67e22;
+    color: #fff;
+    border: none;
+}
+
+.btn-warning:hover {
+    background: #d35400;
+}

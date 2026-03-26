@@ -957,6 +957,164 @@ async def get_admin_created_users(admin_user: dict = Depends(get_admin_user)):
         "users": users_list
     }
 
+class UpdateUserEmail(BaseModel):
+    email: str
+
+@api_router.put("/admin/users/{user_id}/email")
+async def update_user_email(user_id: str, data: UpdateUserEmail, admin_user: dict = Depends(get_admin_user)):
+    """Admin can update user email"""
+    # Check if user exists
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check if new email is already in use by another user
+    existing = await db.users.find_one({"email": data.email, "id": {"$ne": user_id}})
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already in use by another user")
+    
+    # Update email
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"email": data.email}}
+    )
+    
+    return {"message": "Email updated successfully", "email": data.email}
+
+class ChangeReferrer(BaseModel):
+    new_referrer_code: str
+
+@api_router.put("/admin/users/{user_id}/referrer")
+async def change_user_referrer(user_id: str, data: ChangeReferrer, admin_user: dict = Depends(get_admin_user)):
+    """Admin can change user's referrer. Referral bonuses will be shifted to new referrer."""
+    # Check if user exists
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    old_referrer_id = user.get("referred_by")
+    
+    # Find new referrer by user number or referral code
+    new_referrer = None
+    clean_code = data.new_referrer_code.lstrip('#')
+    
+    try:
+        user_number = int(clean_code)
+        new_referrer = await db.users.find_one({"user_number": user_number})
+    except ValueError:
+        pass
+    
+    if not new_referrer:
+        new_referrer = await db.users.find_one({"referral_code": clean_code.upper()})
+    if not new_referrer:
+        new_referrer = await db.users.find_one({"referral_code": clean_code})
+    
+    if not new_referrer:
+        raise HTTPException(status_code=404, detail="New referrer not found")
+    
+    # Cannot refer to self
+    if new_referrer["id"] == user_id:
+        raise HTTPException(status_code=400, detail="User cannot be their own referrer")
+    
+    # Check if new referrer is same as old
+    if new_referrer["id"] == old_referrer_id:
+        raise HTTPException(status_code=400, detail="This is already the current referrer")
+    
+    # Calculate total direct income earned from this user by old referrer
+    referral_incomes = await db.referral_income.find({
+        "user_id": old_referrer_id,
+        "referred_user_id": user_id
+    }).to_list(100)
+    
+    total_bonus_to_shift = sum([income["amount"] for income in referral_incomes])
+    
+    # Shift the bonus: Deduct from old referrer, add to new referrer
+    if total_bonus_to_shift > 0 and old_referrer_id:
+        # Deduct from old referrer
+        await db.wallets.update_one(
+            {"user_id": old_referrer_id},
+            {"$inc": {"direct_income": -total_bonus_to_shift, "total_balance": -total_bonus_to_shift}}
+        )
+        
+        # Add to new referrer
+        await db.wallets.update_one(
+            {"user_id": new_referrer["id"]},
+            {"$inc": {"direct_income": total_bonus_to_shift, "total_balance": total_bonus_to_shift}}
+        )
+        
+        # Update referral_income records
+        await db.referral_income.update_many(
+            {"user_id": old_referrer_id, "referred_user_id": user_id},
+            {"$set": {"user_id": new_referrer["id"]}}
+        )
+        
+        # Update transaction records (for audit trail, create new transactions)
+        if old_referrer_id:
+            # Debit transaction for old referrer
+            await db.transactions.insert_one({
+                "id": str(uuid.uuid4()),
+                "user_id": old_referrer_id,
+                "type": "referral_transfer_out",
+                "amount": -total_bonus_to_shift,
+                "description": f"Referral bonus transferred out for {user['full_name']} (referrer changed by admin)",
+                "date": datetime.utcnow()
+            })
+        
+        # Credit transaction for new referrer
+        await db.transactions.insert_one({
+            "id": str(uuid.uuid4()),
+            "user_id": new_referrer["id"],
+            "type": "referral_transfer_in",
+            "amount": total_bonus_to_shift,
+            "description": f"Referral bonus transferred in for {user['full_name']} (referrer changed by admin)",
+            "date": datetime.utcnow()
+        })
+    
+    # Update user's referred_by field
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"referred_by": new_referrer["id"]}}
+    )
+    
+    return {
+        "message": "Referrer changed successfully",
+        "old_referrer": old_referrer_id,
+        "new_referrer": {
+            "id": new_referrer["id"],
+            "user_number": new_referrer.get("user_number"),
+            "full_name": new_referrer["full_name"]
+        },
+        "bonus_shifted": total_bonus_to_shift
+    }
+
+@api_router.get("/admin/lookup-user/{code}")
+async def admin_lookup_user(code: str, admin_user: dict = Depends(get_admin_user)):
+    """Lookup a user by user number or referral code"""
+    clean_code = code.lstrip('#')
+    user = None
+    
+    try:
+        user_number = int(clean_code)
+        user = await db.users.find_one({"user_number": user_number})
+    except ValueError:
+        pass
+    
+    if not user:
+        user = await db.users.find_one({"referral_code": clean_code.upper()})
+    if not user:
+        user = await db.users.find_one({"referral_code": clean_code})
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {
+        "id": user["id"],
+        "user_number": user.get("user_number"),
+        "full_name": user["full_name"],
+        "email": user["email"],
+        "status": user.get("status", "active")
+    }
+
 @api_router.get("/admin/users/{user_id}")
 async def get_user_details(user_id: str, admin_user: dict = Depends(get_admin_user)):
     """Get detailed user information"""

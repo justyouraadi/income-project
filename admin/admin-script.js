@@ -286,6 +286,20 @@ async function viewUser(userId) {
             
             document.getElementById('modalUserName').textContent = user.full_name;
             
+            // Get referrer info
+            let referrerInfo = 'None';
+            if (user.referred_by) {
+                try {
+                    const refResponse = await fetch(`${API_URL}/api/admin/users/${user.referred_by}`, {
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    });
+                    if (refResponse.ok) {
+                        const refData = await refResponse.json();
+                        referrerInfo = `${refData.user.full_name} (#${refData.user.user_number})`;
+                    }
+                } catch (e) {}
+            }
+            
             const content = `
                 <div class="user-details">
                     <div class="detail-row">
@@ -301,6 +315,10 @@ async function viewUser(userId) {
                         <span class="detail-value"><code>${user.referral_code}</code></span>
                     </div>
                     <div class="detail-row">
+                        <span class="detail-label">Referred By:</span>
+                        <span class="detail-value">${referrerInfo}</span>
+                    </div>
+                    <div class="detail-row">
                         <span class="detail-label">Status:</span>
                         <span class="detail-value"><span class="status-badge ${user.status === 'active' ? 'status-active' : 'status-inactive'}">${user.status || 'active'}</span></span>
                     </div>
@@ -309,11 +327,7 @@ async function viewUser(userId) {
                         <span class="detail-value">$${(wallet.total_invested || 0).toFixed(2)}</span>
                     </div>
                     <div class="detail-row">
-                        <span class="detail-label">Total Withdrawn:</span>
-                        <span class="detail-value">$${(wallet.total_withdrawn || 0).toFixed(2)}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Referrals:</span>
+                        <span class="detail-label">Direct Referrals:</span>
                         <span class="detail-value">${data.referrals?.length || 0}</span>
                     </div>
                     <div class="detail-row">
@@ -325,29 +339,11 @@ async function viewUser(userId) {
             
             document.getElementById('modalUserContent').innerHTML = content;
             
-            const walletGrid = document.getElementById('walletGrid');
-            walletGrid.innerHTML = `
-                <div class="wallet-card">
-                    <div class="wallet-title">📈 Daily ROI</div>
-                    <div class="wallet-amount">$${(wallet.daily_roi || 0).toFixed(2)}</div>
-                </div>
-                <div class="wallet-card">
-                    <div class="wallet-title">🎁 Direct Income</div>
-                    <div class="wallet-amount">$${(wallet.direct_income || 0).toFixed(2)}</div>
-                </div>
-                <div class="wallet-card">
-                    <div class="wallet-title">📊 Slab Income</div>
-                    <div class="wallet-amount">$${(wallet.slab_income || 0).toFixed(2)}</div>
-                </div>
-                <div class="wallet-card">
-                    <div class="wallet-title">👑 Royalty Income</div>
-                    <div class="wallet-amount">$${(wallet.royalty_income || 0).toFixed(2)}</div>
-                </div>
-                <div class="wallet-card">
-                    <div class="wallet-title">💼 Salary Income</div>
-                    <div class="wallet-amount">$${(wallet.salary_income || 0).toFixed(2)}</div>
-                </div>
-            `;
+            // Pre-fill edit fields
+            document.getElementById('editUserEmail').value = user.email;
+            document.getElementById('newReferrerCode').value = '';
+            document.getElementById('newReferrerInfo').style.display = 'none';
+            document.getElementById('editUserMessage').style.display = 'none';
             
             document.getElementById('userModal').style.display = 'flex';
         }
@@ -1566,5 +1562,157 @@ async function loadAdminCreatedUsers() {
         }
     } catch (error) {
         console.error('Error loading admin created users:', error);
+    }
+}
+
+// ==================== EDIT USER EMAIL ====================
+
+async function updateUserEmail() {
+    const newEmail = document.getElementById('editUserEmail').value.trim();
+    const messageDiv = document.getElementById('editUserMessage');
+    
+    if (!newEmail) {
+        messageDiv.textContent = 'Please enter a new email';
+        messageDiv.className = 'message error';
+        messageDiv.style.display = 'block';
+        return;
+    }
+    
+    if (!currentUserId) {
+        messageDiv.textContent = 'No user selected';
+        messageDiv.className = 'message error';
+        messageDiv.style.display = 'block';
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/api/admin/users/${currentUserId}/email`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email: newEmail })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            messageDiv.textContent = 'Email updated successfully!';
+            messageDiv.className = 'message success';
+            messageDiv.style.display = 'block';
+            
+            // Refresh user details
+            setTimeout(() => {
+                viewUser(currentUserId);
+                loadUsers();
+            }, 1000);
+        } else {
+            messageDiv.textContent = data.detail || 'Failed to update email';
+            messageDiv.className = 'message error';
+            messageDiv.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error updating email:', error);
+        messageDiv.textContent = 'Network error. Please try again.';
+        messageDiv.className = 'message error';
+        messageDiv.style.display = 'block';
+    }
+}
+
+// ==================== CHANGE USER REFERRER ====================
+
+// Lookup new referrer when typing
+document.getElementById('newReferrerCode')?.addEventListener('blur', async function() {
+    const code = this.value.trim();
+    const infoDiv = document.getElementById('newReferrerInfo');
+    
+    if (!code) {
+        infoDiv.style.display = 'none';
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/api/admin/lookup-user/${encodeURIComponent(code)}`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        if (response.ok) {
+            const user = await response.json();
+            infoDiv.innerHTML = `<span style="color: #27ae60;">✓ Found: ${user.full_name} (#${user.user_number}) - ${user.status}</span>`;
+            infoDiv.style.display = 'block';
+        } else {
+            infoDiv.innerHTML = `<span style="color: #e74c3c;">✗ User not found</span>`;
+            infoDiv.style.display = 'block';
+        }
+    } catch (error) {
+        infoDiv.innerHTML = `<span style="color: #e74c3c;">✗ Error looking up user</span>`;
+        infoDiv.style.display = 'block';
+    }
+});
+
+async function changeUserReferrer() {
+    const newReferrerCode = document.getElementById('newReferrerCode').value.trim();
+    const messageDiv = document.getElementById('editUserMessage');
+    
+    if (!newReferrerCode) {
+        messageDiv.textContent = 'Please enter the new referrer\'s user # or referral code';
+        messageDiv.className = 'message error';
+        messageDiv.style.display = 'block';
+        return;
+    }
+    
+    if (!currentUserId) {
+        messageDiv.textContent = 'No user selected';
+        messageDiv.className = 'message error';
+        messageDiv.style.display = 'block';
+        return;
+    }
+    
+    // Confirm action
+    if (!confirm('Are you sure you want to change this user\'s referrer? Any referral bonuses will be transferred to the new referrer.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/api/admin/users/${currentUserId}/referrer`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ new_referrer_code: newReferrerCode })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            let msg = `Referrer changed to ${data.new_referrer.full_name} (#${data.new_referrer.user_number})`;
+            if (data.bonus_shifted > 0) {
+                msg += `. $${data.bonus_shifted.toFixed(2)} bonus transferred.`;
+            }
+            messageDiv.textContent = msg;
+            messageDiv.className = 'message success';
+            messageDiv.style.display = 'block';
+            
+            // Clear input
+            document.getElementById('newReferrerCode').value = '';
+            document.getElementById('newReferrerInfo').style.display = 'none';
+            
+            // Refresh user details
+            setTimeout(() => {
+                viewUser(currentUserId);
+                loadUsers();
+            }, 1500);
+        } else {
+            messageDiv.textContent = data.detail || 'Failed to change referrer';
+            messageDiv.className = 'message error';
+            messageDiv.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error changing referrer:', error);
+        messageDiv.textContent = 'Network error. Please try again.';
+        messageDiv.className = 'message error';
+        messageDiv.style.display = 'block';
     }
 }
