@@ -167,13 +167,48 @@
                         <div class="header-actions">
                             <button class="btn btn-success" onclick="showAddUserModal()">+ Add User</button>
                             <button class="btn btn-info" onclick="showAdminCreatedUsers()">📋 Admin Created Users</button>
-                            <input type="text" id="userSearch" placeholder="Search users..." class="search-input">
                         </div>
                     </div>
+                    
+                    <!-- Filters Row -->
+                    <div class="filters-row">
+                        <div class="filter-group">
+                            <label>Date Filter:</label>
+                            <select id="userDateFilter" onchange="applyUserDateFilter()">
+                                <option value="">All Time</option>
+                                <option value="weekly">This Week</option>
+                                <option value="monthly">This Month</option>
+                                <option value="quarterly">This Quarter</option>
+                                <option value="yearly">This Year</option>
+                                <option value="custom">Custom Range</option>
+                            </select>
+                        </div>
+                        <div class="filter-group custom-date-range" id="userCustomDateRange" style="display: none;">
+                            <input type="date" id="userStartDate" placeholder="Start Date">
+                            <input type="date" id="userEndDate" placeholder="End Date">
+                            <button class="btn btn-sm btn-primary" onclick="applyUserDateFilter()">Apply</button>
+                        </div>
+                        <div class="filter-group">
+                            <input type="text" id="userSearch" placeholder="Search users..." class="search-input">
+                        </div>
+                        <div class="filter-group">
+                            <button class="btn btn-success" onclick="exportUsersToExcel()">📥 Export Excel</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Bulk Actions -->
+                    <div class="bulk-actions" id="userBulkActions" style="display: none;">
+                        <span id="selectedUsersCount">0 selected</span>
+                        <button class="btn btn-warning" onclick="bulkDeactivateUsers()">Deactivate Selected</button>
+                        <button class="btn btn-danger" onclick="bulkDeleteUsers()">Delete Selected</button>
+                        <button class="btn btn-secondary" onclick="clearUserSelection()">Clear Selection</button>
+                    </div>
+                    
                     <div class="table-container">
                         <table class="data-table">
                             <thead>
                                 <tr>
+                                    <th><input type="checkbox" id="selectAllUsers" onchange="toggleSelectAllUsers()"></th>
                                     <th>User ID</th>
                                     <th>Name</th>
                                     <th>Email</th>
@@ -187,7 +222,7 @@
                             </thead>
                             <tbody id="usersTableBody">
                                 <tr>
-                                    <td colspan="9" class="loading">Loading users...</td>
+                                    <td colspan="10" class="loading">Loading users...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -198,12 +233,38 @@
                 <div id="withdrawalsPage" class="page-content" style="display: none;">
                     <div class="page-header">
                         <h2>Withdrawal Requests</h2>
-                        <select id="withdrawalFilter" onchange="loadWithdrawals()">
-                            <option value="">All Requests</option>
-                            <option value="pending">Pending</option>
-                            <option value="approved">Approved</option>
-                            <option value="cancelled">Cancelled</option>
-                        </select>
+                    </div>
+                    
+                    <!-- Filters Row -->
+                    <div class="filters-row">
+                        <div class="filter-group">
+                            <label>Status:</label>
+                            <select id="withdrawalFilter" onchange="loadWithdrawals()">
+                                <option value="">All Requests</option>
+                                <option value="pending">Pending</option>
+                                <option value="approved">Approved</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Date Filter:</label>
+                            <select id="withdrawalDateFilter" onchange="applyWithdrawalDateFilter()">
+                                <option value="">All Time</option>
+                                <option value="weekly">This Week</option>
+                                <option value="monthly">This Month</option>
+                                <option value="quarterly">This Quarter</option>
+                                <option value="yearly">This Year</option>
+                                <option value="custom">Custom Range</option>
+                            </select>
+                        </div>
+                        <div class="filter-group custom-date-range" id="withdrawalCustomDateRange" style="display: none;">
+                            <input type="date" id="withdrawalStartDate">
+                            <input type="date" id="withdrawalEndDate">
+                            <button class="btn btn-sm btn-primary" onclick="applyWithdrawalDateFilter()">Apply</button>
+                        </div>
+                        <div class="filter-group">
+                            <button class="btn btn-success" onclick="exportWithdrawalsToExcel()">📥 Export Excel</button>
+                        </div>
                     </div>
                     
                     <!-- Withdrawal Summary -->
@@ -749,13 +810,47 @@
         <div class="modal-content modal-large">
             <span class="close" onclick="closeAdminCreatedUsersModal()">&times;</span>
             <h2>Users Created by Admin</h2>
+            
+            <!-- Filters Row -->
+            <div class="filters-row" style="margin-bottom: 16px;">
+                <div class="filter-group">
+                    <label>Date Filter:</label>
+                    <select id="adminCreatedDateFilter" onchange="applyAdminCreatedDateFilter()">
+                        <option value="">All Time</option>
+                        <option value="weekly">This Week</option>
+                        <option value="monthly">This Month</option>
+                        <option value="quarterly">This Quarter</option>
+                        <option value="yearly">This Year</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+                </div>
+                <div class="filter-group custom-date-range" id="adminCreatedCustomDateRange" style="display: none;">
+                    <input type="date" id="adminCreatedStartDate">
+                    <input type="date" id="adminCreatedEndDate">
+                    <button class="btn btn-sm btn-primary" onclick="loadAdminCreatedUsers()">Apply</button>
+                </div>
+                <div class="filter-group">
+                    <button class="btn btn-success btn-sm" onclick="exportAdminCreatedUsersToExcel()">📥 Export Excel</button>
+                </div>
+            </div>
+            
             <div class="summary-info" id="adminCreatedSummary">
                 <span class="badge">Total: 0</span>
             </div>
-            <div class="table-container" style="max-height: 500px; overflow-y: auto;">
+            
+            <!-- Bulk Actions -->
+            <div class="bulk-actions" id="adminCreatedBulkActions" style="display: none;">
+                <span id="selectedAdminCreatedCount">0 selected</span>
+                <button class="btn btn-warning btn-sm" onclick="bulkDeactivateAdminCreatedUsers()">Deactivate Selected</button>
+                <button class="btn btn-danger btn-sm" onclick="bulkDeleteAdminCreatedUsers()">Delete Selected</button>
+                <button class="btn btn-secondary btn-sm" onclick="clearAdminCreatedSelection()">Clear</button>
+            </div>
+            
+            <div class="table-container" style="max-height: 400px; overflow-y: auto;">
                 <table class="data-table compact">
                     <thead>
                         <tr>
+                            <th><input type="checkbox" id="selectAllAdminCreated" onchange="toggleSelectAllAdminCreated()"></th>
                             <th>User #</th>
                             <th>Name</th>
                             <th>Email</th>
@@ -763,10 +858,11 @@
                             <th>Invested</th>
                             <th>Created By</th>
                             <th>Created At</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="adminCreatedUsersTable">
-                        <tr><td colspan="7" class="loading">Loading...</td></tr>
+                        <tr><td colspan="9" class="loading">Loading...</td></tr>
                     </tbody>
                 </table>
             </div>

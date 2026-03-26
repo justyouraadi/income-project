@@ -192,7 +192,11 @@ function refreshDashboard() {
 
 async function loadUsers() {
     const tbody = document.getElementById('usersTableBody');
-    tbody.innerHTML = '<tr><td colspan="9" class="loading">Loading users...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="loading">Loading users...</td></tr>';
+    
+    // Reset selection
+    selectedUserIds = [];
+    updateUserBulkActions();
     
     try {
         const response = await fetch(`${API_URL}/api/admin/users?limit=100`, {
@@ -205,7 +209,7 @@ async function loadUsers() {
             const data = await response.json();
             
             if (data.users.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" class="loading">No users found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="10" class="loading">No users found</td></tr>';
                 return;
             }
             
@@ -221,6 +225,7 @@ async function loadUsers() {
                 
                 const row = document.createElement('tr');
                 row.innerHTML = `
+                    <td><input type="checkbox" value="${user.id}" onchange="toggleUserSelection('${user.id}')"></td>
                     <td><strong>#${user.user_number || 'N/A'}</strong></td>
                     <td>${user.full_name}</td>
                     <td>${user.email}</td>
@@ -229,11 +234,11 @@ async function loadUsers() {
                     <td>$${(wallet.total_invested || 0).toFixed(2)}</td>
                     <td>$${totalIncome.toFixed(2)}</td>
                     <td>${new Date(user.created_at).toLocaleDateString()}</td>
-                    <td>
-                        <button class="action-btn btn-view" onclick="viewUser('${user.id}')">Manage</button>
+                    <td class="action-buttons">
+                        <button class="btn btn-info btn-sm" onclick="viewUser('${user.id}')">Manage</button>
                         ${!user.is_admin ? `
-                            <button class="action-btn ${user.status === 'active' ? 'btn-warning' : 'btn-success'}" onclick="toggleUserStatus('${user.id}')">${user.status === 'active' ? 'Deactivate' : 'Activate'}</button>
-                            <button class="action-btn btn-delete" onclick="deleteUser('${user.id}')">Delete</button>
+                            <button class="btn ${user.status === 'active' ? 'btn-warning' : 'btn-success'} btn-sm" onclick="toggleUserStatus('${user.id}')">${user.status === 'active' ? 'Deact.' : 'Act.'}</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteUser('${user.id}')">Del</button>
                         ` : ''}
                     </td>
                 `;
@@ -242,7 +247,7 @@ async function loadUsers() {
         }
     } catch (error) {
         console.error('Error loading users:', error);
-        tbody.innerHTML = '<tr><td colspan="9" class="loading">Error loading users</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="loading">Error loading users</td></tr>';
     }
 }
 
@@ -1526,6 +1531,10 @@ function closeAdminCreatedUsersModal() {
 }
 
 async function loadAdminCreatedUsers() {
+    // Reset selection
+    selectedAdminCreatedIds = [];
+    updateAdminCreatedBulkActions();
+    
     try {
         const response = await fetch(`${API_URL}/api/admin/users/created-by-admin`, {
             headers: { 'Authorization': `Bearer ${authToken}` }
@@ -1547,6 +1556,7 @@ async function loadAdminCreatedUsers() {
             if (data.users && data.users.length > 0) {
                 tbody.innerHTML = data.users.map(user => `
                     <tr>
+                        <td><input type="checkbox" value="${user.id}" onchange="toggleAdminCreatedSelection('${user.id}')"></td>
                         <td><strong>#${user.user_number || 'N/A'}</strong></td>
                         <td>${user.full_name}</td>
                         <td>${user.email}</td>
@@ -1554,10 +1564,15 @@ async function loadAdminCreatedUsers() {
                         <td>$${user.total_invested.toFixed(2)}</td>
                         <td>${user.created_by_admin_email}</td>
                         <td>${new Date(user.created_at).toLocaleDateString()}</td>
+                        <td class="action-buttons">
+                            <button class="btn btn-info btn-sm" onclick="viewUser('${user.id}')">Manage</button>
+                            <button class="btn ${user.status === 'active' ? 'btn-warning' : 'btn-success'} btn-sm" onclick="deactivateUser('${user.id}')">${user.status === 'active' ? 'Deact.' : 'Act.'}</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteUser('${user.id}')">Del</button>
+                        </td>
                     </tr>
                 `).join('');
             } else {
-                tbody.innerHTML = '<tr><td colspan="7" class="empty">No users created by admin yet</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" class="empty">No users created by admin yet</td></tr>';
             }
         }
     } catch (error) {
@@ -1714,5 +1729,417 @@ async function changeUserReferrer() {
         messageDiv.textContent = 'Network error. Please try again.';
         messageDiv.className = 'message error';
         messageDiv.style.display = 'block';
+    }
+}
+
+// ==================== DATE FILTER HELPERS ====================
+
+function getDateRange(filterValue) {
+    const now = new Date();
+    let startDate = null;
+    let endDate = new Date(now.setHours(23, 59, 59, 999));
+    
+    switch(filterValue) {
+        case 'weekly':
+            startDate = new Date();
+            startDate.setDate(startDate.getDate() - 7);
+            break;
+        case 'monthly':
+            startDate = new Date();
+            startDate.setMonth(startDate.getMonth() - 1);
+            break;
+        case 'quarterly':
+            startDate = new Date();
+            startDate.setMonth(startDate.getMonth() - 3);
+            break;
+        case 'yearly':
+            startDate = new Date();
+            startDate.setFullYear(startDate.getFullYear() - 1);
+            break;
+        default:
+            return { startDate: null, endDate: null };
+    }
+    
+    startDate.setHours(0, 0, 0, 0);
+    return { startDate, endDate };
+}
+
+// ==================== USER DATE FILTER ====================
+
+let selectedUserIds = [];
+
+function applyUserDateFilter() {
+    const filter = document.getElementById('userDateFilter').value;
+    const customRange = document.getElementById('userCustomDateRange');
+    
+    if (filter === 'custom') {
+        customRange.style.display = 'flex';
+    } else {
+        customRange.style.display = 'none';
+        loadUsers();
+    }
+}
+
+// ==================== USER BULK SELECTION ====================
+
+function toggleSelectAllUsers() {
+    const selectAll = document.getElementById('selectAllUsers').checked;
+    const checkboxes = document.querySelectorAll('#usersTableBody input[type="checkbox"]');
+    
+    selectedUserIds = [];
+    checkboxes.forEach(cb => {
+        cb.checked = selectAll;
+        if (selectAll) {
+            selectedUserIds.push(cb.value);
+        }
+    });
+    
+    updateUserBulkActions();
+}
+
+function toggleUserSelection(userId) {
+    const index = selectedUserIds.indexOf(userId);
+    if (index > -1) {
+        selectedUserIds.splice(index, 1);
+    } else {
+        selectedUserIds.push(userId);
+    }
+    updateUserBulkActions();
+}
+
+function updateUserBulkActions() {
+    const bulkActions = document.getElementById('userBulkActions');
+    const countSpan = document.getElementById('selectedUsersCount');
+    
+    if (selectedUserIds.length > 0) {
+        bulkActions.style.display = 'flex';
+        countSpan.textContent = `${selectedUserIds.length} selected`;
+    } else {
+        bulkActions.style.display = 'none';
+    }
+}
+
+function clearUserSelection() {
+    selectedUserIds = [];
+    document.getElementById('selectAllUsers').checked = false;
+    document.querySelectorAll('#usersTableBody input[type="checkbox"]').forEach(cb => cb.checked = false);
+    updateUserBulkActions();
+}
+
+async function bulkDeactivateUsers() {
+    if (selectedUserIds.length === 0) return;
+    
+    if (!confirm(`Are you sure you want to deactivate ${selectedUserIds.length} users?`)) return;
+    
+    try {
+        const response = await fetch(`${API_URL}/api/admin/users/bulk-deactivate`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ user_ids: selectedUserIds })
+        });
+        
+        const data = await response.json();
+        alert(data.message);
+        clearUserSelection();
+        loadUsers();
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to deactivate users');
+    }
+}
+
+async function bulkDeleteUsers() {
+    if (selectedUserIds.length === 0) return;
+    
+    if (!confirm(`Are you sure you want to DELETE ${selectedUserIds.length} users? This cannot be undone!`)) return;
+    
+    try {
+        const response = await fetch(`${API_URL}/api/admin/users/bulk-delete`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ user_ids: selectedUserIds })
+        });
+        
+        const data = await response.json();
+        alert(data.message);
+        clearUserSelection();
+        loadUsers();
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to delete users');
+    }
+}
+
+// ==================== SINGLE USER ACTIONS ====================
+
+async function deactivateUser(userId) {
+    if (!confirm('Are you sure you want to deactivate this user?')) return;
+    
+    try {
+        const response = await fetch(`${API_URL}/api/admin/users/${userId}/deactivate`, {
+            method: 'PUT',
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        const data = await response.json();
+        alert(data.message);
+        loadUsers();
+        loadAdminCreatedUsers();
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to deactivate user');
+    }
+}
+
+async function deleteUser(userId) {
+    if (!confirm('Are you sure you want to DELETE this user? This cannot be undone!')) return;
+    
+    try {
+        const response = await fetch(`${API_URL}/api/admin/users/${userId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        const data = await response.json();
+        alert(data.message);
+        loadUsers();
+        loadAdminCreatedUsers();
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to delete user');
+    }
+}
+
+// ==================== EXPORT TO EXCEL ====================
+
+function exportToExcel(data, filename) {
+    // Convert data to CSV format
+    if (!data || data.length === 0) {
+        alert('No data to export');
+        return;
+    }
+    
+    const headers = Object.keys(data[0]);
+    const csvContent = [
+        headers.join(','),
+        ...data.map(row => headers.map(h => {
+            let val = row[h];
+            if (val === null || val === undefined) val = '';
+            if (typeof val === 'string' && (val.includes(',') || val.includes('"'))) {
+                val = `"${val.replace(/"/g, '""')}"`;
+            }
+            return val;
+        }).join(','))
+    ].join('\n');
+    
+    // Create download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${filename}_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+}
+
+async function exportUsersToExcel() {
+    try {
+        const response = await fetch(`${API_URL}/api/admin/users?limit=1000`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            const exportData = data.users.map(u => ({
+                'User ID': u.user_number || 'N/A',
+                'Name': u.full_name,
+                'Email': u.email,
+                'Referral Code': u.referral_code,
+                'Status': u.status || 'active',
+                'Total Invested': u.wallet?.total_invested || 0,
+                'Total Income': (u.wallet?.daily_roi || 0) + (u.wallet?.direct_income || 0) + (u.wallet?.slab_income || 0) + (u.wallet?.royalty_income || 0) + (u.wallet?.salary_income || 0),
+                'Joined': new Date(u.created_at).toLocaleDateString()
+            }));
+            exportToExcel(exportData, 'users');
+        }
+    } catch (error) {
+        console.error('Error exporting:', error);
+        alert('Failed to export data');
+    }
+}
+
+async function exportWithdrawalsToExcel() {
+    try {
+        const response = await fetch(`${API_URL}/api/admin/withdrawals`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            const exportData = data.map(w => ({
+                'User': w.user?.full_name || 'Unknown',
+                'Email': w.user?.email || '',
+                'Amount': w.amount,
+                'Status': w.status,
+                'Request Date': new Date(w.request_timestamp).toLocaleDateString()
+            }));
+            exportToExcel(exportData, 'withdrawals');
+        }
+    } catch (error) {
+        console.error('Error exporting:', error);
+        alert('Failed to export data');
+    }
+}
+
+async function exportAdminCreatedUsersToExcel() {
+    try {
+        const response = await fetch(`${API_URL}/api/admin/users/created-by-admin`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            const exportData = data.users.map(u => ({
+                'User #': u.user_number || 'N/A',
+                'Name': u.full_name,
+                'Email': u.email,
+                'Status': u.status,
+                'Total Invested': u.total_invested,
+                'Created By': u.created_by_admin_email,
+                'Created At': new Date(u.created_at).toLocaleDateString()
+            }));
+            exportToExcel(exportData, 'admin_created_users');
+        }
+    } catch (error) {
+        console.error('Error exporting:', error);
+        alert('Failed to export data');
+    }
+}
+
+// ==================== ADMIN CREATED USERS ENHANCEMENTS ====================
+
+let selectedAdminCreatedIds = [];
+
+function applyAdminCreatedDateFilter() {
+    const filter = document.getElementById('adminCreatedDateFilter').value;
+    const customRange = document.getElementById('adminCreatedCustomDateRange');
+    
+    if (filter === 'custom') {
+        customRange.style.display = 'flex';
+    } else {
+        customRange.style.display = 'none';
+        loadAdminCreatedUsers();
+    }
+}
+
+function toggleSelectAllAdminCreated() {
+    const selectAll = document.getElementById('selectAllAdminCreated').checked;
+    const checkboxes = document.querySelectorAll('#adminCreatedUsersTable input[type="checkbox"]');
+    
+    selectedAdminCreatedIds = [];
+    checkboxes.forEach(cb => {
+        cb.checked = selectAll;
+        if (selectAll) {
+            selectedAdminCreatedIds.push(cb.value);
+        }
+    });
+    
+    updateAdminCreatedBulkActions();
+}
+
+function toggleAdminCreatedSelection(userId) {
+    const index = selectedAdminCreatedIds.indexOf(userId);
+    if (index > -1) {
+        selectedAdminCreatedIds.splice(index, 1);
+    } else {
+        selectedAdminCreatedIds.push(userId);
+    }
+    updateAdminCreatedBulkActions();
+}
+
+function updateAdminCreatedBulkActions() {
+    const bulkActions = document.getElementById('adminCreatedBulkActions');
+    const countSpan = document.getElementById('selectedAdminCreatedCount');
+    
+    if (selectedAdminCreatedIds.length > 0) {
+        bulkActions.style.display = 'flex';
+        countSpan.textContent = `${selectedAdminCreatedIds.length} selected`;
+    } else {
+        bulkActions.style.display = 'none';
+    }
+}
+
+function clearAdminCreatedSelection() {
+    selectedAdminCreatedIds = [];
+    document.getElementById('selectAllAdminCreated').checked = false;
+    document.querySelectorAll('#adminCreatedUsersTable input[type="checkbox"]').forEach(cb => cb.checked = false);
+    updateAdminCreatedBulkActions();
+}
+
+async function bulkDeactivateAdminCreatedUsers() {
+    if (selectedAdminCreatedIds.length === 0) return;
+    
+    if (!confirm(`Are you sure you want to deactivate ${selectedAdminCreatedIds.length} users?`)) return;
+    
+    try {
+        const response = await fetch(`${API_URL}/api/admin/users/bulk-deactivate`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ user_ids: selectedAdminCreatedIds })
+        });
+        
+        const data = await response.json();
+        alert(data.message);
+        clearAdminCreatedSelection();
+        loadAdminCreatedUsers();
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to deactivate users');
+    }
+}
+
+async function bulkDeleteAdminCreatedUsers() {
+    if (selectedAdminCreatedIds.length === 0) return;
+    
+    if (!confirm(`Are you sure you want to DELETE ${selectedAdminCreatedIds.length} users? This cannot be undone!`)) return;
+    
+    try {
+        const response = await fetch(`${API_URL}/api/admin/users/bulk-delete`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ user_ids: selectedAdminCreatedIds })
+        });
+        
+        const data = await response.json();
+        alert(data.message);
+        clearAdminCreatedSelection();
+        loadAdminCreatedUsers();
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to delete users');
+    }
+}
+
+// ==================== WITHDRAWAL DATE FILTER ====================
+
+function applyWithdrawalDateFilter() {
+    const filter = document.getElementById('withdrawalDateFilter').value;
+    const customRange = document.getElementById('withdrawalCustomDateRange');
+    
+    if (filter === 'custom') {
+        customRange.style.display = 'flex';
+    } else {
+        customRange.style.display = 'none';
+        loadWithdrawals();
     }
 }

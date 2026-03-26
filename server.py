@@ -1115,6 +1115,75 @@ async def admin_lookup_user(code: str, admin_user: dict = Depends(get_admin_user
         "status": user.get("status", "active")
     }
 
+class BulkUserAction(BaseModel):
+    user_ids: List[str]
+
+@api_router.post("/admin/users/bulk-deactivate")
+async def bulk_deactivate_users(data: BulkUserAction, admin_user: dict = Depends(get_admin_user)):
+    """Deactivate multiple users at once"""
+    if not data.user_ids:
+        raise HTTPException(status_code=400, detail="No users selected")
+    
+    result = await db.users.update_many(
+        {"id": {"$in": data.user_ids}},
+        {"$set": {"status": "inactive"}}
+    )
+    
+    return {"message": f"Successfully deactivated {result.modified_count} users"}
+
+@api_router.post("/admin/users/bulk-delete")
+async def bulk_delete_users(data: BulkUserAction, admin_user: dict = Depends(get_admin_user)):
+    """Delete multiple users at once"""
+    if not data.user_ids:
+        raise HTTPException(status_code=400, detail="No users selected")
+    
+    # Delete users
+    user_result = await db.users.delete_many({"id": {"$in": data.user_ids}})
+    
+    # Also delete their wallets
+    await db.wallets.delete_many({"user_id": {"$in": data.user_ids}})
+    
+    # Delete their transactions
+    await db.transactions.delete_many({"user_id": {"$in": data.user_ids}})
+    
+    # Delete their investments
+    await db.investments.delete_many({"user_id": {"$in": data.user_ids}})
+    
+    return {"message": f"Successfully deleted {user_result.deleted_count} users"}
+
+@api_router.put("/admin/users/{user_id}/deactivate")
+async def deactivate_user(user_id: str, admin_user: dict = Depends(get_admin_user)):
+    """Deactivate a single user"""
+    result = await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"status": "inactive"}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {"message": "User deactivated successfully"}
+
+@api_router.delete("/admin/users/{user_id}")
+async def delete_user(user_id: str, admin_user: dict = Depends(get_admin_user)):
+    """Delete a single user"""
+    # Delete user
+    result = await db.users.delete_one({"id": user_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Also delete wallet
+    await db.wallets.delete_one({"user_id": user_id})
+    
+    # Delete transactions
+    await db.transactions.delete_many({"user_id": user_id})
+    
+    # Delete investments
+    await db.investments.delete_many({"user_id": user_id})
+    
+    return {"message": "User deleted successfully"}
+
 @api_router.get("/admin/users/{user_id}")
 async def get_user_details(user_id: str, admin_user: dict = Depends(get_admin_user)):
     """Get detailed user information"""
