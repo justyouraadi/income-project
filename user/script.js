@@ -336,7 +336,8 @@ function navigateTo(page) {
         'team': 'My Team',
         'withdraw': 'Withdraw Funds',
         'learn': 'Learning Center',
-        'profile': 'My Profile'
+        'profile': 'My Profile',
+        'help': 'Help & Support'
     };
     document.getElementById('pageTitle').textContent = titles[page] || 'Dashboard';
     
@@ -1070,3 +1071,232 @@ async function lookupReferrer(code) {
         infoDiv.className = 'referrer-info error';
     }
 }
+
+
+// ==================== FAQ TOGGLE ====================
+function toggleFaq(element) {
+    // Close all other FAQs in the same category
+    const category = element.closest('.faq-category');
+    const allFaqs = category.querySelectorAll('.faq-item');
+    
+    allFaqs.forEach(faq => {
+        if (faq !== element) {
+            faq.classList.remove('active');
+        }
+    });
+    
+    // Toggle current FAQ
+    element.classList.toggle('active');
+}
+
+// ==================== SUPPORT TICKETS ====================
+
+async function loadUserTickets() {
+    const container = document.getElementById('userTicketsList');
+    container.innerHTML = '<div class="loading-tickets">Loading your tickets...</div>';
+    
+    try {
+        const response = await fetch(`${API_URL}/api/tickets`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            renderUserTickets(data.tickets || []);
+        } else {
+            container.innerHTML = '<div class="loading-tickets">Error loading tickets</div>';
+        }
+    } catch (error) {
+        console.error('Error loading tickets:', error);
+        container.innerHTML = '<div class="loading-tickets">Error loading tickets</div>';
+    }
+}
+
+function renderUserTickets(tickets) {
+    const container = document.getElementById('userTicketsList');
+    
+    if (!tickets || tickets.length === 0) {
+        container.innerHTML = `
+            <div class="no-tickets">
+                <div class="no-tickets-icon">🎫</div>
+                <p>No tickets yet</p>
+                <small>Submit a ticket if you need help</small>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = tickets.map(ticket => `
+        <div class="ticket-item" onclick="viewTicketDetails('${ticket.id}')">
+            <div class="ticket-item-header">
+                <span class="ticket-number">${ticket.ticket_number}</span>
+                <span class="ticket-status ${ticket.status}">${ticket.status.replace('_', ' ')}</span>
+            </div>
+            <div class="ticket-subject">${ticket.subject}</div>
+            <div class="ticket-meta">
+                <span class="ticket-category">${ticket.category}</span>
+                <span class="ticket-date">${new Date(ticket.created_at).toLocaleDateString()}</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function submitTicket(event) {
+    event.preventDefault();
+    
+    const category = document.getElementById('ticketCategory').value;
+    const priority = document.getElementById('ticketPriority').value;
+    const subject = document.getElementById('ticketSubject').value;
+    const message = document.getElementById('ticketMessage').value;
+    
+    if (!category || !subject || !message) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/api/tickets`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({ category, priority, subject, message })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert(`Ticket created successfully!\nTicket #: ${data.ticket_number}`);
+            document.getElementById('ticketForm').reset();
+            loadUserTickets();
+        } else {
+            alert(data.detail || 'Failed to create ticket');
+        }
+    } catch (error) {
+        console.error('Error creating ticket:', error);
+        alert('Error creating ticket. Please try again.');
+    }
+}
+
+async function viewTicketDetails(ticketId) {
+    try {
+        const response = await fetch(`${API_URL}/api/tickets/${ticketId}`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        if (response.ok) {
+            const ticket = await response.json();
+            showTicketModal(ticket);
+        } else {
+            alert('Error loading ticket details');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error loading ticket details');
+    }
+}
+
+function showTicketModal(ticket) {
+    // Create modal if it doesn't exist
+    let modal = document.getElementById('ticketDetailModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ticketDetailModal';
+        modal.className = 'modal';
+        document.body.appendChild(modal);
+    }
+    
+    const messagesHtml = ticket.messages.map(msg => `
+        <div class="message-item ${msg.sender}">
+            <div class="message-header">
+                <span class="message-sender">${msg.sender === 'admin' ? '👨‍💼 Support' : '👤 You'}</span>
+                <span class="message-time">${new Date(msg.timestamp).toLocaleString()}</span>
+            </div>
+            <div class="message-text">${msg.message}</div>
+        </div>
+    `).join('');
+    
+    const canReply = ticket.status !== 'closed';
+    
+    modal.innerHTML = `
+        <div class="modal-content ticket-modal-content">
+            <span class="modal-close" onclick="closeTicketModal()">&times;</span>
+            
+            <div class="ticket-detail-header">
+                <h3>${ticket.ticket_number} - ${ticket.subject}</h3>
+                <div class="ticket-detail-meta">
+                    <span>📁 ${ticket.category}</span>
+                    <span>⚡ ${ticket.priority}</span>
+                    <span class="ticket-status ${ticket.status}">${ticket.status.replace('_', ' ')}</span>
+                </div>
+            </div>
+            
+            <div class="messages-container">
+                ${messagesHtml}
+            </div>
+            
+            ${canReply ? `
+                <div class="ticket-reply-form">
+                    <textarea id="ticketReplyMessage" placeholder="Type your reply..."></textarea>
+                    <button class="btn btn-primary" onclick="replyToTicket('${ticket.id}')">Send Reply</button>
+                </div>
+            ` : '<p style="color: var(--text-muted); text-align: center;">This ticket is closed</p>'}
+        </div>
+    `;
+    
+    modal.style.display = 'flex';
+}
+
+function closeTicketModal() {
+    const modal = document.getElementById('ticketDetailModal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function replyToTicket(ticketId) {
+    const message = document.getElementById('ticketReplyMessage').value.trim();
+    
+    if (!message) {
+        alert('Please enter a message');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/api/tickets/${ticketId}/reply`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({ message })
+        });
+        
+        if (response.ok) {
+            closeTicketModal();
+            viewTicketDetails(ticketId);
+            loadUserTickets();
+        } else {
+            const data = await response.json();
+            alert(data.detail || 'Failed to send reply');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error sending reply');
+    }
+}
+
+// Load tickets when navigating to help page
+document.addEventListener('DOMContentLoaded', () => {
+    // Observer for when help page becomes visible
+    const helpPage = document.getElementById('helpPage');
+    if (helpPage) {
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.attributeName === 'style' && helpPage.style.display !== 'none') {
+                    loadUserTickets();
+                }
+            });
+        });
+        observer.observe(helpPage, { attributes: true });
+    }
+});

@@ -157,6 +157,20 @@ class DashboardStats(BaseModel):
     direct_income: float
     level_income: float
 
+# ==================== SUPPORT TICKET MODELS ====================
+
+class TicketCreate(BaseModel):
+    subject: str
+    category: str  # general, investment, withdrawal, referral, technical, other
+    message: str
+    priority: Optional[str] = "normal"  # low, normal, high
+
+class TicketReply(BaseModel):
+    message: str
+
+class TicketStatusUpdate(BaseModel):
+    status: str  # open, in_progress, resolved, closed
+
 # ==================== AUTH UTILITIES ====================
 
 def verify_password(plain_password, hashed_password):
@@ -693,6 +707,99 @@ async def get_chart_data(current_user: dict = Depends(get_current_user)):
         })
     
     return {"chart_data": chart_data}
+
+# ==================== SUPPORT TICKET ROUTES ====================
+
+@api_router.post("/tickets")
+async def create_ticket(ticket: TicketCreate, current_user: dict = Depends(get_current_user)):
+    """Create a new support ticket"""
+    ticket_id = str(uuid.uuid4())
+    ticket_number = f"TKT{random.randint(100000, 999999)}"
+    
+    ticket_doc = {
+        "id": ticket_id,
+        "ticket_number": ticket_number,
+        "user_id": current_user["id"],
+        "user_email": current_user["email"],
+        "user_name": current_user.get("full_name", "User"),
+        "user_number": current_user.get("user_number", "N/A"),
+        "subject": ticket.subject,
+        "category": ticket.category,
+        "priority": ticket.priority,
+        "status": "open",
+        "messages": [
+            {
+                "id": str(uuid.uuid4()),
+                "sender": "user",
+                "sender_name": current_user.get("full_name", "User"),
+                "message": ticket.message,
+                "timestamp": datetime.utcnow()
+            }
+        ],
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow()
+    }
+    
+    await db.tickets.insert_one(ticket_doc)
+    
+    return {
+        "success": True,
+        "message": "Ticket created successfully",
+        "ticket_number": ticket_number,
+        "ticket_id": ticket_id
+    }
+
+@api_router.get("/tickets")
+async def get_user_tickets(current_user: dict = Depends(get_current_user)):
+    """Get all tickets for the current user"""
+    tickets = await db.tickets.find(
+        {"user_id": current_user["id"]},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(100)
+    
+    return {"tickets": tickets}
+
+@api_router.get("/tickets/{ticket_id}")
+async def get_ticket_details(ticket_id: str, current_user: dict = Depends(get_current_user)):
+    """Get details of a specific ticket"""
+    ticket = await db.tickets.find_one(
+        {"id": ticket_id, "user_id": current_user["id"]},
+        {"_id": 0}
+    )
+    
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    
+    return ticket
+
+@api_router.post("/tickets/{ticket_id}/reply")
+async def reply_to_ticket(ticket_id: str, reply: TicketReply, current_user: dict = Depends(get_current_user)):
+    """Add a reply to an existing ticket (user)"""
+    ticket = await db.tickets.find_one({"id": ticket_id, "user_id": current_user["id"]})
+    
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    
+    if ticket["status"] == "closed":
+        raise HTTPException(status_code=400, detail="Cannot reply to a closed ticket")
+    
+    new_message = {
+        "id": str(uuid.uuid4()),
+        "sender": "user",
+        "sender_name": current_user.get("full_name", "User"),
+        "message": reply.message,
+        "timestamp": datetime.utcnow()
+    }
+    
+    await db.tickets.update_one(
+        {"id": ticket_id},
+        {
+            "$push": {"messages": new_message},
+            "$set": {"updated_at": datetime.utcnow(), "status": "open"}
+        }
+    )
+    
+    return {"success": True, "message": "Reply added successfully"}
 
 # ==================== ADMIN ROUTES ====================
 
@@ -2535,6 +2642,103 @@ async def calculate_royalty_income(admin_user: dict = Depends(get_admin_user)):
         "users_processed": processed,
         "total_distributed": total_distributed
     }
+
+# ==================== ADMIN SUPPORT TICKET ROUTES ====================
+
+@api_router.get("/admin/tickets")
+async def get_all_tickets(
+    status: Optional[str] = None,
+    admin_user: dict = Depends(get_admin_user)
+):
+    """Get all support tickets (admin only)"""
+    query = {}
+    if status:
+        query["status"] = status
+    
+    tickets = await db.tickets.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
+    
+    # Calculate summary
+    all_tickets = await db.tickets.find({}, {"status": 1}).to_list(1000)
+    summary = {
+        "total": len(all_tickets),
+        "open": sum(1 for t in all_tickets if t.get("status") == "open"),
+        "in_progress": sum(1 for t in all_tickets if t.get("status") == "in_progress"),
+        "resolved": sum(1 for t in all_tickets if t.get("status") == "resolved"),
+        "closed": sum(1 for t in all_tickets if t.get("status") == "closed")
+    }
+    
+    return {"tickets": tickets, "summary": summary}
+
+@api_router.get("/admin/tickets/{ticket_id}")
+async def get_ticket_admin(ticket_id: str, admin_user: dict = Depends(get_admin_user)):
+    """Get ticket details (admin)"""
+    ticket = await db.tickets.find_one({"id": ticket_id}, {"_id": 0})
+    
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    
+    return ticket
+
+@api_router.post("/admin/tickets/{ticket_id}/reply")
+async def admin_reply_to_ticket(
+    ticket_id: str, 
+    reply: TicketReply, 
+    admin_user: dict = Depends(get_admin_user)
+):
+    """Add an admin reply to a ticket"""
+    ticket = await db.tickets.find_one({"id": ticket_id})
+    
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    
+    new_message = {
+        "id": str(uuid.uuid4()),
+        "sender": "admin",
+        "sender_name": admin_user.get("full_name", "Admin"),
+        "message": reply.message,
+        "timestamp": datetime.utcnow()
+    }
+    
+    await db.tickets.update_one(
+        {"id": ticket_id},
+        {
+            "$push": {"messages": new_message},
+            "$set": {"updated_at": datetime.utcnow(), "status": "in_progress"}
+        }
+    )
+    
+    return {"success": True, "message": "Reply added successfully"}
+
+@api_router.put("/admin/tickets/{ticket_id}/status")
+async def update_ticket_status(
+    ticket_id: str, 
+    status_update: TicketStatusUpdate, 
+    admin_user: dict = Depends(get_admin_user)
+):
+    """Update ticket status (admin)"""
+    valid_statuses = ["open", "in_progress", "resolved", "closed"]
+    if status_update.status not in valid_statuses:
+        raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {valid_statuses}")
+    
+    result = await db.tickets.update_one(
+        {"id": ticket_id},
+        {"$set": {"status": status_update.status, "updated_at": datetime.utcnow()}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    
+    return {"success": True, "message": f"Ticket status updated to {status_update.status}"}
+
+@api_router.delete("/admin/tickets/{ticket_id}")
+async def delete_ticket(ticket_id: str, admin_user: dict = Depends(get_admin_user)):
+    """Delete a ticket (admin)"""
+    result = await db.tickets.delete_one({"id": ticket_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    
+    return {"success": True, "message": "Ticket deleted successfully"}
 
 # ==================== P2P WALLET TRANSFER ====================
 

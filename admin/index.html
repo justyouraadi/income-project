@@ -79,6 +79,14 @@
                     <span class="nav-icon">📈</span>
                     <span>Income Calculator</span>
                 </a>
+                <a href="#" class="nav-item" data-page="help">
+                    <span class="nav-icon">❓</span>
+                    <span>Help & FAQs</span>
+                </a>
+                <a href="#" class="nav-item" data-page="tickets">
+                    <span class="nav-icon">🎫</span>
+                    <span>Support Tickets</span>
+                </a>
                 <a href="#" class="nav-item" onclick="logout()">
                     <span class="nav-icon">🚪</span>
                     <span>Logout</span>
@@ -559,6 +567,275 @@
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Help & Support Page -->
+                <div id="helpPage" class="page-content" style="display: none;">
+                    <div class="page-header">
+                        <h2>Help & Support</h2>
+                    </div>
+                    
+                    <!-- Admin Quick Actions Card -->
+                    <div class="admin-help-card">
+                        <div class="help-icon">🛠️</div>
+                        <div class="help-info">
+                            <h3>Admin Quick Reference</h3>
+                            <p>Common administrative tasks and system information</p>
+                        </div>
+                    </div>
+                    
+                    <!-- FAQ Section -->
+                    <div class="admin-faq-section">
+                        <h3 class="faq-section-title">Frequently Asked Questions</h3>
+                        
+                        <div class="faq-category">
+                            <h4 class="faq-category-header">👥 User Management</h4>
+                            
+                            <div class="admin-faq-item" onclick="toggleAdminFaq(this)">
+                                <div class="admin-faq-question">
+                                    <span>How do I add a new user without investment?</span>
+                                    <span class="admin-faq-toggle">+</span>
+                                </div>
+                                <div class="admin-faq-answer">
+                                    <p>Go to <strong>Users → + Add User</strong>. Enter the user's name, email, and password. The user will be created with "Inactive" status and zero balance. They become "Active" once they make an investment.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="admin-faq-item" onclick="toggleAdminFaq(this)">
+                                <div class="admin-faq-question">
+                                    <span>How do I change a user's referrer?</span>
+                                    <span class="admin-faq-toggle">+</span>
+                                </div>
+                                <div class="admin-faq-answer">
+                                    <p>Go to <strong>Users → Manage (on user row) → Edit Details tab</strong>. Click "Change Referrer" and enter the new referrer's User ID or referral code. Note: This will recalculate and transfer any existing referral bonuses to the new referrer.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="admin-faq-item" onclick="toggleAdminFaq(this)">
+                                <div class="admin-faq-question">
+                                    <span>What is the difference between Active and Inactive users?</span>
+                                    <span class="admin-faq-toggle">+</span>
+                                </div>
+                                <div class="admin-faq-answer">
+                                    <p><strong>Inactive:</strong> Default status for new users. Cannot earn referral bonuses.<br>
+                                    <strong>Active:</strong> Status after first investment. Can earn 5% referral bonus from direct referrals' investments.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="admin-faq-item" onclick="toggleAdminFaq(this)">
+                                <div class="admin-faq-question">
+                                    <span>How do I bulk deactivate or delete users?</span>
+                                    <span class="admin-faq-toggle">+</span>
+                                </div>
+                                <div class="admin-faq-answer">
+                                    <p>In the Users page, check the boxes next to multiple users. The bulk action buttons will appear at the top of the table. Click "Deactivate Selected" or "Delete Selected" to perform the action on all selected users.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="faq-category">
+                            <h4 class="faq-category-header">💰 Income & Calculations</h4>
+                            
+                            <div class="admin-faq-item" onclick="toggleAdminFaq(this)">
+                                <div class="admin-faq-question">
+                                    <span>How is Daily ROI calculated?</span>
+                                    <span class="admin-faq-toggle">+</span>
+                                </div>
+                                <div class="admin-faq-answer">
+                                    <p>Daily ROI is based on investment slab:<br>
+                                    • $20 - $499: <strong>0.5%</strong> daily<br>
+                                    • $500 - $2,499: <strong>0.6%</strong> daily<br>
+                                    • $2,500 - $4,999: <strong>0.7%</strong> daily<br>
+                                    • $5,000 - $9,999: <strong>0.8%</strong> daily<br>
+                                    • $10,000+: <strong>1.0%</strong> daily<br>
+                                    ROI is credited for 100 days from investment date.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="admin-faq-item" onclick="toggleAdminFaq(this)">
+                                <div class="admin-faq-question">
+                                    <span>What is the 40/60 rule for Salary Income?</span>
+                                    <span class="admin-faq-toggle">+</span>
+                                </div>
+                                <div class="admin-faq-answer">
+                                    <p>To qualify for monthly salary, a user must have:<br>
+                                    • Maximum <strong>40%</strong> of total team business in their strongest leg (Power Leg)<br>
+                                    • Minimum <strong>60%</strong> combined in their weaker legs<br>
+                                    This ensures balanced team building. Use "Income Calculator → Calculate & Distribute Salary" to process eligible users.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="admin-faq-item" onclick="toggleAdminFaq(this)">
+                                <div class="admin-faq-question">
+                                    <span>How do I manually credit income to a user?</span>
+                                    <span class="admin-faq-toggle">+</span>
+                                </div>
+                                <div class="admin-faq-answer">
+                                    <p>Go to <strong>Income Calculator</strong> and select the appropriate income type (Daily ROI, Direct Income, Slab Income, Royalty Income, or Salary). Enter the User ID and amount, then click the Calculate/Credit button. This is useful for corrections or special bonuses.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="faq-category">
+                            <h4 class="faq-category-header">💸 Withdrawals & Transfers</h4>
+                            
+                            <div class="admin-faq-item" onclick="toggleAdminFaq(this)">
+                                <div class="admin-faq-question">
+                                    <span>How do I process withdrawal requests?</span>
+                                    <span class="admin-faq-toggle">+</span>
+                                </div>
+                                <div class="admin-faq-answer">
+                                    <p>Go to <strong>Withdrawals</strong> page. Pending requests show "Approve" and "Cancel" buttons. Review the payment details (UPI/Bank), then click "Approve" to mark as completed or "Cancel" to reject. The user's wallet will be adjusted accordingly.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="admin-faq-item" onclick="toggleAdminFaq(this)">
+                                <div class="admin-faq-question">
+                                    <span>How do I transfer funds between users (P2P)?</span>
+                                    <span class="admin-faq-toggle">+</span>
+                                </div>
+                                <div class="admin-faq-answer">
+                                    <p>Go to <strong>P2P Transfer</strong>. Enter the sender's User ID, recipient's User ID, amount, and optional description. Admin transfers do not require OTP verification. This is useful for corrections or manual fund movements.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="faq-category">
+                            <h4 class="faq-category-header">📊 Reporting & Export</h4>
+                            
+                            <div class="admin-faq-item" onclick="toggleAdminFaq(this)">
+                                <div class="admin-faq-question">
+                                    <span>How do I export data to Excel?</span>
+                                    <span class="admin-faq-toggle">+</span>
+                                </div>
+                                <div class="admin-faq-answer">
+                                    <p>Each section (Users, Withdrawals, Investments, Transactions) has an "Export Excel" button. Clicking it opens a date range picker. Select "All Time" or choose a specific period (Weekly, Monthly, Quarterly, Yearly, or Custom Range), then click "Export Now" to download a CSV file.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="admin-faq-item" onclick="toggleAdminFaq(this)">
+                                <div class="admin-faq-question">
+                                    <span>How do I view a user's complete history?</span>
+                                    <span class="admin-faq-toggle">+</span>
+                                </div>
+                                <div class="admin-faq-answer">
+                                    <p>Go to <strong>Users → Manage (on user row)</strong>. The user modal has tabs for:<br>
+                                    • <strong>Overview:</strong> Balance and wallet summary<br>
+                                    • <strong>Transaction History:</strong> All credits/debits with details<br>
+                                    • <strong>Referral Details:</strong> Complete referral tree and stats<br>
+                                    • <strong>Edit Details:</strong> Modify email or change referrer</p>
+                                </div>
+                            </div>
+                            
+                            <div class="admin-faq-item" onclick="toggleAdminFaq(this)">
+                                <div class="admin-faq-question">
+                                    <span>What do the date filters do?</span>
+                                    <span class="admin-faq-toggle">+</span>
+                                </div>
+                                <div class="admin-faq-answer">
+                                    <p>Date filters narrow down displayed data:<br>
+                                    • <strong>This Week:</strong> Current Sunday to Today<br>
+                                    • <strong>This Month:</strong> 1st of current month to Today<br>
+                                    • <strong>This Quarter:</strong> Start of current quarter<br>
+                                    • <strong>This Year:</strong> January 1st to Today<br>
+                                    • <strong>Custom Range:</strong> Select specific start and end dates</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="faq-category">
+                            <h4 class="faq-category-header">🔐 System & Security</h4>
+                            
+                            <div class="admin-faq-item" onclick="toggleAdminFaq(this)">
+                                <div class="admin-faq-question">
+                                    <span>Admin login credentials</span>
+                                    <span class="admin-faq-toggle">+</span>
+                                </div>
+                                <div class="admin-faq-answer">
+                                    <p>Default admin credentials:<br>
+                                    • <strong>Email:</strong> admin@ssmoneyresource.com<br>
+                                    • <strong>Password:</strong> admin123<br>
+                                    ⚠️ Change this password immediately in production! Admin accounts cannot log in through the user portal and vice versa.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="admin-faq-item" onclick="toggleAdminFaq(this)">
+                                <div class="admin-faq-question">
+                                    <span>How do I reset a user's password?</span>
+                                    <span class="admin-faq-toggle">+</span>
+                                </div>
+                                <div class="admin-faq-answer">
+                                    <p>Currently, password reset requires database access. For security, users should be directed to contact support for password resets. A self-service password reset feature can be added in future updates.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Support Tickets Page -->
+                <div id="ticketsPage" class="page-content" style="display: none;">
+                    <div class="page-header">
+                        <h2>Support Tickets</h2>
+                        <div class="filter-group">
+                            <label>Filter:</label>
+                            <select id="ticketStatusFilter" onchange="loadAdminTickets()">
+                                <option value="">All Tickets</option>
+                                <option value="open">Open</option>
+                                <option value="in_progress">In Progress</option>
+                                <option value="resolved">Resolved</option>
+                                <option value="closed">Closed</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Tickets Summary -->
+                    <div class="tickets-summary" id="ticketsSummary">
+                        <div class="summary-card open">
+                            <span class="count" id="openTicketsCount">0</span>
+                            <span class="label">Open</span>
+                        </div>
+                        <div class="summary-card in-progress">
+                            <span class="count" id="inProgressTicketsCount">0</span>
+                            <span class="label">In Progress</span>
+                        </div>
+                        <div class="summary-card resolved">
+                            <span class="count" id="resolvedTicketsCount">0</span>
+                            <span class="label">Resolved</span>
+                        </div>
+                        <div class="summary-card closed">
+                            <span class="count" id="closedTicketsCount">0</span>
+                            <span class="label">Closed</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Tickets Table -->
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Ticket #</th>
+                                    <th>User</th>
+                                    <th>Subject</th>
+                                    <th>Category</th>
+                                    <th>Priority</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminTicketsTable">
+                                <tr><td colspan="8" class="loading">Loading tickets...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Ticket Detail Modal -->
+                <div id="adminTicketModal" class="modal" style="display: none;">
+                    <div class="modal-content modal-large">
+                        <span class="close" onclick="closeAdminTicketModal()">&times;</span>
+                        <div id="adminTicketContent"></div>
                     </div>
                 </div>
 

@@ -129,7 +129,9 @@ document.querySelectorAll('.nav-item').forEach(item => {
                 'withdrawals': 'Withdrawal Requests',
                 'investments': 'Investments',
                 'transactions': 'Transactions',
-                'income': 'Income Calculator'
+                'income': 'Income Calculator',
+                'help': 'Help & FAQs',
+                'tickets': 'Support Tickets'
             };
             document.getElementById('pageTitle').textContent = titles[page];
             
@@ -166,6 +168,9 @@ function loadPageData(page) {
             break;
         case 'income':
             loadUsersForSalary();
+            break;
+        case 'tickets':
+            loadAdminTickets();
             break;
     }
 }
@@ -2761,5 +2766,296 @@ function applyWithdrawalDateFilter() {
         } else {
             loadWithdrawals();
         }
+    }
+}
+
+
+// ==================== ADMIN FAQ TOGGLE ====================
+function toggleAdminFaq(element) {
+    // Close all other FAQs in the same category
+    const category = element.closest('.faq-category');
+    const allFaqs = category.querySelectorAll('.admin-faq-item');
+    
+    allFaqs.forEach(faq => {
+        if (faq !== element) {
+            faq.classList.remove('active');
+        }
+    });
+    
+    // Toggle current FAQ
+    element.classList.toggle('active');
+}
+
+
+// ==================== ADMIN TICKET MANAGEMENT ====================
+
+async function loadAdminTickets() {
+    const tbody = document.getElementById('adminTicketsTable');
+    tbody.innerHTML = '<tr><td colspan="8" class="loading">Loading tickets...</td></tr>';
+    
+    const statusFilter = document.getElementById('ticketStatusFilter').value;
+    let url = `${API_URL}/api/admin/tickets`;
+    if (statusFilter) {
+        url += `?status=${statusFilter}`;
+    }
+    
+    try {
+        const response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            
+            // Update summary
+            if (data.summary) {
+                document.getElementById('openTicketsCount').textContent = data.summary.open || 0;
+                document.getElementById('inProgressTicketsCount').textContent = data.summary.in_progress || 0;
+                document.getElementById('resolvedTicketsCount').textContent = data.summary.resolved || 0;
+                document.getElementById('closedTicketsCount').textContent = data.summary.closed || 0;
+            }
+            
+            // Render table
+            renderAdminTicketsTable(data.tickets || []);
+        }
+    } catch (error) {
+        console.error('Error loading tickets:', error);
+        tbody.innerHTML = '<tr><td colspan="8" class="loading">Error loading tickets</td></tr>';
+    }
+}
+
+function renderAdminTicketsTable(tickets) {
+    const tbody = document.getElementById('adminTicketsTable');
+    
+    if (!tickets || tickets.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="loading">No tickets found</td></tr>';
+        return;
+    }
+    
+    const statusColors = {
+        'open': '#27ae60',
+        'in_progress': '#f39c12',
+        'resolved': '#3498db',
+        'closed': '#7f8c8d'
+    };
+    
+    tbody.innerHTML = tickets.map(ticket => `
+        <tr>
+            <td><strong>${ticket.ticket_number}</strong></td>
+            <td>
+                <strong>#${ticket.user_number || 'N/A'}</strong><br>
+                <small>${ticket.user_email}</small>
+            </td>
+            <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${ticket.subject}</td>
+            <td><span style="text-transform: capitalize;">${ticket.category}</span></td>
+            <td><span class="priority-badge ${ticket.priority}">${ticket.priority}</span></td>
+            <td><span class="type-badge" style="background: ${statusColors[ticket.status]}">${ticket.status.replace('_', ' ')}</span></td>
+            <td>${new Date(ticket.created_at).toLocaleDateString()}</td>
+            <td>
+                <button class="btn btn-info btn-sm" onclick="viewAdminTicket('${ticket.id}')">View</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteTicket('${ticket.id}')">Del</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function viewAdminTicket(ticketId) {
+    try {
+        const response = await fetch(`${API_URL}/api/admin/tickets/${ticketId}`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        if (response.ok) {
+            const ticket = await response.json();
+            showAdminTicketModal(ticket);
+        } else {
+            alert('Error loading ticket details');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error loading ticket details');
+    }
+}
+
+function showAdminTicketModal(ticket) {
+    const container = document.getElementById('adminTicketContent');
+    
+    const messagesHtml = ticket.messages.map(msg => `
+        <div class="admin-message ${msg.sender === 'admin' ? 'admin-msg' : 'user-msg'}">
+            <div class="msg-header">
+                <span class="msg-sender">${msg.sender === 'admin' ? '👨‍💼 Admin' : '👤 ' + msg.sender_name}</span>
+                <span class="msg-time">${new Date(msg.timestamp).toLocaleString()}</span>
+            </div>
+            <div class="msg-text">${msg.message}</div>
+        </div>
+    `).join('');
+    
+    container.innerHTML = `
+        <div class="admin-ticket-detail">
+            <div class="admin-ticket-header">
+                <div>
+                    <h3>${ticket.ticket_number} - ${ticket.subject}</h3>
+                    <div class="admin-ticket-meta">
+                        <span>👤 ${ticket.user_name} (#${ticket.user_number || 'N/A'})</span>
+                        <span>📧 ${ticket.user_email}</span>
+                        <span>📁 ${ticket.category}</span>
+                        <span>⚡ ${ticket.priority}</span>
+                    </div>
+                </div>
+                <div class="ticket-status-actions">
+                    <select id="ticketStatusSelect" onchange="updateTicketStatus('${ticket.id}')">
+                        <option value="open" ${ticket.status === 'open' ? 'selected' : ''}>Open</option>
+                        <option value="in_progress" ${ticket.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
+                        <option value="resolved" ${ticket.status === 'resolved' ? 'selected' : ''}>Resolved</option>
+                        <option value="closed" ${ticket.status === 'closed' ? 'selected' : ''}>Closed</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="admin-messages-container">
+                ${messagesHtml}
+            </div>
+            
+            ${ticket.status !== 'closed' ? `
+                <div class="admin-reply-form">
+                    <textarea id="adminReplyMessage" placeholder="Type your reply to the user..."></textarea>
+                    <div class="form-actions">
+                        <button class="btn btn-primary" onclick="adminReplyTicket('${ticket.id}')">Send Reply</button>
+                        <button class="btn btn-success" onclick="resolveTicket('${ticket.id}')">Mark Resolved</button>
+                        <button class="btn btn-secondary" onclick="closeTicket('${ticket.id}')">Close Ticket</button>
+                    </div>
+                </div>
+            ` : '<p style="text-align: center; color: var(--text-secondary);">This ticket is closed</p>'}
+        </div>
+    `;
+    
+    document.getElementById('adminTicketModal').style.display = 'flex';
+}
+
+function closeAdminTicketModal() {
+    document.getElementById('adminTicketModal').style.display = 'none';
+}
+
+async function adminReplyTicket(ticketId) {
+    const message = document.getElementById('adminReplyMessage').value.trim();
+    
+    if (!message) {
+        alert('Please enter a reply message');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/api/admin/tickets/${ticketId}/reply`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({ message })
+        });
+        
+        if (response.ok) {
+            closeAdminTicketModal();
+            viewAdminTicket(ticketId);
+            loadAdminTickets();
+        } else {
+            const data = await response.json();
+            alert(data.detail || 'Failed to send reply');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error sending reply');
+    }
+}
+
+async function updateTicketStatus(ticketId) {
+    const status = document.getElementById('ticketStatusSelect').value;
+    
+    try {
+        const response = await fetch(`${API_URL}/api/admin/tickets/${ticketId}/status`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({ status })
+        });
+        
+        if (response.ok) {
+            loadAdminTickets();
+        } else {
+            const data = await response.json();
+            alert(data.detail || 'Failed to update status');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error updating status');
+    }
+}
+
+async function resolveTicket(ticketId) {
+    if (!confirm('Mark this ticket as resolved?')) return;
+    
+    try {
+        const response = await fetch(`${API_URL}/api/admin/tickets/${ticketId}/status`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({ status: 'resolved' })
+        });
+        
+        if (response.ok) {
+            closeAdminTicketModal();
+            loadAdminTickets();
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error updating status');
+    }
+}
+
+async function closeTicket(ticketId) {
+    if (!confirm('Close this ticket? Users will not be able to reply.')) return;
+    
+    try {
+        const response = await fetch(`${API_URL}/api/admin/tickets/${ticketId}/status`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({ status: 'closed' })
+        });
+        
+        if (response.ok) {
+            closeAdminTicketModal();
+            loadAdminTickets();
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error closing ticket');
+    }
+}
+
+async function deleteTicket(ticketId) {
+    if (!confirm('Are you sure you want to delete this ticket? This cannot be undone.')) return;
+    
+    try {
+        const response = await fetch(`${API_URL}/api/admin/tickets/${ticketId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        if (response.ok) {
+            loadAdminTickets();
+        } else {
+            const data = await response.json();
+            alert(data.detail || 'Failed to delete ticket');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error deleting ticket');
     }
 }
