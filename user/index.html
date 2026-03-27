@@ -451,42 +451,33 @@
                 <!-- Learn Page -->
                 <div id="learnPage" class="page-content" style="display: none;">
                     <h2 class="page-subtitle">Learning Center</h2>
-                    <div class="learn-grid">
-                        <div class="learn-card">
-                            <div class="learn-icon">📈</div>
-                            <h3>Trading Basics</h3>
-                            <p>Learn the fundamentals of trading and market analysis.</p>
-                            <span class="learn-badge">5 Lessons</span>
-                        </div>
-                        <div class="learn-card">
-                            <div class="learn-icon">💰</div>
-                            <h3>Investment Strategies</h3>
-                            <p>Master different investment strategies for maximum returns.</p>
-                            <span class="learn-badge">8 Lessons</span>
-                        </div>
-                        <div class="learn-card">
-                            <div class="learn-icon">🎯</div>
-                            <h3>Risk Management</h3>
-                            <p>Understand how to manage and minimize investment risks.</p>
-                            <span class="learn-badge">6 Lessons</span>
-                        </div>
-                        <div class="learn-card">
-                            <div class="learn-icon">👥</div>
-                            <h3>Team Building</h3>
-                            <p>Learn effective techniques to grow your network.</p>
-                            <span class="learn-badge">4 Lessons</span>
-                        </div>
-                        <div class="learn-card">
-                            <div class="learn-icon">📊</div>
-                            <h3>Technical Analysis</h3>
-                            <p>Deep dive into charts, patterns and indicators.</p>
-                            <span class="learn-badge">10 Lessons</span>
-                        </div>
-                        <div class="learn-card">
-                            <div class="learn-icon">🏆</div>
-                            <h3>Leadership Skills</h3>
-                            <p>Develop leadership qualities for team success.</p>
-                            <span class="learn-badge">7 Lessons</span>
+                    
+                    <!-- Category Filter -->
+                    <div class="learn-filters">
+                        <button class="filter-btn active" onclick="filterVideos('all')" data-category="all">All Videos</button>
+                        <button class="filter-btn" onclick="filterVideos('getting_started')" data-category="getting_started">Getting Started</button>
+                        <button class="filter-btn" onclick="filterVideos('investment')" data-category="investment">Investment</button>
+                        <button class="filter-btn" onclick="filterVideos('referral')" data-category="referral">Referral</button>
+                        <button class="filter-btn" onclick="filterVideos('income')" data-category="income">Income Types</button>
+                        <button class="filter-btn" onclick="filterVideos('tips')" data-category="tips">Tips</button>
+                    </div>
+                    
+                    <!-- Videos Grid -->
+                    <div class="videos-grid" id="userVideosGrid">
+                        <div class="loading-videos">Loading videos...</div>
+                    </div>
+                    
+                    <!-- Video Player Modal -->
+                    <div id="videoPlayerModal" class="video-modal" style="display: none;">
+                        <div class="video-modal-content">
+                            <span class="video-close" onclick="closeVideoPlayer()">&times;</span>
+                            <div class="video-wrapper">
+                                <iframe id="youtubePlayer" src="" frameborder="0" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
+                            </div>
+                            <div class="video-details">
+                                <h3 id="videoPlayerTitle">Video Title</h3>
+                                <p id="videoPlayerDesc">Video description</p>
+                            </div>
                         </div>
                     </div>
                 </div>

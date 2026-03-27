@@ -130,7 +130,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
                 'investments': 'Investments',
                 'transactions': 'Transactions',
                 'income': 'Income Calculator',
-                'help': 'Help & FAQs',
+                'learning': 'Learning Center',
                 'tickets': 'Support Tickets'
             };
             document.getElementById('pageTitle').textContent = titles[page];
@@ -168,6 +168,9 @@ function loadPageData(page) {
             break;
         case 'income':
             loadUsersForSalary();
+            break;
+        case 'learning':
+            loadLearningVideos();
             break;
         case 'tickets':
             loadAdminTickets();
@@ -3057,5 +3060,195 @@ async function deleteTicket(ticketId) {
     } catch (error) {
         console.error('Error:', error);
         alert('Error deleting ticket');
+    }
+}
+
+
+// ==================== LEARNING CENTER MANAGEMENT ====================
+
+async function loadLearningVideos() {
+    const grid = document.getElementById('adminVideosGrid');
+    grid.innerHTML = '<div class="loading">Loading videos...</div>';
+    
+    try {
+        const response = await fetch(`${API_URL}/api/admin/learning/videos`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            
+            // Update stats
+            if (data.summary) {
+                document.getElementById('totalVideosCount').textContent = data.summary.total || 0;
+                document.getElementById('activeVideosCount').textContent = data.summary.active || 0;
+            }
+            
+            renderVideosGrid(data.videos || []);
+        }
+    } catch (error) {
+        console.error('Error loading videos:', error);
+        grid.innerHTML = '<div class="loading">Error loading videos</div>';
+    }
+}
+
+function renderVideosGrid(videos) {
+    const grid = document.getElementById('adminVideosGrid');
+    
+    if (!videos || videos.length === 0) {
+        grid.innerHTML = `
+            <div class="no-videos">
+                <div class="no-videos-icon">🎬</div>
+                <h3>No Videos Yet</h3>
+                <p>Add your first YouTube video to the Learning Center</p>
+            </div>
+        `;
+        return;
+    }
+    
+    grid.innerHTML = videos.map(video => `
+        <div class="video-card ${video.is_active ? '' : 'inactive'}">
+            <div class="video-thumbnail">
+                <img src="${video.thumbnail_url}" alt="${video.title}" onerror="this.src='https://via.placeholder.com/320x180?text=Video'">
+                <div class="video-play-icon">▶</div>
+            </div>
+            <div class="video-info">
+                <div class="video-title">${video.title}</div>
+                <div class="video-meta">
+                    <span class="video-category">${video.category.replace('_', ' ')}</span>
+                    <span class="video-status ${video.is_active ? 'active' : 'inactive'}">${video.is_active ? 'Active' : 'Inactive'}</span>
+                </div>
+                <div class="video-actions">
+                    <button class="btn btn-info btn-sm" onclick="editVideo('${video.id}')">Edit</button>
+                    <button class="btn btn-${video.is_active ? 'warning' : 'success'} btn-sm" onclick="toggleVideoStatus('${video.id}', ${!video.is_active})">${video.is_active ? 'Disable' : 'Enable'}</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteVideo('${video.id}')">Delete</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function showAddVideoModal() {
+    document.getElementById('videoModalTitle').textContent = 'Add New Video';
+    document.getElementById('editVideoId').value = '';
+    document.getElementById('videoForm').reset();
+    document.getElementById('videoActive').checked = true;
+    document.getElementById('videoModal').style.display = 'flex';
+}
+
+function closeVideoModal() {
+    document.getElementById('videoModal').style.display = 'none';
+}
+
+async function editVideo(videoId) {
+    try {
+        const response = await fetch(`${API_URL}/api/admin/learning/videos`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            const video = data.videos.find(v => v.id === videoId);
+            
+            if (video) {
+                document.getElementById('videoModalTitle').textContent = 'Edit Video';
+                document.getElementById('editVideoId').value = video.id;
+                document.getElementById('videoTitle').value = video.title;
+                document.getElementById('videoUrl').value = video.youtube_url;
+                document.getElementById('videoDescription').value = video.description || '';
+                document.getElementById('videoCategory').value = video.category;
+                document.getElementById('videoOrder').value = video.display_order || 0;
+                document.getElementById('videoActive').checked = video.is_active;
+                document.getElementById('videoModal').style.display = 'flex';
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error loading video details');
+    }
+}
+
+async function saveVideo(event) {
+    event.preventDefault();
+    
+    const videoId = document.getElementById('editVideoId').value;
+    const videoData = {
+        title: document.getElementById('videoTitle').value,
+        youtube_url: document.getElementById('videoUrl').value,
+        description: document.getElementById('videoDescription').value,
+        category: document.getElementById('videoCategory').value,
+        display_order: parseInt(document.getElementById('videoOrder').value) || 0,
+        is_active: document.getElementById('videoActive').checked
+    };
+    
+    try {
+        const url = videoId 
+            ? `${API_URL}/api/admin/learning/videos/${videoId}`
+            : `${API_URL}/api/admin/learning/videos`;
+        
+        const response = await fetch(url, {
+            method: videoId ? 'PUT' : 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify(videoData)
+        });
+        
+        if (response.ok) {
+            closeVideoModal();
+            loadLearningVideos();
+            alert(videoId ? 'Video updated successfully!' : 'Video added successfully!');
+        } else {
+            const data = await response.json();
+            alert(data.detail || 'Failed to save video');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error saving video');
+    }
+}
+
+async function toggleVideoStatus(videoId, newStatus) {
+    try {
+        const response = await fetch(`${API_URL}/api/admin/learning/videos/${videoId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({ is_active: newStatus })
+        });
+        
+        if (response.ok) {
+            loadLearningVideos();
+        } else {
+            const data = await response.json();
+            alert(data.detail || 'Failed to update status');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error updating status');
+    }
+}
+
+async function deleteVideo(videoId) {
+    if (!confirm('Are you sure you want to delete this video?')) return;
+    
+    try {
+        const response = await fetch(`${API_URL}/api/admin/learning/videos/${videoId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        if (response.ok) {
+            loadLearningVideos();
+        } else {
+            const data = await response.json();
+            alert(data.detail || 'Failed to delete video');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error deleting video');
     }
 }

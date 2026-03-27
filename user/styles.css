@@ -642,7 +642,204 @@ body {
     color: var(--success);
 }
 
-/* Learn Grid */
+/* Learning Center - Dynamic Videos */
+.learn-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 25px;
+}
+
+.filter-btn {
+    padding: 10px 20px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 25px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 0.9rem;
+}
+
+.filter-btn:hover {
+    border-color: var(--primary);
+    color: var(--text);
+}
+
+.filter-btn.active {
+    background: var(--primary);
+    color: #000;
+    border-color: var(--primary);
+    font-weight: 600;
+}
+
+.videos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 25px;
+}
+
+.loading-videos,
+.no-videos-user {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 60px 20px;
+    grid-column: 1 / -1;
+}
+
+.no-videos-icon-user {
+    font-size: 60px;
+    margin-bottom: 15px;
+}
+
+.user-video-card {
+    background: var(--bg-card);
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.user-video-card:hover {
+    border-color: var(--primary);
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(243, 156, 18, 0.2);
+}
+
+.user-video-thumbnail {
+    position: relative;
+    padding-top: 56.25%;
+    background: #000;
+}
+
+.user-video-thumbnail img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.user-play-btn {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 60px;
+    height: 60px;
+    background: rgba(243, 156, 18, 0.9);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    transition: transform 0.3s;
+}
+
+.user-video-card:hover .user-play-btn {
+    transform: translate(-50%, -50%) scale(1.1);
+}
+
+.user-video-info {
+    padding: 18px;
+}
+
+.user-video-title {
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 8px;
+    font-size: 1.05rem;
+}
+
+.user-video-desc {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin-bottom: 12px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.user-video-category {
+    display: inline-block;
+    padding: 5px 12px;
+    background: var(--bg-secondary);
+    border-radius: 15px;
+    font-size: 0.8rem;
+    color: var(--primary);
+    text-transform: capitalize;
+}
+
+/* Video Player Modal */
+.video-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.video-modal-content {
+    width: 90%;
+    max-width: 900px;
+}
+
+.video-close {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    font-size: 40px;
+    color: #fff;
+    cursor: pointer;
+    z-index: 10001;
+}
+
+.video-close:hover {
+    color: var(--primary);
+}
+
+.video-wrapper {
+    position: relative;
+    padding-top: 56.25%;
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.video-wrapper iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.video-details {
+    margin-top: 20px;
+    color: #fff;
+}
+
+.video-details h3 {
+    font-size: 1.3rem;
+    margin-bottom: 10px;
+    color: var(--primary);
+}
+
+.video-details p {
+    color: #aaa;
+    line-height: 1.6;
+}
+
+/* Learn Grid (legacy) */
 .learn-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));

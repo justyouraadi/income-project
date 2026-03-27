@@ -1299,4 +1299,116 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         observer.observe(helpPage, { attributes: true });
     }
+    
+    // Observer for when learn page becomes visible
+    const learnPage = document.getElementById('learnPage');
+    if (learnPage) {
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.attributeName === 'style' && learnPage.style.display !== 'none') {
+                    loadLearningVideos();
+                }
+            });
+        });
+        observer.observe(learnPage, { attributes: true });
+    }
 });
+
+// ==================== LEARNING CENTER ====================
+
+let allLearningVideos = [];
+let currentVideoFilter = 'all';
+
+async function loadLearningVideos() {
+    const grid = document.getElementById('userVideosGrid');
+    grid.innerHTML = '<div class="loading-videos">Loading videos...</div>';
+    
+    try {
+        const response = await fetch(`${API_URL}/api/learning/videos`);
+        
+        if (response.ok) {
+            const data = await response.json();
+            allLearningVideos = data.videos || [];
+            renderLearningVideos(allLearningVideos);
+        } else {
+            grid.innerHTML = '<div class="no-videos-user"><div class="no-videos-icon-user">📹</div><p>No videos available</p></div>';
+        }
+    } catch (error) {
+        console.error('Error loading videos:', error);
+        grid.innerHTML = '<div class="no-videos-user"><div class="no-videos-icon-user">⚠️</div><p>Error loading videos</p></div>';
+    }
+}
+
+function renderLearningVideos(videos) {
+    const grid = document.getElementById('userVideosGrid');
+    
+    if (!videos || videos.length === 0) {
+        grid.innerHTML = `
+            <div class="no-videos-user">
+                <div class="no-videos-icon-user">📹</div>
+                <h3>No Videos Available</h3>
+                <p>Check back later for new learning content</p>
+            </div>
+        `;
+        return;
+    }
+    
+    grid.innerHTML = videos.map(video => `
+        <div class="user-video-card" onclick="playVideo('${video.youtube_id}', '${escapeHtml(video.title)}', '${escapeHtml(video.description || '')}')">
+            <div class="user-video-thumbnail">
+                <img src="${video.thumbnail_url}" alt="${escapeHtml(video.title)}" onerror="this.src='https://via.placeholder.com/320x180?text=Video'">
+                <div class="user-play-btn">▶</div>
+            </div>
+            <div class="user-video-info">
+                <div class="user-video-title">${escapeHtml(video.title)}</div>
+                ${video.description ? `<div class="user-video-desc">${escapeHtml(video.description)}</div>` : ''}
+                <span class="user-video-category">${video.category.replace('_', ' ')}</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function filterVideos(category) {
+    currentVideoFilter = category;
+    
+    // Update active button
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.category === category) {
+            btn.classList.add('active');
+        }
+    });
+    
+    // Filter and render videos
+    if (category === 'all') {
+        renderLearningVideos(allLearningVideos);
+    } else {
+        const filtered = allLearningVideos.filter(v => v.category === category);
+        renderLearningVideos(filtered);
+    }
+}
+
+function playVideo(youtubeId, title, description) {
+    const modal = document.getElementById('videoPlayerModal');
+    const iframe = document.getElementById('youtubePlayer');
+    
+    iframe.src = `https://www.youtube.com/embed/${youtubeId}?autoplay=1`;
+    document.getElementById('videoPlayerTitle').textContent = title;
+    document.getElementById('videoPlayerDesc').textContent = description;
+    
+    modal.style.display = 'flex';
+}
+
+function closeVideoPlayer() {
+    const modal = document.getElementById('videoPlayerModal');
+    const iframe = document.getElementById('youtubePlayer');
+    
+    iframe.src = '';
+    modal.style.display = 'none';
+}

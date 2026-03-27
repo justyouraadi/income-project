@@ -79,9 +79,9 @@
                     <span class="nav-icon">📈</span>
                     <span>Income Calculator</span>
                 </a>
-                <a href="#" class="nav-item" data-page="help">
-                    <span class="nav-icon">❓</span>
-                    <span>Help & FAQs</span>
+                <a href="#" class="nav-item" data-page="learning">
+                    <span class="nav-icon">🎓</span>
+                    <span>Learning Center</span>
                 </a>
                 <a href="#" class="nav-item" data-page="tickets">
                     <span class="nav-icon">🎫</span>
@@ -570,206 +570,85 @@
                     </div>
                 </div>
 
-                <!-- Help & Support Page -->
-                <div id="helpPage" class="page-content" style="display: none;">
+                <!-- Learning Center Management Page -->
+                <div id="learningPage" class="page-content" style="display: none;">
                     <div class="page-header">
-                        <h2>Help & Support</h2>
+                        <h2>Learning Center Management</h2>
+                        <button class="btn btn-primary" onclick="showAddVideoModal()">+ Add Video</button>
                     </div>
                     
-                    <!-- Admin Quick Actions Card -->
-                    <div class="admin-help-card">
-                        <div class="help-icon">🛠️</div>
-                        <div class="help-info">
-                            <h3>Admin Quick Reference</h3>
-                            <p>Common administrative tasks and system information</p>
+                    <div class="learning-stats">
+                        <div class="stat-card">
+                            <span class="stat-value" id="totalVideosCount">0</span>
+                            <span class="stat-label">Total Videos</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-value" id="activeVideosCount">0</span>
+                            <span class="stat-label">Active</span>
                         </div>
                     </div>
                     
-                    <!-- FAQ Section -->
-                    <div class="admin-faq-section">
-                        <h3 class="faq-section-title">Frequently Asked Questions</h3>
+                    <div class="videos-grid" id="adminVideosGrid">
+                        <div class="loading">Loading videos...</div>
+                    </div>
+                </div>
+
+                <!-- Add/Edit Video Modal -->
+                <div id="videoModal" class="modal" style="display: none;">
+                    <div class="modal-content">
+                        <span class="close" onclick="closeVideoModal()">&times;</span>
+                        <h2 id="videoModalTitle">Add New Video</h2>
                         
-                        <div class="faq-category">
-                            <h4 class="faq-category-header">👥 User Management</h4>
+                        <form id="videoForm" onsubmit="saveVideo(event)">
+                            <input type="hidden" id="editVideoId">
                             
-                            <div class="admin-faq-item" onclick="toggleAdminFaq(this)">
-                                <div class="admin-faq-question">
-                                    <span>How do I add a new user without investment?</span>
-                                    <span class="admin-faq-toggle">+</span>
+                            <div class="form-group">
+                                <label>Video Title *</label>
+                                <input type="text" id="videoTitle" placeholder="Enter video title" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>YouTube URL *</label>
+                                <input type="url" id="videoUrl" placeholder="https://www.youtube.com/watch?v=..." required>
+                                <small>Paste the full YouTube video URL</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Description</label>
+                                <textarea id="videoDescription" rows="3" placeholder="Brief description of the video"></textarea>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Category</label>
+                                    <select id="videoCategory">
+                                        <option value="getting_started">Getting Started</option>
+                                        <option value="investment">Investment Guide</option>
+                                        <option value="referral">Referral System</option>
+                                        <option value="income">Income Types</option>
+                                        <option value="withdrawal">Withdrawals</option>
+                                        <option value="tips">Tips & Strategies</option>
+                                        <option value="other">Other</option>
+                                    </select>
                                 </div>
-                                <div class="admin-faq-answer">
-                                    <p>Go to <strong>Users → + Add User</strong>. Enter the user's name, email, and password. The user will be created with "Inactive" status and zero balance. They become "Active" once they make an investment.</p>
+                                <div class="form-group">
+                                    <label>Display Order</label>
+                                    <input type="number" id="videoOrder" value="0" min="0">
                                 </div>
                             </div>
                             
-                            <div class="admin-faq-item" onclick="toggleAdminFaq(this)">
-                                <div class="admin-faq-question">
-                                    <span>How do I change a user's referrer?</span>
-                                    <span class="admin-faq-toggle">+</span>
-                                </div>
-                                <div class="admin-faq-answer">
-                                    <p>Go to <strong>Users → Manage (on user row) → Edit Details tab</strong>. Click "Change Referrer" and enter the new referrer's User ID or referral code. Note: This will recalculate and transfer any existing referral bonuses to the new referrer.</p>
-                                </div>
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="videoActive" checked>
+                                    Active (visible to users)
+                                </label>
                             </div>
                             
-                            <div class="admin-faq-item" onclick="toggleAdminFaq(this)">
-                                <div class="admin-faq-question">
-                                    <span>What is the difference between Active and Inactive users?</span>
-                                    <span class="admin-faq-toggle">+</span>
-                                </div>
-                                <div class="admin-faq-answer">
-                                    <p><strong>Inactive:</strong> Default status for new users. Cannot earn referral bonuses.<br>
-                                    <strong>Active:</strong> Status after first investment. Can earn 5% referral bonus from direct referrals' investments.</p>
-                                </div>
+                            <div class="button-group">
+                                <button type="submit" class="btn btn-primary">Save Video</button>
+                                <button type="button" class="btn btn-secondary" onclick="closeVideoModal()">Cancel</button>
                             </div>
-                            
-                            <div class="admin-faq-item" onclick="toggleAdminFaq(this)">
-                                <div class="admin-faq-question">
-                                    <span>How do I bulk deactivate or delete users?</span>
-                                    <span class="admin-faq-toggle">+</span>
-                                </div>
-                                <div class="admin-faq-answer">
-                                    <p>In the Users page, check the boxes next to multiple users. The bulk action buttons will appear at the top of the table. Click "Deactivate Selected" or "Delete Selected" to perform the action on all selected users.</p>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="faq-category">
-                            <h4 class="faq-category-header">💰 Income & Calculations</h4>
-                            
-                            <div class="admin-faq-item" onclick="toggleAdminFaq(this)">
-                                <div class="admin-faq-question">
-                                    <span>How is Daily ROI calculated?</span>
-                                    <span class="admin-faq-toggle">+</span>
-                                </div>
-                                <div class="admin-faq-answer">
-                                    <p>Daily ROI is based on investment slab:<br>
-                                    • $20 - $499: <strong>0.5%</strong> daily<br>
-                                    • $500 - $2,499: <strong>0.6%</strong> daily<br>
-                                    • $2,500 - $4,999: <strong>0.7%</strong> daily<br>
-                                    • $5,000 - $9,999: <strong>0.8%</strong> daily<br>
-                                    • $10,000+: <strong>1.0%</strong> daily<br>
-                                    ROI is credited for 100 days from investment date.</p>
-                                </div>
-                            </div>
-                            
-                            <div class="admin-faq-item" onclick="toggleAdminFaq(this)">
-                                <div class="admin-faq-question">
-                                    <span>What is the 40/60 rule for Salary Income?</span>
-                                    <span class="admin-faq-toggle">+</span>
-                                </div>
-                                <div class="admin-faq-answer">
-                                    <p>To qualify for monthly salary, a user must have:<br>
-                                    • Maximum <strong>40%</strong> of total team business in their strongest leg (Power Leg)<br>
-                                    • Minimum <strong>60%</strong> combined in their weaker legs<br>
-                                    This ensures balanced team building. Use "Income Calculator → Calculate & Distribute Salary" to process eligible users.</p>
-                                </div>
-                            </div>
-                            
-                            <div class="admin-faq-item" onclick="toggleAdminFaq(this)">
-                                <div class="admin-faq-question">
-                                    <span>How do I manually credit income to a user?</span>
-                                    <span class="admin-faq-toggle">+</span>
-                                </div>
-                                <div class="admin-faq-answer">
-                                    <p>Go to <strong>Income Calculator</strong> and select the appropriate income type (Daily ROI, Direct Income, Slab Income, Royalty Income, or Salary). Enter the User ID and amount, then click the Calculate/Credit button. This is useful for corrections or special bonuses.</p>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="faq-category">
-                            <h4 class="faq-category-header">💸 Withdrawals & Transfers</h4>
-                            
-                            <div class="admin-faq-item" onclick="toggleAdminFaq(this)">
-                                <div class="admin-faq-question">
-                                    <span>How do I process withdrawal requests?</span>
-                                    <span class="admin-faq-toggle">+</span>
-                                </div>
-                                <div class="admin-faq-answer">
-                                    <p>Go to <strong>Withdrawals</strong> page. Pending requests show "Approve" and "Cancel" buttons. Review the payment details (UPI/Bank), then click "Approve" to mark as completed or "Cancel" to reject. The user's wallet will be adjusted accordingly.</p>
-                                </div>
-                            </div>
-                            
-                            <div class="admin-faq-item" onclick="toggleAdminFaq(this)">
-                                <div class="admin-faq-question">
-                                    <span>How do I transfer funds between users (P2P)?</span>
-                                    <span class="admin-faq-toggle">+</span>
-                                </div>
-                                <div class="admin-faq-answer">
-                                    <p>Go to <strong>P2P Transfer</strong>. Enter the sender's User ID, recipient's User ID, amount, and optional description. Admin transfers do not require OTP verification. This is useful for corrections or manual fund movements.</p>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="faq-category">
-                            <h4 class="faq-category-header">📊 Reporting & Export</h4>
-                            
-                            <div class="admin-faq-item" onclick="toggleAdminFaq(this)">
-                                <div class="admin-faq-question">
-                                    <span>How do I export data to Excel?</span>
-                                    <span class="admin-faq-toggle">+</span>
-                                </div>
-                                <div class="admin-faq-answer">
-                                    <p>Each section (Users, Withdrawals, Investments, Transactions) has an "Export Excel" button. Clicking it opens a date range picker. Select "All Time" or choose a specific period (Weekly, Monthly, Quarterly, Yearly, or Custom Range), then click "Export Now" to download a CSV file.</p>
-                                </div>
-                            </div>
-                            
-                            <div class="admin-faq-item" onclick="toggleAdminFaq(this)">
-                                <div class="admin-faq-question">
-                                    <span>How do I view a user's complete history?</span>
-                                    <span class="admin-faq-toggle">+</span>
-                                </div>
-                                <div class="admin-faq-answer">
-                                    <p>Go to <strong>Users → Manage (on user row)</strong>. The user modal has tabs for:<br>
-                                    • <strong>Overview:</strong> Balance and wallet summary<br>
-                                    • <strong>Transaction History:</strong> All credits/debits with details<br>
-                                    • <strong>Referral Details:</strong> Complete referral tree and stats<br>
-                                    • <strong>Edit Details:</strong> Modify email or change referrer</p>
-                                </div>
-                            </div>
-                            
-                            <div class="admin-faq-item" onclick="toggleAdminFaq(this)">
-                                <div class="admin-faq-question">
-                                    <span>What do the date filters do?</span>
-                                    <span class="admin-faq-toggle">+</span>
-                                </div>
-                                <div class="admin-faq-answer">
-                                    <p>Date filters narrow down displayed data:<br>
-                                    • <strong>This Week:</strong> Current Sunday to Today<br>
-                                    • <strong>This Month:</strong> 1st of current month to Today<br>
-                                    • <strong>This Quarter:</strong> Start of current quarter<br>
-                                    • <strong>This Year:</strong> January 1st to Today<br>
-                                    • <strong>Custom Range:</strong> Select specific start and end dates</p>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="faq-category">
-                            <h4 class="faq-category-header">🔐 System & Security</h4>
-                            
-                            <div class="admin-faq-item" onclick="toggleAdminFaq(this)">
-                                <div class="admin-faq-question">
-                                    <span>Admin login credentials</span>
-                                    <span class="admin-faq-toggle">+</span>
-                                </div>
-                                <div class="admin-faq-answer">
-                                    <p>Default admin credentials:<br>
-                                    • <strong>Email:</strong> admin@ssmoneyresource.com<br>
-                                    • <strong>Password:</strong> admin123<br>
-                                    ⚠️ Change this password immediately in production! Admin accounts cannot log in through the user portal and vice versa.</p>
-                                </div>
-                            </div>
-                            
-                            <div class="admin-faq-item" onclick="toggleAdminFaq(this)">
-                                <div class="admin-faq-question">
-                                    <span>How do I reset a user's password?</span>
-                                    <span class="admin-faq-toggle">+</span>
-                                </div>
-                                <div class="admin-faq-answer">
-                                    <p>Currently, password reset requires database access. For security, users should be directed to contact support for password resets. A self-service password reset feature can be added in future updates.</p>
-                                </div>
-                            </div>
-                        </div>
+                        </form>
                     </div>
                 </div>
 

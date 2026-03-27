@@ -171,6 +171,24 @@ class TicketReply(BaseModel):
 class TicketStatusUpdate(BaseModel):
     status: str  # open, in_progress, resolved, closed
 
+# ==================== LEARNING CENTER MODELS ====================
+
+class VideoCreate(BaseModel):
+    title: str
+    youtube_url: str
+    description: Optional[str] = ""
+    category: str = "other"
+    display_order: int = 0
+    is_active: bool = True
+
+class VideoUpdate(BaseModel):
+    title: Optional[str] = None
+    youtube_url: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[str] = None
+    display_order: Optional[int] = None
+    is_active: Optional[bool] = None
+
 # ==================== AUTH UTILITIES ====================
 
 def verify_password(plain_password, hashed_password):
@@ -2642,6 +2660,105 @@ async def calculate_royalty_income(admin_user: dict = Depends(get_admin_user)):
         "users_processed": processed,
         "total_distributed": total_distributed
     }
+
+# ==================== LEARNING CENTER ROUTES ====================
+
+def extract_youtube_id(url: str) -> str:
+    """Extract YouTube video ID from various URL formats"""
+    import re
+    patterns = [
+        r'(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)',
+        r'youtube\.com\/shorts\/([^&\n?#]+)'
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1)
+    return url  # Return as-is if no match
+
+@api_router.get("/learning/videos")
+async def get_learning_videos():
+    """Get all active learning videos for users"""
+    videos = await db.learning_videos.find(
+        {"is_active": True},
+        {"_id": 0}
+    ).sort("display_order", 1).to_list(100)
+    
+    return {"videos": videos}
+
+@api_router.get("/admin/learning/videos")
+async def get_admin_learning_videos(admin_user: dict = Depends(get_admin_user)):
+    """Get all learning videos (admin)"""
+    videos = await db.learning_videos.find({}, {"_id": 0}).sort("display_order", 1).to_list(100)
+    
+    total = len(videos)
+    active = sum(1 for v in videos if v.get("is_active", True))
+    
+    return {
+        "videos": videos,
+        "summary": {"total": total, "active": active}
+    }
+
+@api_router.post("/admin/learning/videos")
+async def create_learning_video(video: VideoCreate, admin_user: dict = Depends(get_admin_user)):
+    """Add a new learning video"""
+    video_id = str(uuid.uuid4())
+    youtube_id = extract_youtube_id(video.youtube_url)
+    
+    video_doc = {
+        "id": video_id,
+        "title": video.title,
+        "youtube_url": video.youtube_url,
+        "youtube_id": youtube_id,
+        "thumbnail_url": f"https://img.youtube.com/vi/{youtube_id}/mqdefault.jpg",
+        "description": video.description,
+        "category": video.category,
+        "display_order": video.display_order,
+        "is_active": video.is_active,
+        "created_by": admin_user.get("email"),
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow()
+    }
+    
+    await db.learning_videos.insert_one(video_doc)
+    
+    return {"success": True, "message": "Video added successfully", "video_id": video_id}
+
+@api_router.put("/admin/learning/videos/{video_id}")
+async def update_learning_video(
+    video_id: str, 
+    video: VideoUpdate, 
+    admin_user: dict = Depends(get_admin_user)
+):
+    """Update a learning video"""
+    update_data = {k: v for k, v in video.dict().items() if v is not None}
+    
+    if "youtube_url" in update_data:
+        youtube_id = extract_youtube_id(update_data["youtube_url"])
+        update_data["youtube_id"] = youtube_id
+        update_data["thumbnail_url"] = f"https://img.youtube.com/vi/{youtube_id}/mqdefault.jpg"
+    
+    update_data["updated_at"] = datetime.utcnow()
+    
+    result = await db.learning_videos.update_one(
+        {"id": video_id},
+        {"$set": update_data}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    return {"success": True, "message": "Video updated successfully"}
+
+@api_router.delete("/admin/learning/videos/{video_id}")
+async def delete_learning_video(video_id: str, admin_user: dict = Depends(get_admin_user)):
+    """Delete a learning video"""
+    result = await db.learning_videos.delete_one({"id": video_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    return {"success": True, "message": "Video deleted successfully"}
 
 # ==================== ADMIN SUPPORT TICKET ROUTES ====================
 
