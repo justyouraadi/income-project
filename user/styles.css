@@ -2281,3 +2281,190 @@ body {
         padding: 20px 15px;
     }
 }
+
+/* ==================== CRYPTO PAYMENT STYLES ==================== */
+
+.crypto-info {
+    margin-top: 20px;
+    padding: 15px;
+    background: linear-gradient(135deg, rgba(247, 147, 26, 0.1), rgba(243, 156, 18, 0.05));
+    border-radius: 12px;
+    border: 1px solid rgba(247, 147, 26, 0.2);
+}
+
+.crypto-info h4 {
+    color: var(--primary);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.crypto-info p {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.invest-note {
+    margin-top: 15px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.invest-note i {
+    color: var(--success);
+}
+
+.invest-benefits li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.invest-benefits li i {
+    color: var(--primary);
+    width: 20px;
+}
+
+#investCrypto {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px 15px;
+    border-radius: 10px;
+    width: 100%;
+    font-size: 1rem;
+}
+
+#investCrypto option {
+    background: var(--bg-primary);
+    color: var(--text);
+    padding: 10px;
+}
+
+/* Crypto payment info display */
+.crypto-payment-info {
+    text-align: center;
+    padding: 10px;
+}
+
+.crypto-payment-info p {
+    margin: 8px 0;
+    color: var(--text);
+}
+
+/* Loading spinner */
+.spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 8px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Payment notification modal */
+.payment-notification {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.payment-notification-content {
+    background: var(--bg-card);
+    border-radius: 20px;
+    padding: 40px;
+    text-align: center;
+    max-width: 400px;
+    margin: 20px;
+    border: 1px solid var(--border);
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from { 
+        opacity: 0; 
+        transform: translateY(20px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
+}
+
+.payment-notification-content i {
+    font-size: 3rem;
+    margin-bottom: 20px;
+}
+
+.payment-notification.success .payment-notification-content i {
+    color: var(--success);
+}
+
+.payment-notification.warning .payment-notification-content i {
+    color: #f1c40f;
+}
+
+.payment-notification-content h3 {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+    color: var(--text);
+}
+
+.payment-notification-content p {
+    color: var(--text-muted);
+    margin-bottom: 20px;
+}
+
+.payment-notification-content button {
+    background: var(--primary);
+    color: #000;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 25px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.payment-notification-content button:hover {
+    background: var(--primary-dark);
+    transform: scale(1.05);
+}
+
+/* Pending investment indicator */
+.investment-pending {
+    background: linear-gradient(135deg, rgba(241, 196, 15, 0.1), rgba(241, 196, 15, 0.05));
+    border-color: rgba(241, 196, 15, 0.3);
+}
+
+.investment-pending .investment-status {
+    background: rgba(241, 196, 15, 0.2);
+    color: #f1c40f;
+}

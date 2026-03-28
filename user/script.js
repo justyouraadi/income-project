@@ -122,6 +122,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     if (authToken) {
         await checkAuth();
+        // Check for payment status after returning from NOWPayments
+        checkPaymentStatus();
     }
     
     // Setup navigation
@@ -614,12 +616,20 @@ async function loadWallets() {
 async function makeInvestment() {
     const amount = parseFloat(document.getElementById('investAmount').value);
     const plan = document.getElementById('investPlan').value;
+    const cryptocurrency = document.getElementById('investCrypto')?.value || 'btc';
     const messageDiv = document.getElementById('investMessage');
+    const investBtn = document.getElementById('investBtn');
     
     if (!amount || amount < 20) {
         messageDiv.textContent = 'Minimum investment is $20';
         messageDiv.className = 'message error';
         return;
+    }
+    
+    // Show loading state
+    if (investBtn) {
+        investBtn.disabled = true;
+        investBtn.innerHTML = '<span class="spinner"></span> Processing...';
     }
     
     try {
@@ -629,13 +639,29 @@ async function makeInvestment() {
                 'Authorization': `Bearer ${authToken}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ amount, plan })
+            body: JSON.stringify({ amount, plan, cryptocurrency })
         });
         
         const data = await response.json();
         
-        if (response.ok) {
-            messageDiv.textContent = `Investment of $${amount} successful!`;
+        if (response.ok && data.checkout_url) {
+            // Show payment details before redirect
+            messageDiv.innerHTML = `
+                <div class="crypto-payment-info">
+                    <p><strong>Payment initiated!</strong></p>
+                    <p>Amount: <strong>${data.pay_amount} ${data.pay_currency.toUpperCase()}</strong></p>
+                    <p>USD Value: <strong>$${amount}</strong></p>
+                    <p>Redirecting to payment page...</p>
+                </div>
+            `;
+            messageDiv.className = 'message success';
+            
+            // Redirect to NOWPayments checkout after a brief delay
+            setTimeout(() => {
+                window.location.href = data.checkout_url;
+            }, 2000);
+        } else if (response.ok) {
+            messageDiv.textContent = `Investment of $${amount} initiated!`;
             messageDiv.className = 'message success';
             document.getElementById('investAmount').value = '';
             loadDashboard();
@@ -648,7 +674,63 @@ async function makeInvestment() {
     } catch (error) {
         messageDiv.textContent = 'Network error. Please try again.';
         messageDiv.className = 'message error';
+    } finally {
+        // Reset button state
+        if (investBtn) {
+            investBtn.disabled = false;
+            investBtn.innerHTML = '<i class="fas fa-coins"></i> Invest Now';
+        }
     }
+}
+
+// Check for payment success/cancelled in URL
+function checkPaymentStatus() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const hash = window.location.hash;
+    
+    if (hash.includes('payment=success')) {
+        const investmentId = urlParams.get('investment_id') || new URLSearchParams(hash.split('?')[1]).get('investment_id');
+        showPaymentSuccessNotification(investmentId);
+    } else if (hash.includes('payment=cancelled')) {
+        showPaymentCancelledNotification();
+    }
+}
+
+function showPaymentSuccessNotification(investmentId) {
+    // Create a toast/modal notification
+    const notification = document.createElement('div');
+    notification.className = 'payment-notification success';
+    notification.innerHTML = `
+        <div class="payment-notification-content">
+            <i class="fas fa-check-circle"></i>
+            <h3>Payment Successful!</h3>
+            <p>Your crypto payment has been received. Your investment is now active.</p>
+            <button onclick="this.parentElement.parentElement.remove(); navigateTo('dashboard');">View Dashboard</button>
+        </div>
+    `;
+    document.body.appendChild(notification);
+    
+    // Auto-dismiss after 10 seconds
+    setTimeout(() => notification.remove(), 10000);
+    
+    // Refresh dashboard data
+    loadDashboard();
+}
+
+function showPaymentCancelledNotification() {
+    const notification = document.createElement('div');
+    notification.className = 'payment-notification warning';
+    notification.innerHTML = `
+        <div class="payment-notification-content">
+            <i class="fas fa-exclamation-triangle"></i>
+            <h3>Payment Cancelled</h3>
+            <p>Your payment was cancelled. You can try again anytime.</p>
+            <button onclick="this.parentElement.parentElement.remove();">Close</button>
+        </div>
+    `;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => notification.remove(), 5000);
 }
 
 // P2P Transfer Functions

@@ -313,26 +313,50 @@
                         <div class="invest-info">
                             <h3>Investment Plans</h3>
                             <ul class="invest-benefits">
-                                <li>Premium Plan (1% Daily ROI)</li>
-                                <li>Regular Plan (0.5% Daily ROI)</li>
-                                <li>5% Direct Referral Income</li>
-                                <li>Slab & Royalty Bonuses</li>
+                                <li><i class="fas fa-percentage"></i> Premium Plan (1% Daily ROI)</li>
+                                <li><i class="fas fa-percentage"></i> Regular Plan (0.5% Daily ROI)</li>
+                                <li><i class="fas fa-users"></i> 5% Direct Referral Income</li>
+                                <li><i class="fas fa-gift"></i> Slab & Royalty Bonuses</li>
                             </ul>
+                            <div class="crypto-info">
+                                <h4><i class="fab fa-bitcoin"></i> Pay with Crypto</h4>
+                                <p>We accept 300+ cryptocurrencies via NOWPayments secure gateway</p>
+                            </div>
                         </div>
                         <div class="invest-form">
                             <div class="form-group">
-                                <label>Investment Amount ($)</label>
-                                <input type="number" id="investAmount" placeholder="Enter amount" min="100">
+                                <label>Investment Amount (USD)</label>
+                                <input type="number" id="investAmount" placeholder="Enter amount (min $20)" min="20" data-testid="invest-amount-input">
                             </div>
                             <div class="form-group">
                                 <label>Select Plan</label>
-                                <select id="investPlan">
+                                <select id="investPlan" data-testid="invest-plan-select">
                                     <option value="premium">Premium (1% Daily ROI)</option>
                                     <option value="regular">Regular (0.5% Daily ROI)</option>
                                 </select>
                             </div>
-                            <button class="btn btn-primary btn-full" onclick="makeInvestment()">Invest Now</button>
-                            <div id="investMessage" class="message"></div>
+                            <div class="form-group">
+                                <label><i class="fab fa-bitcoin"></i> Pay With Cryptocurrency</label>
+                                <select id="investCrypto" data-testid="invest-crypto-select">
+                                    <option value="btc">Bitcoin (BTC)</option>
+                                    <option value="eth">Ethereum (ETH)</option>
+                                    <option value="usdttrc20">Tether USDT (TRC20)</option>
+                                    <option value="usdcerc20">USD Coin (ERC20)</option>
+                                    <option value="bnbmainnet">Binance Coin (BNB)</option>
+                                    <option value="ltc">Litecoin (LTC)</option>
+                                    <option value="doge">Dogecoin (DOGE)</option>
+                                    <option value="xrp">XRP (Ripple)</option>
+                                    <option value="trx">Tron (TRX)</option>
+                                    <option value="sol">Solana (SOL)</option>
+                                </select>
+                            </div>
+                            <button id="investBtn" class="btn btn-primary btn-full" onclick="makeInvestment()" data-testid="invest-submit-btn">
+                                <i class="fas fa-coins"></i> Invest Now
+                            </button>
+                            <div id="investMessage" class="message" data-testid="invest-message"></div>
+                            <p class="invest-note">
+                                <i class="fas fa-shield-alt"></i> Secure payment via NOWPayments gateway
+                            </p>
                         </div>
                     </div>
                 </div>

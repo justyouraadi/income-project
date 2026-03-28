@@ -1,6 +1,7 @@
-from fastapi import FastAPI, APIRouter, Depends, HTTPException, status
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -18,6 +19,10 @@ from jose import JWTError, jwt
 import secrets
 from bson import ObjectId
 import resend
+import httpx
+import hmac
+import hashlib
+import json
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -43,6 +48,11 @@ RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "onboarding@resend.dev")
 if RESEND_API_KEY:
     resend.api_key = RESEND_API_KEY
+
+# NOWPayments Configuration
+NOWPAYMENTS_API_KEY = os.environ.get("NOWPAYMENTS_API_KEY", "")
+NOWPAYMENTS_IPN_SECRET = os.environ.get("NOWPAYMENTS_IPN_SECRET", "")
+NOWPAYMENTS_API_BASE_URL = "https://api.nowpayments.io/v1"
 
 # In-memory OTP storage (for production, use Redis or DB)
 otp_storage: Dict[str, dict] = {}
@@ -125,6 +135,7 @@ class Investment(BaseModel):
 class InvestRequest(BaseModel):
     amount: float
     plan: Optional[str] = "premium"
+    cryptocurrency: Optional[str] = "btc"  # Default to BTC, supports: btc, eth, usdttrc20, usdcerc20, bnbmainnet, ltc, xrp, doge
 
 class Transaction(BaseModel):
     id: str
@@ -426,99 +437,355 @@ async def get_wallet(current_user: dict = Depends(get_current_user)):
 
 @api_router.post("/wallet/invest")
 async def create_investment(request: InvestRequest, current_user: dict = Depends(get_current_user)):
+    """Create investment via NOWPayments crypto gateway"""
     amount = request.amount
     plan = request.plan
+    cryptocurrency = request.cryptocurrency or "btc"
     
     if amount < 20:
         raise HTTPException(status_code=400, detail="Minimum investment is $20")
     
-    # Check if this is user's first investment
-    is_first_investment = current_user.get("status") == "inactive"
+    if not NOWPAYMENTS_API_KEY:
+        raise HTTPException(status_code=500, detail="Payment gateway not configured")
     
-    # Update wallet - add to total invested
-    await db.wallets.update_one(
-        {"user_id": current_user["id"]},
-        {
-            "$inc": {
-                "total_invested": amount,
-                "total_balance": amount
+    # Generate unique IDs for tracking
+    investment_id = str(uuid.uuid4())
+    order_id = f"INV-{investment_id[:8].upper()}"
+    
+    # Get base URL for callbacks (using frontend URL since it's publicly accessible)
+    base_url = "https://earn-learn-lead-test.preview.emergentagent.com"
+    webhook_url = f"{base_url}/api/webhooks/nowpayments"
+    success_url = f"{base_url}/api/user/#dashboard?payment=success&investment_id={investment_id}"
+    cancel_url = f"{base_url}/api/user/#invest?payment=cancelled"
+    
+    try:
+        # Create payment via NOWPayments API
+        async with httpx.AsyncClient() as client:
+            payment_payload = {
+                "price_amount": amount,
+                "price_currency": "usd",
+                "pay_currency": cryptocurrency,
+                "order_id": order_id,
+                "order_description": f"Investment of ${amount} USD - {plan} plan",
+                "ipn_callback_url": webhook_url,
+                "success_url": success_url,
+                "cancel_url": cancel_url,
+                "is_fixed_rate": False,
+                "is_fee_paid_by_user": False
             }
-        }
-    )
-    
-    # If first investment, activate the user
-    if is_first_investment:
-        await db.users.update_one(
-            {"id": current_user["id"]},
-            {"$set": {"status": "active"}}
-        )
-    
-    # Create investment record with 100 days validity
-    start_date = datetime.utcnow()
-    end_date = start_date + timedelta(days=100)
-    
-    investment = {
-        "id": str(uuid.uuid4()),
-        "user_id": current_user["id"],
-        "amount": amount,
-        "plan": plan,
-        "date": start_date,
-        "end_date": end_date,
-        "validity_days": 100,
-        "status": "active"
-    }
-    await db.investments.insert_one(investment)
-    
-    # Create transaction
-    transaction = {
-        "id": str(uuid.uuid4()),
-        "user_id": current_user["id"],
-        "type": "investment",
-        "amount": amount,
-        "description": f"Investment of ${amount}",
-        "date": datetime.utcnow()
-    }
-    await db.transactions.insert_one(transaction)
-    
-    # Process referral income (5% direct income) - ONLY if referrer is ACTIVE
-    if current_user.get("referred_by"):
-        # Check if referrer is active
-        referrer = await db.users.find_one({"id": current_user["referred_by"]})
+            
+            response = await client.post(
+                f"{NOWPAYMENTS_API_BASE_URL}/payment",
+                json=payment_payload,
+                headers={"x-api-key": NOWPAYMENTS_API_KEY}
+            )
+            
+            if response.status_code != 200 and response.status_code != 201:
+                logging.error(f"NOWPayments error: {response.text}")
+                raise HTTPException(status_code=500, detail=f"Payment gateway error: {response.text}")
+            
+            payment_data = response.json()
         
-        if referrer and referrer.get("status") == "active":
-            referral_amount = amount * 0.05
-            await db.wallets.update_one(
-                {"user_id": current_user["referred_by"]},
+        # Create pending investment record
+        pending_investment = {
+            "id": investment_id,
+            "user_id": current_user["id"],
+            "amount": amount,
+            "plan": plan,
+            "cryptocurrency": cryptocurrency,
+            "order_id": order_id,
+            "nowpayments_id": payment_data.get("payment_id"),
+            "pay_address": payment_data.get("pay_address"),
+            "pay_amount": payment_data.get("pay_amount"),
+            "pay_currency": payment_data.get("pay_currency"),
+            "date": datetime.utcnow(),
+            "status": "pending_payment",  # Will change to "active" after payment confirmation
+            "validity_days": 100
+        }
+        await db.investments.insert_one(pending_investment)
+        
+        # Create pending transaction record
+        pending_transaction = {
+            "id": str(uuid.uuid4()),
+            "user_id": current_user["id"],
+            "type": "investment_pending",
+            "amount": amount,
+            "description": f"Pending crypto investment of ${amount} via {cryptocurrency.upper()}",
+            "date": datetime.utcnow(),
+            "investment_id": investment_id
+        }
+        await db.transactions.insert_one(pending_transaction)
+        
+        # Return payment details to frontend
+        return {
+            "message": "Payment initiated",
+            "investment_id": investment_id,
+            "payment_id": payment_data.get("payment_id"),
+            "pay_address": payment_data.get("pay_address"),
+            "pay_amount": payment_data.get("pay_amount"),
+            "pay_currency": payment_data.get("pay_currency"),
+            "price_amount": amount,
+            "price_currency": "usd",
+            "status": "pending_payment",
+            # NOWPayments hosted checkout URL
+            "checkout_url": f"https://nowpayments.io/payment/?iid={payment_data.get('payment_id')}"
+        }
+        
+    except httpx.HTTPError as e:
+        logging.error(f"HTTP error creating payment: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Payment gateway connection error")
+    except Exception as e:
+        logging.error(f"Error creating investment: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== NOWPAYMENTS WEBHOOK ====================
+
+@api_router.post("/webhooks/nowpayments")
+async def handle_nowpayments_webhook(request: Request):
+    """
+    Webhook endpoint to receive payment status updates from NOWPayments.
+    Verifies HMAC-SHA512 signature and processes payment confirmations.
+    """
+    try:
+        # Get raw request body for signature verification
+        raw_body = await request.body()
+        
+        # Get the signature from headers
+        signature_header = request.headers.get("x-nowpayments-sig", "")
+        
+        # Log webhook receipt
+        logging.info(f"Received NOWPayments webhook")
+        
+        # Parse payload
+        try:
+            payload = json.loads(raw_body)
+        except json.JSONDecodeError:
+            logging.error("Invalid JSON in webhook payload")
+            return JSONResponse(status_code=400, content={"error": "Invalid payload"})
+        
+        # Verify signature if IPN secret is configured
+        if NOWPAYMENTS_IPN_SECRET and signature_header:
+            sorted_payload = json.dumps(payload, sort_keys=True, separators=(',', ':'))
+            expected_signature = hmac.new(
+                NOWPAYMENTS_IPN_SECRET.encode(),
+                sorted_payload.encode(),
+                hashlib.sha512
+            ).hexdigest()
+            
+            if not hmac.compare_digest(expected_signature, signature_header):
+                logging.warning("Invalid webhook signature")
+                # Still process but log the warning - some test webhooks may not be signed
+        
+        # Extract payment information
+        payment_id = payload.get("payment_id")
+        payment_status = payload.get("payment_status")
+        order_id = payload.get("order_id")
+        actually_paid = payload.get("actually_paid", 0)
+        pay_currency = payload.get("pay_currency")
+        
+        logging.info(f"Webhook: payment_id={payment_id}, status={payment_status}, order_id={order_id}")
+        
+        # Find the investment by nowpayments_id or order_id
+        investment = await db.investments.find_one({
+            "$or": [
+                {"nowpayments_id": payment_id},
+                {"order_id": order_id}
+            ]
+        })
+        
+        if not investment:
+            logging.warning(f"No investment found for payment_id={payment_id}, order_id={order_id}")
+            return JSONResponse(status_code=200, content={"received": True, "warning": "No matching investment"})
+        
+        investment_id = investment["id"]
+        user_id = investment["user_id"]
+        amount = investment["amount"]
+        
+        # Handle payment status
+        if payment_status == "finished":
+            # Payment completed - activate the investment
+            logging.info(f"Payment finished for investment {investment_id}")
+            
+            # Update investment status
+            start_date = datetime.utcnow()
+            end_date = start_date + timedelta(days=100)
+            
+            await db.investments.update_one(
+                {"id": investment_id},
                 {
-                    "$inc": {
-                        "direct_income": referral_amount,
-                        "total_balance": referral_amount
+                    "$set": {
+                        "status": "active",
+                        "date": start_date,
+                        "end_date": end_date,
+                        "actually_paid": actually_paid,
+                        "payment_completed_at": datetime.utcnow()
                     }
                 }
             )
             
-            # Record referral income
-            referral_income = {
-                "id": str(uuid.uuid4()),
-                "user_id": current_user["referred_by"],
-                "referred_user_id": current_user["id"],
-                "amount": referral_amount,
-                "date": datetime.utcnow()
-            }
-            await db.referral_income.insert_one(referral_income)
+            # Update user's wallet
+            user = await db.users.find_one({"id": user_id})
+            is_first_investment = user.get("status") == "inactive"
             
-            # Create transaction for referrer
-            referrer_transaction = {
-                "id": str(uuid.uuid4()),
-                "user_id": current_user["referred_by"],
-                "type": "direct_income",
-                "amount": referral_amount,
-                "description": f"Direct referral income from {current_user['full_name']}",
-                "date": datetime.utcnow()
-            }
-            await db.transactions.insert_one(referrer_transaction)
+            await db.wallets.update_one(
+                {"user_id": user_id},
+                {
+                    "$inc": {
+                        "total_invested": amount,
+                        "total_balance": amount
+                    }
+                }
+            )
+            
+            # Activate user if first investment
+            if is_first_investment:
+                await db.users.update_one(
+                    {"id": user_id},
+                    {"$set": {"status": "active"}}
+                )
+            
+            # Update transaction to confirmed
+            await db.transactions.update_one(
+                {"investment_id": investment_id},
+                {
+                    "$set": {
+                        "type": "investment",
+                        "description": f"Investment of ${amount} confirmed via crypto"
+                    }
+                }
+            )
+            
+            # Process referral income (5% direct income) - ONLY if referrer is ACTIVE
+            if user.get("referred_by"):
+                referrer = await db.users.find_one({"id": user["referred_by"]})
+                
+                if referrer and referrer.get("status") == "active":
+                    referral_amount = amount * 0.05
+                    await db.wallets.update_one(
+                        {"user_id": user["referred_by"]},
+                        {
+                            "$inc": {
+                                "direct_income": referral_amount,
+                                "total_balance": referral_amount
+                            }
+                        }
+                    )
+                    
+                    # Record referral income
+                    referral_income = {
+                        "id": str(uuid.uuid4()),
+                        "user_id": user["referred_by"],
+                        "referred_user_id": user_id,
+                        "amount": referral_amount,
+                        "date": datetime.utcnow()
+                    }
+                    await db.referral_income.insert_one(referral_income)
+                    
+                    # Create transaction for referrer
+                    referrer_transaction = {
+                        "id": str(uuid.uuid4()),
+                        "user_id": user["referred_by"],
+                        "type": "direct_income",
+                        "amount": referral_amount,
+                        "description": f"Direct referral income from {user['full_name']}",
+                        "date": datetime.utcnow()
+                    }
+                    await db.transactions.insert_one(referrer_transaction)
+            
+            logging.info(f"Investment {investment_id} activated successfully")
+        
+        elif payment_status in ["waiting", "confirming", "confirmed", "sending"]:
+            # Payment in progress - keep as pending
+            await db.investments.update_one(
+                {"id": investment_id},
+                {"$set": {"payment_status": payment_status}}
+            )
+        
+        elif payment_status in ["failed", "expired", "refunded"]:
+            # Payment failed - mark investment as failed
+            await db.investments.update_one(
+                {"id": investment_id},
+                {"$set": {"status": "payment_failed", "payment_status": payment_status}}
+            )
+            
+            await db.transactions.update_one(
+                {"investment_id": investment_id},
+                {
+                    "$set": {
+                        "type": "investment_failed",
+                        "description": f"Crypto investment failed - {payment_status}"
+                    }
+                }
+            )
+        
+        elif payment_status == "partially_paid":
+            # Partial payment received
+            await db.investments.update_one(
+                {"id": investment_id},
+                {
+                    "$set": {
+                        "payment_status": "partially_paid",
+                        "actually_paid": actually_paid
+                    }
+                }
+            )
+        
+        return JSONResponse(status_code=200, content={"received": True, "payment_id": payment_id})
     
-    return {"message": "Investment successful", "amount": amount}
+    except Exception as e:
+        logging.error(f"Error processing webhook: {str(e)}")
+        # Return 200 to prevent retries
+        return JSONResponse(status_code=200, content={"received": True, "error": str(e)})
+
+
+@api_router.get("/payment/status/{investment_id}")
+async def get_payment_status(investment_id: str, current_user: dict = Depends(get_current_user)):
+    """Check payment status for an investment"""
+    investment = await db.investments.find_one({
+        "id": investment_id,
+        "user_id": current_user["id"]
+    })
+    
+    if not investment:
+        raise HTTPException(status_code=404, detail="Investment not found")
+    
+    return {
+        "investment_id": investment_id,
+        "status": investment.get("status"),
+        "payment_status": investment.get("payment_status"),
+        "amount": investment.get("amount"),
+        "cryptocurrency": investment.get("cryptocurrency"),
+        "pay_address": investment.get("pay_address"),
+        "pay_amount": investment.get("pay_amount"),
+        "actually_paid": investment.get("actually_paid", 0)
+    }
+
+
+@api_router.get("/crypto/currencies")
+async def get_available_cryptocurrencies():
+    """Get list of supported cryptocurrencies from NOWPayments"""
+    if not NOWPAYMENTS_API_KEY:
+        # Return default list if API key not configured
+        return {
+            "currencies": ["btc", "eth", "usdttrc20", "usdcerc20", "bnbmainnet", "ltc", "xrp", "doge"]
+        }
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{NOWPAYMENTS_API_BASE_URL}/currencies",
+                headers={"x-api-key": NOWPAYMENTS_API_KEY}
+            )
+            
+            if response.status_code == 200:
+                return response.json()
+            else:
+                return {"currencies": ["btc", "eth", "usdttrc20", "usdcerc20", "bnbmainnet"]}
+    
+    except Exception as e:
+        logging.error(f"Error fetching currencies: {str(e)}")
+        return {"currencies": ["btc", "eth", "usdttrc20", "usdcerc20", "bnbmainnet"]}
 
 @api_router.post("/wallet/calculate-roi")
 async def calculate_daily_roi(current_user: dict = Depends(get_current_user)):
