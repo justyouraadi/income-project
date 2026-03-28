@@ -645,21 +645,23 @@ async function makeInvestment() {
         const data = await response.json();
         
         if (response.ok && data.checkout_url) {
-            // Show payment details before redirect
+            // Show payment details before redirect (invoice-based)
+            const cryptoName = getCryptoName(cryptocurrency);
             messageDiv.innerHTML = `
                 <div class="crypto-payment-info">
                     <p><strong>Payment initiated!</strong></p>
-                    <p>Amount: <strong>${data.pay_amount} ${data.pay_currency.toUpperCase()}</strong></p>
-                    <p>USD Value: <strong>$${amount}</strong></p>
-                    <p>Redirecting to payment page...</p>
+                    <p>Amount: <strong>$${amount} USD</strong></p>
+                    <p>Pay with: <strong>${cryptoName}</strong></p>
+                    <p>Invoice ID: <strong>${data.invoice_id || 'N/A'}</strong></p>
+                    <p>Redirecting to secure payment page...</p>
                 </div>
             `;
             messageDiv.className = 'message success';
             
-            // Redirect to NOWPayments checkout after a brief delay
+            // Redirect to NOWPayments hosted checkout after a brief delay
             setTimeout(() => {
                 window.location.href = data.checkout_url;
-            }, 2000);
+            }, 1500);
         } else if (response.ok) {
             messageDiv.textContent = `Investment of $${amount} initiated!`;
             messageDiv.className = 'message success';
@@ -681,6 +683,23 @@ async function makeInvestment() {
             investBtn.innerHTML = '<i class="fas fa-coins"></i> Invest Now';
         }
     }
+}
+
+// Helper function to get crypto display name
+function getCryptoName(code) {
+    const cryptoNames = {
+        'btc': 'Bitcoin (BTC)',
+        'eth': 'Ethereum (ETH)',
+        'usdttrc20': 'Tether USDT (TRC20)',
+        'usdcerc20': 'USD Coin (ERC20)',
+        'bnbmainnet': 'Binance Coin (BNB)',
+        'ltc': 'Litecoin (LTC)',
+        'doge': 'Dogecoin (DOGE)',
+        'xrp': 'XRP (Ripple)',
+        'trx': 'Tron (TRX)',
+        'sol': 'Solana (SOL)'
+    };
+    return cryptoNames[code] || code.toUpperCase();
 }
 
 // Check for payment success/cancelled in URL
