@@ -437,7 +437,7 @@ async def get_wallet(current_user: dict = Depends(get_current_user)):
 
 @api_router.post("/wallet/invest")
 async def create_investment(request: InvestRequest, current_user: dict = Depends(get_current_user)):
-    """Create investment via NOWPayments crypto gateway"""
+    """Create investment via NOWPayments crypto gateway using Invoice API for hosted checkout"""
     amount = request.amount
     plan = request.plan
     cryptocurrency = request.cryptocurrency or "btc"
@@ -459,12 +459,11 @@ async def create_investment(request: InvestRequest, current_user: dict = Depends
     cancel_url = f"{base_url}/api/user/#invest?payment=cancelled"
     
     try:
-        # Create payment via NOWPayments API
+        # Create INVOICE via NOWPayments API (for hosted checkout page)
         async with httpx.AsyncClient() as client:
-            payment_payload = {
+            invoice_payload = {
                 "price_amount": amount,
                 "price_currency": "usd",
-                "pay_currency": cryptocurrency,
                 "order_id": order_id,
                 "order_description": f"Investment of ${amount} USD - {plan} plan",
                 "ipn_callback_url": webhook_url,
@@ -475,16 +474,17 @@ async def create_investment(request: InvestRequest, current_user: dict = Depends
             }
             
             response = await client.post(
-                f"{NOWPAYMENTS_API_BASE_URL}/payment",
-                json=payment_payload,
+                f"{NOWPAYMENTS_API_BASE_URL}/invoice",
+                json=invoice_payload,
                 headers={"x-api-key": NOWPAYMENTS_API_KEY}
             )
             
             if response.status_code != 200 and response.status_code != 201:
-                logging.error(f"NOWPayments error: {response.text}")
+                logging.error(f"NOWPayments invoice error: {response.text}")
                 raise HTTPException(status_code=500, detail=f"Payment gateway error: {response.text}")
             
-            payment_data = response.json()
+            invoice_data = response.json()
+            logging.info(f"NOWPayments invoice created: {invoice_data}")
         
         # Create pending investment record
         pending_investment = {
@@ -494,10 +494,8 @@ async def create_investment(request: InvestRequest, current_user: dict = Depends
             "plan": plan,
             "cryptocurrency": cryptocurrency,
             "order_id": order_id,
-            "nowpayments_id": payment_data.get("payment_id"),
-            "pay_address": payment_data.get("pay_address"),
-            "pay_amount": payment_data.get("pay_amount"),
-            "pay_currency": payment_data.get("pay_currency"),
+            "nowpayments_invoice_id": invoice_data.get("id"),
+            "invoice_url": invoice_data.get("invoice_url"),
             "date": datetime.utcnow(),
             "status": "pending_payment",  # Will change to "active" after payment confirmation
             "validity_days": 100
@@ -516,23 +514,20 @@ async def create_investment(request: InvestRequest, current_user: dict = Depends
         }
         await db.transactions.insert_one(pending_transaction)
         
-        # Return payment details to frontend
+        # Return invoice details to frontend - use the invoice_url from NOWPayments
         return {
             "message": "Payment initiated",
             "investment_id": investment_id,
-            "payment_id": payment_data.get("payment_id"),
-            "pay_address": payment_data.get("pay_address"),
-            "pay_amount": payment_data.get("pay_amount"),
-            "pay_currency": payment_data.get("pay_currency"),
+            "invoice_id": invoice_data.get("id"),
             "price_amount": amount,
             "price_currency": "usd",
             "status": "pending_payment",
-            # NOWPayments hosted checkout URL
-            "checkout_url": f"https://nowpayments.io/payment/?iid={payment_data.get('payment_id')}"
+            # Use the invoice_url directly from NOWPayments response
+            "checkout_url": invoice_data.get("invoice_url")
         }
         
     except httpx.HTTPError as e:
-        logging.error(f"HTTP error creating payment: {str(e)}")
+        logging.error(f"HTTP error creating invoice: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Payment gateway connection error")
     except Exception as e:
         logging.error(f"Error creating investment: {str(e)}")
@@ -555,7 +550,7 @@ async def handle_nowpayments_webhook(request: Request):
         signature_header = request.headers.get("x-nowpayments-sig", "")
         
         # Log webhook receipt
-        logging.info(f"Received NOWPayments webhook")
+        logging.info(f"Received NOWPayments webhook: {raw_body.decode()[:500]}")
         
         # Parse payload
         try:
@@ -577,25 +572,27 @@ async def handle_nowpayments_webhook(request: Request):
                 logging.warning("Invalid webhook signature")
                 # Still process but log the warning - some test webhooks may not be signed
         
-        # Extract payment information
+        # Extract payment information (works for both payment and invoice webhooks)
         payment_id = payload.get("payment_id")
+        invoice_id = payload.get("invoice_id")
         payment_status = payload.get("payment_status")
         order_id = payload.get("order_id")
         actually_paid = payload.get("actually_paid", 0)
         pay_currency = payload.get("pay_currency")
         
-        logging.info(f"Webhook: payment_id={payment_id}, status={payment_status}, order_id={order_id}")
+        logging.info(f"Webhook: payment_id={payment_id}, invoice_id={invoice_id}, status={payment_status}, order_id={order_id}")
         
-        # Find the investment by nowpayments_id or order_id
+        # Find the investment by nowpayments_invoice_id, order_id, or payment_id
         investment = await db.investments.find_one({
             "$or": [
+                {"nowpayments_invoice_id": invoice_id},
                 {"nowpayments_id": payment_id},
                 {"order_id": order_id}
             ]
         })
         
         if not investment:
-            logging.warning(f"No investment found for payment_id={payment_id}, order_id={order_id}")
+            logging.warning(f"No investment found for invoice_id={invoice_id}, payment_id={payment_id}, order_id={order_id}")
             return JSONResponse(status_code=200, content={"received": True, "warning": "No matching investment"})
         
         investment_id = investment["id"]
