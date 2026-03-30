@@ -620,11 +620,11 @@ async function makeInvestment() {
     const messageDiv = document.getElementById('investMessage');
     const investBtn = document.getElementById('investBtn');
     
-    if (!amount || amount < 20) {
-        messageDiv.textContent = 'Minimum investment is $20';
-        messageDiv.className = 'message error';
-        return;
-    }
+    // if (!amount || amount < 20) {
+    //     messageDiv.textContent = 'Minimum investment is $20';
+    //     messageDiv.className = 'message error';
+    //     return;
+    // }
     
     // Show loading state
     if (investBtn) {

@@ -442,8 +442,8 @@ async def create_investment(request: InvestRequest, current_user: dict = Depends
     plan = request.plan
     cryptocurrency = request.cryptocurrency or "btc"
     
-    if amount < 20:
-        raise HTTPException(status_code=400, detail="Minimum investment is $20")
+    # if amount < 20:
+    #     raise HTTPException(status_code=400, detail="Minimum investment is $20")
     
     if not NOWPAYMENTS_API_KEY:
         raise HTTPException(status_code=500, detail="Payment gateway not configured")
