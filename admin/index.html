@@ -640,20 +640,39 @@
                                     <input type="number" id="planDailyRoi" step="0.01" min="0.01" max="10" placeholder="e.g., 1.0" required>
                                 </div>
                                 <div class="form-group">
-                                    <label>Validity (Days) *</label>
-                                    <input type="number" id="planValidityDays" min="1" value="100" required>
+                                    <label>Total Return (x) *</label>
+                                    <input type="number" id="planTotalReturn" step="0.1" min="1" value="2" placeholder="e.g., 2x" required>
+                                    <small>Example: 2 means 2x return (100% profit)</small>
                                 </div>
                             </div>
                             
                             <div class="form-row">
                                 <div class="form-group">
+                                    <label>Direct Income (%) *</label>
+                                    <input type="number" id="planDirectIncome" step="0.1" min="0" value="5" placeholder="e.g., 5%" required>
+                                    <small>Referral commission on investment</small>
+                                </div>
+                                <div class="form-group">
+                                    <label>Level Income (%) *</label>
+                                    <input type="number" id="planLevelIncome" step="0.1" min="0" value="1" placeholder="e.g., 1%" required>
+                                    <small>Income from downline levels</small>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Validity (Days) *</label>
+                                    <input type="number" id="planValidityDays" min="1" value="100" required>
+                                </div>
+                                <div class="form-group">
                                     <label>Min Investment ($) *</label>
                                     <input type="number" id="planMinInvestment" min="1" value="20" required>
                                 </div>
-                                <div class="form-group">
-                                    <label>Max Investment ($)</label>
-                                    <input type="number" id="planMaxInvestment" min="0" placeholder="Leave empty for no limit">
-                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Max Investment ($)</label>
+                                <input type="number" id="planMaxInvestment" min="0" placeholder="Leave empty for no limit">
                             </div>
                             
                             <div class="form-group">

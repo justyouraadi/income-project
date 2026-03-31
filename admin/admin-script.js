@@ -3307,16 +3307,24 @@ function renderPlans(plans) {
                     <span class="stat-value">${plan.daily_roi}%</span>
                 </div>
                 <div class="plan-stat">
+                    <span class="stat-label">Total Return</span>
+                    <span class="stat-value">${plan.total_return || 2}x</span>
+                </div>
+                <div class="plan-stat">
+                    <span class="stat-label">Direct Income</span>
+                    <span class="stat-value">${plan.direct_income || 5}%</span>
+                </div>
+                <div class="plan-stat">
+                    <span class="stat-label">Level Income</span>
+                    <span class="stat-value">${plan.level_income || 1}%</span>
+                </div>
+                <div class="plan-stat">
                     <span class="stat-label">Validity</span>
                     <span class="stat-value">${plan.validity_days} Days</span>
                 </div>
                 <div class="plan-stat">
                     <span class="stat-label">Min Investment</span>
                     <span class="stat-value">$${plan.min_investment}</span>
-                </div>
-                <div class="plan-stat">
-                    <span class="stat-label">Max Investment</span>
-                    <span class="stat-value">${plan.max_investment ? '$' + plan.max_investment : 'No Limit'}</span>
                 </div>
             </div>
             ${plan.description ? `<p class="plan-description">${plan.description}</p>` : ''}
@@ -3339,6 +3347,9 @@ function showAddPlanModal() {
     document.getElementById('planActive').checked = true;
     document.getElementById('planValidityDays').value = 100;
     document.getElementById('planMinInvestment').value = 20;
+    document.getElementById('planTotalReturn').value = 2;
+    document.getElementById('planDirectIncome').value = 5;
+    document.getElementById('planLevelIncome').value = 1;
     document.getElementById('planModal').style.display = 'flex';
 }
 
@@ -3361,6 +3372,9 @@ async function editPlan(planId) {
                 document.getElementById('editPlanId').value = plan.id;
                 document.getElementById('planName').value = plan.name;
                 document.getElementById('planDailyRoi').value = plan.daily_roi;
+                document.getElementById('planTotalReturn').value = plan.total_return || 2;
+                document.getElementById('planDirectIncome').value = plan.direct_income || 5;
+                document.getElementById('planLevelIncome').value = plan.level_income || 1;
                 document.getElementById('planValidityDays').value = plan.validity_days;
                 document.getElementById('planMinInvestment').value = plan.min_investment;
                 document.getElementById('planMaxInvestment').value = plan.max_investment || '';
@@ -3382,6 +3396,9 @@ async function savePlan(event) {
     const planData = {
         name: document.getElementById('planName').value,
         daily_roi: parseFloat(document.getElementById('planDailyRoi').value),
+        total_return: parseFloat(document.getElementById('planTotalReturn').value),
+        direct_income: parseFloat(document.getElementById('planDirectIncome').value),
+        level_income: parseFloat(document.getElementById('planLevelIncome').value),
         validity_days: parseInt(document.getElementById('planValidityDays').value),
         min_investment: parseFloat(document.getElementById('planMinInvestment').value),
         max_investment: document.getElementById('planMaxInvestment').value ? 

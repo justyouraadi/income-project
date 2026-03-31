@@ -502,6 +502,9 @@ async def upload_profile_picture(file: UploadFile, current_user: dict = Depends(
 class InvestmentPlanCreate(BaseModel):
     name: str
     daily_roi: float  # e.g., 1.0 for 1%
+    total_return: float = 2.0  # e.g., 2.0 for 2x return
+    direct_income: float = 5.0  # Direct referral income percentage
+    level_income: float = 1.0  # Level/slab income percentage
     min_investment: float = 20.0
     max_investment: Optional[float] = None
     validity_days: int = 100
@@ -511,6 +514,9 @@ class InvestmentPlanCreate(BaseModel):
 class InvestmentPlanUpdate(BaseModel):
     name: Optional[str] = None
     daily_roi: Optional[float] = None
+    total_return: Optional[float] = None
+    direct_income: Optional[float] = None
+    level_income: Optional[float] = None
     min_investment: Optional[float] = None
     max_investment: Optional[float] = None
     validity_days: Optional[int] = None
@@ -526,8 +532,8 @@ async def get_investment_plans():
     # If no plans exist, return default plans
     if not plans:
         default_plans = [
-            {"id": "premium", "name": "Premium Plan", "daily_roi": 1.0, "min_investment": 20, "validity_days": 100, "is_active": True},
-            {"id": "regular", "name": "Regular Plan", "daily_roi": 0.5, "min_investment": 20, "validity_days": 100, "is_active": True}
+            {"id": "premium", "name": "Premium Plan", "daily_roi": 1.0, "total_return": 2.0, "direct_income": 5.0, "level_income": 1.0, "min_investment": 20, "validity_days": 100, "is_active": True},
+            {"id": "regular", "name": "Regular Plan", "daily_roi": 0.5, "total_return": 1.5, "direct_income": 5.0, "level_income": 0.5, "min_investment": 20, "validity_days": 100, "is_active": True}
         ]
         return default_plans
     
@@ -564,6 +570,9 @@ async def create_investment_plan(plan: InvestmentPlanCreate, current_user: dict 
         "id": str(uuid.uuid4()),
         "name": plan.name,
         "daily_roi": plan.daily_roi,
+        "total_return": plan.total_return,
+        "direct_income": plan.direct_income,
+        "level_income": plan.level_income,
         "min_investment": plan.min_investment,
         "max_investment": plan.max_investment,
         "validity_days": plan.validity_days,

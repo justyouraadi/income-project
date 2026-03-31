@@ -385,20 +385,26 @@ async function loadInvestmentPlans() {
             const planSelect = document.getElementById('investPlan');
             if (planSelect && plans.length > 0) {
                 planSelect.innerHTML = plans.map(plan => 
-                    `<option value="${plan.id}">${plan.name} (${plan.daily_roi}% Daily ROI)</option>`
+                    `<option value="${plan.id}">${plan.name} (${plan.daily_roi}% Daily ROI - ${plan.total_return || 2}x Return)</option>`
                 ).join('');
             }
             
-            // Update the benefits list
+            // Update the benefits list with plan details
             const benefitsList = document.querySelector('.invest-benefits');
             if (benefitsList && plans.length > 0) {
-                const planBenefits = plans.map(plan => 
-                    `<li><i class="fas fa-percentage"></i> ${plan.name} (${plan.daily_roi}% Daily ROI)</li>`
-                ).join('');
+                const planBenefits = plans.map(plan => `
+                    <li><i class="fas fa-chart-line"></i> ${plan.name}: ${plan.daily_roi}% Daily ROI</li>
+                    <li><i class="fas fa-coins"></i> Total Return: ${plan.total_return || 2}x (${((plan.total_return || 2) - 1) * 100}% profit)</li>
+                `).join('');
+                
+                // Get first plan's direct/level income or defaults
+                const directIncome = plans[0]?.direct_income || 5;
+                const levelIncome = plans[0]?.level_income || 1;
                 
                 benefitsList.innerHTML = `
                     ${planBenefits}
-                    <li><i class="fas fa-users"></i> 5% Direct Referral Income</li>
+                    <li><i class="fas fa-users"></i> ${directIncome}% Direct Referral Income</li>
+                    <li><i class="fas fa-sitemap"></i> ${levelIncome}% Level Income</li>
                     <li><i class="fas fa-gift"></i> Slab & Royalty Bonuses</li>
                 `;
             }
