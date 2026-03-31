@@ -79,6 +79,10 @@
                     <span class="nav-icon">📈</span>
                     <span>Income Calculator</span>
                 </a>
+                <a href="#" class="nav-item" data-page="plans">
+                    <span class="nav-icon">📋</span>
+                    <span>Investment Plans</span>
+                </a>
                 <a href="#" class="nav-item" data-page="learning">
                     <span class="nav-icon">🎓</span>
                     <span>Learning Center</span>
@@ -570,6 +574,29 @@
                     </div>
                 </div>
 
+                <!-- Investment Plans Management Page -->
+                <div id="plansPage" class="page-content" style="display: none;">
+                    <div class="page-header">
+                        <h2>Investment Plans Management</h2>
+                        <button class="btn btn-primary" onclick="showAddPlanModal()">+ Add New Plan</button>
+                    </div>
+                    
+                    <div class="plans-stats">
+                        <div class="stat-card">
+                            <span class="stat-value" id="totalPlansCount">0</span>
+                            <span class="stat-label">Total Plans</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-value" id="activePlansCount">0</span>
+                            <span class="stat-label">Active Plans</span>
+                        </div>
+                    </div>
+                    
+                    <div class="plans-grid" id="plansGrid">
+                        <!-- Plans will be loaded dynamically -->
+                    </div>
+                </div>
+
                 <!-- Learning Center Management Page -->
                 <div id="learningPage" class="page-content" style="display: none;">
                     <div class="page-header">
@@ -590,6 +617,62 @@
                     
                     <div class="videos-grid" id="adminVideosGrid">
                         <div class="loading">Loading videos...</div>
+                    </div>
+                </div>
+
+                <!-- Add/Edit Plan Modal -->
+                <div id="planModal" class="modal" style="display: none;">
+                    <div class="modal-content">
+                        <span class="close" onclick="closePlanModal()">&times;</span>
+                        <h2 id="planModalTitle">Add New Investment Plan</h2>
+                        
+                        <form id="planForm" onsubmit="savePlan(event)">
+                            <input type="hidden" id="editPlanId">
+                            
+                            <div class="form-group">
+                                <label>Plan Name *</label>
+                                <input type="text" id="planName" placeholder="e.g., Premium Plan" required>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Daily ROI (%) *</label>
+                                    <input type="number" id="planDailyRoi" step="0.01" min="0.01" max="10" placeholder="e.g., 1.0" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Validity (Days) *</label>
+                                    <input type="number" id="planValidityDays" min="1" value="100" required>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Min Investment ($) *</label>
+                                    <input type="number" id="planMinInvestment" min="1" value="20" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Max Investment ($)</label>
+                                    <input type="number" id="planMaxInvestment" min="0" placeholder="Leave empty for no limit">
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Description</label>
+                                <textarea id="planDescription" rows="2" placeholder="Brief description of the plan"></textarea>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="planActive" checked>
+                                    Active (visible to users)
+                                </label>
+                            </div>
+                            
+                            <div class="button-group">
+                                <button type="submit" class="btn btn-primary">Save Plan</button>
+                                <button type="button" class="btn btn-secondary" onclick="closePlanModal()">Cancel</button>
+                            </div>
+                        </form>
                     </div>
                 </div>
 

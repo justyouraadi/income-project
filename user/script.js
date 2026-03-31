@@ -355,6 +355,9 @@ function loadPageData(page) {
         case 'wallet':
             loadWallets();
             break;
+        case 'invest':
+            loadInvestmentPlans();
+            break;
         case 'p2p':
             loadP2PHistory();
             break;
@@ -367,6 +370,41 @@ function loadPageData(page) {
         case 'profile':
             loadProfile();
             break;
+    }
+}
+
+// Load Investment Plans dynamically
+async function loadInvestmentPlans() {
+    try {
+        const response = await fetch(`${API_URL}/api/investment-plans`);
+        
+        if (response.ok) {
+            const plans = await response.json();
+            
+            // Update the plans dropdown
+            const planSelect = document.getElementById('investPlan');
+            if (planSelect && plans.length > 0) {
+                planSelect.innerHTML = plans.map(plan => 
+                    `<option value="${plan.id}">${plan.name} (${plan.daily_roi}% Daily ROI)</option>`
+                ).join('');
+            }
+            
+            // Update the benefits list
+            const benefitsList = document.querySelector('.invest-benefits');
+            if (benefitsList && plans.length > 0) {
+                const planBenefits = plans.map(plan => 
+                    `<li><i class="fas fa-percentage"></i> ${plan.name} (${plan.daily_roi}% Daily ROI)</li>`
+                ).join('');
+                
+                benefitsList.innerHTML = `
+                    ${planBenefits}
+                    <li><i class="fas fa-users"></i> 5% Direct Referral Income</li>
+                    <li><i class="fas fa-gift"></i> Slab & Royalty Bonuses</li>
+                `;
+            }
+        }
+    } catch (error) {
+        console.error('Error loading investment plans:', error);
     }
 }
 
@@ -620,11 +658,11 @@ async function makeInvestment() {
     const messageDiv = document.getElementById('investMessage');
     const investBtn = document.getElementById('investBtn');
     
-    // if (!amount || amount < 20) {
-    //     messageDiv.textContent = 'Minimum investment is $20';
-    //     messageDiv.className = 'message error';
-    //     return;
-    // }
+    if (!amount || amount < 20) {
+        messageDiv.textContent = 'Minimum investment is $20';
+        messageDiv.className = 'message error';
+        return;
+    }
     
     // Show loading state
     if (investBtn) {
@@ -750,7 +788,7 @@ async function calculateEstimate() {
 // Helper function to get crypto display name
 function getCryptoName(code) {
     const cryptoNames = {
-        'usdtbsc': 'USDT (BSC Network)',
+        'usdtbsc': 'USDT (BEP20)',
         'btc': 'Bitcoin (BTC)',
         'eth': 'Ethereum (ETH)',
         'usdttrc20': 'Tether USDT (TRC20)',
@@ -1134,12 +1172,159 @@ async function loadWithdrawals() {
 function loadProfile() {
     if (currentUser) {
         document.getElementById('profileName').textContent = currentUser.full_name;
+        document.getElementById('profileFullName').textContent = currentUser.full_name;
         document.getElementById('profileId').textContent = `#${currentUser.user_number || '000000'}`;
         document.getElementById('profileEmail').textContent = currentUser.email;
         document.getElementById('profileReferralCode').textContent = currentUser.referral_code || '-';
         document.getElementById('profileJoinDate').textContent = currentUser.joined_date ? 
             new Date(currentUser.joined_date).toLocaleDateString() : '-';
         document.getElementById('profileStatus').textContent = currentUser.status || 'Active';
+        
+        // Load profile picture if exists
+        if (currentUser.profile_picture) {
+            const pic = document.getElementById('profilePicture');
+            pic.src = currentUser.profile_picture;
+            pic.style.display = 'block';
+            document.getElementById('profileInitials').style.display = 'none';
+        }
+    }
+}
+
+// Show edit profile form
+function showEditProfile() {
+    document.getElementById('profileViewMode').style.display = 'none';
+    document.getElementById('profileEditMode').style.display = 'block';
+    
+    // Pre-fill form with current values
+    document.getElementById('editProfileName').value = currentUser.full_name || '';
+    document.getElementById('editProfileEmail').value = currentUser.email || '';
+    document.getElementById('editProfilePassword').value = '';
+    document.getElementById('editProfileConfirmPassword').value = '';
+    document.getElementById('profileEditMessage').textContent = '';
+}
+
+// Cancel edit profile
+function cancelEditProfile() {
+    document.getElementById('profileEditMode').style.display = 'none';
+    document.getElementById('profileViewMode').style.display = 'block';
+}
+
+// Save profile changes
+async function saveProfile() {
+    const name = document.getElementById('editProfileName').value.trim();
+    const email = document.getElementById('editProfileEmail').value.trim();
+    const password = document.getElementById('editProfilePassword').value;
+    const confirmPassword = document.getElementById('editProfileConfirmPassword').value;
+    const messageDiv = document.getElementById('profileEditMessage');
+    
+    // Validation
+    if (!name || !email) {
+        messageDiv.textContent = 'Name and email are required';
+        messageDiv.className = 'message error';
+        return;
+    }
+    
+    if (password && password !== confirmPassword) {
+        messageDiv.textContent = 'Passwords do not match';
+        messageDiv.className = 'message error';
+        return;
+    }
+    
+    if (password && password.length < 6) {
+        messageDiv.textContent = 'Password must be at least 6 characters';
+        messageDiv.className = 'message error';
+        return;
+    }
+    
+    try {
+        const updateData = { full_name: name, email: email };
+        if (password) {
+            updateData.password = password;
+        }
+        
+        const response = await fetch(`${API_URL}/api/user/profile`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(updateData)
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            messageDiv.textContent = 'Profile updated successfully!';
+            messageDiv.className = 'message success';
+            
+            // Update local user data
+            currentUser.full_name = name;
+            currentUser.email = email;
+            
+            // Update UI
+            loadProfile();
+            
+            // Hide edit form after a delay
+            setTimeout(() => {
+                cancelEditProfile();
+            }, 1500);
+        } else {
+            messageDiv.textContent = data.detail || 'Failed to update profile';
+            messageDiv.className = 'message error';
+        }
+    } catch (error) {
+        messageDiv.textContent = 'Network error. Please try again.';
+        messageDiv.className = 'message error';
+    }
+}
+
+// Upload profile picture
+async function uploadProfilePic(input) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    // Check file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+        alert('Image size must be less than 2MB');
+        return;
+    }
+    
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+        const response = await fetch(`${API_URL}/api/user/profile/picture`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            // Update profile picture display
+            const pic = document.getElementById('profilePicture');
+            pic.src = data.profile_picture;
+            pic.style.display = 'block';
+            document.getElementById('profileInitials').style.display = 'none';
+            
+            // Update local user data
+            currentUser.profile_picture = data.profile_picture;
+            
+            alert('Profile picture updated!');
+        } else {
+            alert(data.detail || 'Failed to upload picture');
+        }
+    } catch (error) {
+        alert('Network error. Please try again.');
     }
 }
 

@@ -169,6 +169,9 @@ function loadPageData(page) {
         case 'income':
             loadUsersForSalary();
             break;
+        case 'plans':
+            loadInvestmentPlans();
+            break;
         case 'learning':
             loadLearningVideos();
             break;
@@ -3250,5 +3253,214 @@ async function deleteVideo(videoId) {
     } catch (error) {
         console.error('Error:', error);
         alert('Error deleting video');
+    }
+}
+
+// ==================== INVESTMENT PLANS MANAGEMENT ====================
+
+async function loadInvestmentPlans() {
+    try {
+        const response = await fetch(`${API_URL}/api/admin/investment-plans`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        if (response.ok) {
+            const plans = await response.json();
+            renderPlans(plans);
+            
+            // Update stats
+            document.getElementById('totalPlansCount').textContent = plans.length;
+            document.getElementById('activePlansCount').textContent = plans.filter(p => p.is_active).length;
+        } else {
+            document.getElementById('plansGrid').innerHTML = '<p class="empty-state">Failed to load plans</p>';
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        document.getElementById('plansGrid').innerHTML = '<p class="empty-state">Error loading plans</p>';
+    }
+}
+
+function renderPlans(plans) {
+    const grid = document.getElementById('plansGrid');
+    
+    if (plans.length === 0) {
+        grid.innerHTML = `
+            <div class="empty-state">
+                <p>No investment plans created yet.</p>
+                <button class="btn btn-primary" onclick="showAddPlanModal()">Create First Plan</button>
+            </div>
+        `;
+        return;
+    }
+    
+    grid.innerHTML = plans.map(plan => `
+        <div class="plan-card ${plan.is_active ? '' : 'inactive'}">
+            <div class="plan-header">
+                <h3>${plan.name}</h3>
+                <span class="plan-status ${plan.is_active ? 'active' : 'inactive'}">
+                    ${plan.is_active ? 'Active' : 'Inactive'}
+                </span>
+            </div>
+            <div class="plan-details">
+                <div class="plan-stat">
+                    <span class="stat-label">Daily ROI</span>
+                    <span class="stat-value">${plan.daily_roi}%</span>
+                </div>
+                <div class="plan-stat">
+                    <span class="stat-label">Validity</span>
+                    <span class="stat-value">${plan.validity_days} Days</span>
+                </div>
+                <div class="plan-stat">
+                    <span class="stat-label">Min Investment</span>
+                    <span class="stat-value">$${plan.min_investment}</span>
+                </div>
+                <div class="plan-stat">
+                    <span class="stat-label">Max Investment</span>
+                    <span class="stat-value">${plan.max_investment ? '$' + plan.max_investment : 'No Limit'}</span>
+                </div>
+            </div>
+            ${plan.description ? `<p class="plan-description">${plan.description}</p>` : ''}
+            <div class="plan-actions">
+                <button class="btn btn-small btn-primary" onclick="editPlan('${plan.id}')">Edit</button>
+                <button class="btn btn-small ${plan.is_active ? 'btn-warning' : 'btn-success'}" 
+                    onclick="togglePlanStatus('${plan.id}', ${!plan.is_active})">
+                    ${plan.is_active ? 'Disable' : 'Enable'}
+                </button>
+                <button class="btn btn-small btn-danger" onclick="deletePlan('${plan.id}')">Delete</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function showAddPlanModal() {
+    document.getElementById('planModalTitle').textContent = 'Add New Investment Plan';
+    document.getElementById('editPlanId').value = '';
+    document.getElementById('planForm').reset();
+    document.getElementById('planActive').checked = true;
+    document.getElementById('planValidityDays').value = 100;
+    document.getElementById('planMinInvestment').value = 20;
+    document.getElementById('planModal').style.display = 'flex';
+}
+
+function closePlanModal() {
+    document.getElementById('planModal').style.display = 'none';
+}
+
+async function editPlan(planId) {
+    try {
+        const response = await fetch(`${API_URL}/api/admin/investment-plans`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        if (response.ok) {
+            const plans = await response.json();
+            const plan = plans.find(p => p.id === planId);
+            
+            if (plan) {
+                document.getElementById('planModalTitle').textContent = 'Edit Investment Plan';
+                document.getElementById('editPlanId').value = plan.id;
+                document.getElementById('planName').value = plan.name;
+                document.getElementById('planDailyRoi').value = plan.daily_roi;
+                document.getElementById('planValidityDays').value = plan.validity_days;
+                document.getElementById('planMinInvestment').value = plan.min_investment;
+                document.getElementById('planMaxInvestment').value = plan.max_investment || '';
+                document.getElementById('planDescription').value = plan.description || '';
+                document.getElementById('planActive').checked = plan.is_active;
+                document.getElementById('planModal').style.display = 'flex';
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error loading plan details');
+    }
+}
+
+async function savePlan(event) {
+    event.preventDefault();
+    
+    const planId = document.getElementById('editPlanId').value;
+    const planData = {
+        name: document.getElementById('planName').value,
+        daily_roi: parseFloat(document.getElementById('planDailyRoi').value),
+        validity_days: parseInt(document.getElementById('planValidityDays').value),
+        min_investment: parseFloat(document.getElementById('planMinInvestment').value),
+        max_investment: document.getElementById('planMaxInvestment').value ? 
+            parseFloat(document.getElementById('planMaxInvestment').value) : null,
+        description: document.getElementById('planDescription').value,
+        is_active: document.getElementById('planActive').checked
+    };
+    
+    try {
+        const url = planId 
+            ? `${API_URL}/api/admin/investment-plans/${planId}`
+            : `${API_URL}/api/admin/investment-plans`;
+        
+        const response = await fetch(url, {
+            method: planId ? 'PUT' : 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify(planData)
+        });
+        
+        if (response.ok) {
+            closePlanModal();
+            loadInvestmentPlans();
+            alert(planId ? 'Plan updated successfully!' : 'Plan created successfully!');
+        } else {
+            const data = await response.json();
+            alert(data.detail || 'Failed to save plan');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error saving plan');
+    }
+}
+
+async function togglePlanStatus(planId, newStatus) {
+    try {
+        const response = await fetch(`${API_URL}/api/admin/investment-plans/${planId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({ is_active: newStatus })
+        });
+        
+        if (response.ok) {
+            loadInvestmentPlans();
+        } else {
+            const data = await response.json();
+            alert(data.detail || 'Failed to update plan status');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error updating plan status');
+    }
+}
+
+async function deletePlan(planId) {
+    if (!confirm('Are you sure you want to delete this plan? This cannot be undone.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/api/admin/investment-plans/${planId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        if (response.ok) {
+            loadInvestmentPlans();
+            alert('Plan deleted successfully!');
+        } else {
+            const data = await response.json();
+            alert(data.detail || 'Failed to delete plan');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error deleting plan');
     }
 }

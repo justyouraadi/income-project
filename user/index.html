@@ -320,7 +320,7 @@
                             </ul>
                             <div class="crypto-info">
                                 <h4><i class="fas fa-coins"></i> Pay with USDT</h4>
-                                <p>Secure payment via NOWPayments gateway using USDT (BSC Network)</p>
+                                <p>Secure payment via NOWPayments gateway using USDT (BEP20)</p>
                             </div>
                         </div>
                         <div class="invest-form">
@@ -338,7 +338,7 @@
                             <div class="form-group">
                                 <label><i class="fas fa-coins"></i> Payment Currency</label>
                                 <select id="investCrypto" data-testid="invest-crypto-select" disabled>
-                                    <option value="usdtbsc" selected>USDT (BSC Network)</option>
+                                    <option value="usdtbsc" selected>USDT (BEP20)</option>
                                 </select>
                             </div>
                             
@@ -520,11 +520,26 @@
                     <h2 class="page-subtitle">My Profile</h2>
                     <div class="profile-card">
                         <div class="profile-header">
-                            <div class="profile-avatar">👤</div>
+                            <div class="profile-avatar-container">
+                                <div class="profile-avatar" id="profileAvatar">
+                                    <img id="profilePicture" src="" alt="Profile" style="display: none;">
+                                    <span id="profileInitials">👤</span>
+                                </div>
+                                <label for="profilePicInput" class="edit-avatar-btn">
+                                    <i class="fas fa-camera"></i>
+                                </label>
+                                <input type="file" id="profilePicInput" accept="image/*" style="display: none;" onchange="uploadProfilePic(this)">
+                            </div>
                             <div class="profile-name" id="profileName">User Name</div>
                             <div class="profile-id" id="profileId">#000000</div>
                         </div>
-                        <div class="profile-details">
+                        
+                        <!-- Profile Info (Read Only) -->
+                        <div class="profile-details" id="profileViewMode">
+                            <div class="profile-item">
+                                <span class="profile-label">Full Name</span>
+                                <span class="profile-value" id="profileFullName">User Name</span>
+                            </div>
                             <div class="profile-item">
                                 <span class="profile-label">Email</span>
                                 <span class="profile-value" id="profileEmail">user@example.com</span>
@@ -540,6 +555,36 @@
                             <div class="profile-item">
                                 <span class="profile-label">Status</span>
                                 <span class="profile-value status-active" id="profileStatus">Active</span>
+                            </div>
+                            <button class="btn btn-primary" onclick="showEditProfile()" data-testid="edit-profile-btn">
+                                <i class="fas fa-edit"></i> Edit Profile
+                            </button>
+                        </div>
+                        
+                        <!-- Profile Edit Form -->
+                        <div class="profile-edit-form" id="profileEditMode" style="display: none;">
+                            <div class="form-group">
+                                <label>Full Name</label>
+                                <input type="text" id="editProfileName" placeholder="Enter your name">
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" id="editProfileEmail" placeholder="Enter your email">
+                            </div>
+                            <div class="form-group">
+                                <label>New Password (leave blank to keep current)</label>
+                                <input type="password" id="editProfilePassword" placeholder="Enter new password">
+                            </div>
+                            <div class="form-group">
+                                <label>Confirm New Password</label>
+                                <input type="password" id="editProfileConfirmPassword" placeholder="Confirm new password">
+                            </div>
+                            <div id="profileEditMessage" class="message"></div>
+                            <div class="btn-group">
+                                <button class="btn btn-secondary" onclick="cancelEditProfile()">Cancel</button>
+                                <button class="btn btn-primary" onclick="saveProfile()" data-testid="save-profile-btn">
+                                    <i class="fas fa-save"></i> Save Changes
+                                </button>
                             </div>
                         </div>
                     </div>

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, Depends, HTTPException, status, Request
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, status, Request, UploadFile, File
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
@@ -423,8 +423,195 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         "total_investment": total_invested,
         "total_withdrawn": withdrawn_amount,
         "team_size": team_size,
-        "joined_date": current_user.get("created_at")
+        "joined_date": current_user.get("created_at"),
+        "profile_picture": current_user.get("profile_picture")
     }
+
+
+# ==================== USER PROFILE ROUTES ====================
+
+class ProfileUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    password: Optional[str] = None
+
+@api_router.put("/user/profile")
+async def update_profile(profile_data: ProfileUpdate, current_user: dict = Depends(get_current_user)):
+    """Update user profile (name, email, password)"""
+    update_fields = {}
+    
+    if profile_data.full_name:
+        update_fields["full_name"] = profile_data.full_name
+    
+    if profile_data.email:
+        # Check if email is already taken by another user
+        existing_user = await db.users.find_one({
+            "email": profile_data.email,
+            "id": {"$ne": current_user["id"]}
+        })
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Email already in use")
+        update_fields["email"] = profile_data.email
+    
+    if profile_data.password:
+        if len(profile_data.password) < 6:
+            raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+        update_fields["hashed_password"] = pwd_context.hash(profile_data.password)
+    
+    if not update_fields:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    
+    await db.users.update_one(
+        {"id": current_user["id"]},
+        {"$set": update_fields}
+    )
+    
+    return {"message": "Profile updated successfully"}
+
+
+@api_router.post("/user/profile/picture")
+async def upload_profile_picture(file: UploadFile, current_user: dict = Depends(get_current_user)):
+    """Upload profile picture (stored as base64)"""
+    # Validate file type
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+    
+    # Read file content
+    content = await file.read()
+    
+    # Check file size (max 2MB)
+    if len(content) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image size must be less than 2MB")
+    
+    # Convert to base64 data URL
+    import base64
+    base64_content = base64.b64encode(content).decode('utf-8')
+    data_url = f"data:{file.content_type};base64,{base64_content}"
+    
+    # Save to user record
+    await db.users.update_one(
+        {"id": current_user["id"]},
+        {"$set": {"profile_picture": data_url}}
+    )
+    
+    return {"message": "Profile picture updated", "profile_picture": data_url}
+
+
+# ==================== INVESTMENT PLANS ROUTES (Admin CRUD) ====================
+
+class InvestmentPlanCreate(BaseModel):
+    name: str
+    daily_roi: float  # e.g., 1.0 for 1%
+    min_investment: float = 20.0
+    max_investment: Optional[float] = None
+    validity_days: int = 100
+    description: Optional[str] = None
+    is_active: bool = True
+
+class InvestmentPlanUpdate(BaseModel):
+    name: Optional[str] = None
+    daily_roi: Optional[float] = None
+    min_investment: Optional[float] = None
+    max_investment: Optional[float] = None
+    validity_days: Optional[int] = None
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+@api_router.get("/investment-plans")
+async def get_investment_plans():
+    """Get all active investment plans (public endpoint for users)"""
+    plans = await db.investment_plans.find({"is_active": True}).sort("daily_roi", -1).to_list(100)
+    
+    # If no plans exist, return default plans
+    if not plans:
+        default_plans = [
+            {"id": "premium", "name": "Premium Plan", "daily_roi": 1.0, "min_investment": 20, "validity_days": 100, "is_active": True},
+            {"id": "regular", "name": "Regular Plan", "daily_roi": 0.5, "min_investment": 20, "validity_days": 100, "is_active": True}
+        ]
+        return default_plans
+    
+    # Convert ObjectId to string for JSON serialization
+    for plan in plans:
+        if "_id" in plan:
+            del plan["_id"]
+    
+    return plans
+
+
+@api_router.get("/admin/investment-plans")
+async def admin_get_all_plans(current_user: dict = Depends(get_current_user)):
+    """Get all investment plans (admin only)"""
+    if not current_user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    plans = await db.investment_plans.find().sort("created_at", -1).to_list(100)
+    
+    for plan in plans:
+        if "_id" in plan:
+            del plan["_id"]
+    
+    return plans
+
+
+@api_router.post("/admin/investment-plans")
+async def create_investment_plan(plan: InvestmentPlanCreate, current_user: dict = Depends(get_current_user)):
+    """Create a new investment plan (admin only)"""
+    if not current_user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    new_plan = {
+        "id": str(uuid.uuid4()),
+        "name": plan.name,
+        "daily_roi": plan.daily_roi,
+        "min_investment": plan.min_investment,
+        "max_investment": plan.max_investment,
+        "validity_days": plan.validity_days,
+        "description": plan.description,
+        "is_active": plan.is_active,
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow()
+    }
+    
+    await db.investment_plans.insert_one(new_plan)
+    del new_plan["_id"]
+    
+    return {"message": "Investment plan created", "plan": new_plan}
+
+
+@api_router.put("/admin/investment-plans/{plan_id}")
+async def update_investment_plan(plan_id: str, plan_update: InvestmentPlanUpdate, current_user: dict = Depends(get_current_user)):
+    """Update an investment plan (admin only)"""
+    if not current_user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    existing_plan = await db.investment_plans.find_one({"id": plan_id})
+    if not existing_plan:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    
+    update_data = {k: v for k, v in plan_update.dict().items() if v is not None}
+    update_data["updated_at"] = datetime.utcnow()
+    
+    await db.investment_plans.update_one(
+        {"id": plan_id},
+        {"$set": update_data}
+    )
+    
+    return {"message": "Plan updated successfully"}
+
+
+@api_router.delete("/admin/investment-plans/{plan_id}")
+async def delete_investment_plan(plan_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete an investment plan (admin only)"""
+    if not current_user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    result = await db.investment_plans.delete_one({"id": plan_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    
+    return {"message": "Plan deleted successfully"}
 
 # ==================== WALLET ROUTES ====================
 
@@ -442,8 +629,8 @@ async def create_investment(request: InvestRequest, current_user: dict = Depends
     plan = request.plan
     cryptocurrency = request.cryptocurrency or "btc"
     
-    # if amount < 20:
-    #     raise HTTPException(status_code=400, detail="Minimum investment is $20")
+    if amount < 20:
+        raise HTTPException(status_code=400, detail="Minimum investment is $20")
     
     if not NOWPAYMENTS_API_KEY:
         raise HTTPException(status_code=500, detail="Payment gateway not configured")
