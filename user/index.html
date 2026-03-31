@@ -319,14 +319,14 @@
                                 <li><i class="fas fa-gift"></i> Slab & Royalty Bonuses</li>
                             </ul>
                             <div class="crypto-info">
-                                <h4><i class="fab fa-bitcoin"></i> Pay with Crypto</h4>
-                                <p>We accept 300+ cryptocurrencies via NOWPayments secure gateway</p>
+                                <h4><i class="fas fa-coins"></i> Pay with USDT</h4>
+                                <p>Secure payment via NOWPayments gateway using USDT (BSC Network)</p>
                             </div>
                         </div>
                         <div class="invest-form">
                             <div class="form-group">
                                 <label>Investment Amount (USD)</label>
-                                <input type="number" id="investAmount" placeholder="Enter amount (min $20)" min="20" data-testid="invest-amount-input">
+                                <input type="number" id="investAmount" placeholder="Enter amount (min $20)" min="20" data-testid="invest-amount-input" oninput="calculateEstimate()">
                             </div>
                             <div class="form-group">
                                 <label>Select Plan</label>
@@ -336,20 +336,29 @@
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label><i class="fab fa-bitcoin"></i> Pay With Cryptocurrency</label>
-                                <select id="investCrypto" data-testid="invest-crypto-select">
-                                    <option value="btc">Bitcoin (BTC)</option>
-                                    <option value="eth">Ethereum (ETH)</option>
-                                    <option value="usdttrc20">Tether USDT (TRC20)</option>
-                                    <option value="usdcerc20">USD Coin (ERC20)</option>
-                                    <option value="bnbmainnet">Binance Coin (BNB)</option>
-                                    <option value="ltc">Litecoin (LTC)</option>
-                                    <option value="doge">Dogecoin (DOGE)</option>
-                                    <option value="xrp">XRP (Ripple)</option>
-                                    <option value="trx">Tron (TRX)</option>
-                                    <option value="sol">Solana (SOL)</option>
+                                <label><i class="fas fa-coins"></i> Payment Currency</label>
+                                <select id="investCrypto" data-testid="invest-crypto-select" disabled>
+                                    <option value="usdtbsc" selected>USDT (BSC Network)</option>
                                 </select>
                             </div>
+                            
+                            <!-- Fee Estimation Box -->
+                            <div id="feeEstimateBox" class="fee-estimate-box" style="display: none;">
+                                <div class="fee-row">
+                                    <span>Investment Amount:</span>
+                                    <span id="feeInvestAmount">$0.00</span>
+                                </div>
+                                <div class="fee-row">
+                                    <span>Network Fee (estimated):</span>
+                                    <span id="feeNetworkFee">~$0.00</span>
+                                </div>
+                                <div class="fee-row total">
+                                    <span>Total to Pay:</span>
+                                    <span id="feeTotalAmount">0.00 USDT</span>
+                                </div>
+                                <p class="fee-note"><i class="fas fa-info-circle"></i> Final amount may vary slightly based on network conditions</p>
+                            </div>
+                            
                             <button id="investBtn" class="btn btn-primary btn-full" onclick="makeInvestment()" data-testid="invest-submit-btn">
                                 <i class="fas fa-coins"></i> Invest Now
                             </button>

@@ -2468,3 +2468,59 @@ body {
     background: rgba(241, 196, 15, 0.2);
     color: #f1c40f;
 }
+
+/* ==================== FEE ESTIMATE BOX ==================== */
+
+.fee-estimate-box {
+    background: linear-gradient(135deg, rgba(39, 174, 96, 0.1), rgba(46, 204, 113, 0.05));
+    border: 1px solid rgba(39, 174, 96, 0.3);
+    border-radius: 12px;
+    padding: 15px 20px;
+    margin-bottom: 20px;
+}
+
+.fee-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    color: var(--text);
+    font-size: 0.95rem;
+}
+
+.fee-row:not(:last-child) {
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.fee-row.total {
+    border-top: 2px solid var(--primary);
+    margin-top: 10px;
+    padding-top: 15px;
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.fee-row.total span:last-child {
+    color: var(--primary);
+    font-size: 1.2rem;
+}
+
+.fee-note {
+    margin-top: 12px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.fee-note i {
+    color: var(--primary);
+}
+
+/* Update crypto select styling */
+#investCrypto:disabled {
+    background: var(--bg-secondary);
+    opacity: 0.9;
+    cursor: not-allowed;
+}

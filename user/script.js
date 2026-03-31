@@ -616,7 +616,7 @@ async function loadWallets() {
 async function makeInvestment() {
     const amount = parseFloat(document.getElementById('investAmount').value);
     const plan = document.getElementById('investPlan').value;
-    const cryptocurrency = document.getElementById('investCrypto')?.value || 'btc';
+    const cryptocurrency = 'usdtbsc'; // Fixed to USDT BSC
     const messageDiv = document.getElementById('investMessage');
     const investBtn = document.getElementById('investBtn');
     
@@ -645,13 +645,15 @@ async function makeInvestment() {
         const data = await response.json();
         
         if (response.ok && data.checkout_url) {
+            // Clear the payment notification flag for the new payment
+            sessionStorage.removeItem('paymentNotificationShown');
+            
             // Show payment details before redirect (invoice-based)
-            const cryptoName = getCryptoName(cryptocurrency);
             messageDiv.innerHTML = `
                 <div class="crypto-payment-info">
                     <p><strong>Payment initiated!</strong></p>
                     <p>Amount: <strong>$${amount} USD</strong></p>
-                    <p>Pay with: <strong>${cryptoName}</strong></p>
+                    <p>Pay with: <strong>USDT (BSC Network)</strong></p>
                     <p>Invoice ID: <strong>${data.invoice_id || 'N/A'}</strong></p>
                     <p>Redirecting to secure payment page...</p>
                 </div>
@@ -666,6 +668,7 @@ async function makeInvestment() {
             messageDiv.textContent = `Investment of $${amount} initiated!`;
             messageDiv.className = 'message success';
             document.getElementById('investAmount').value = '';
+            document.getElementById('feeEstimateBox').style.display = 'none';
             loadDashboard();
         } else {
             // Handle error - extract detail message properly
@@ -685,9 +688,69 @@ async function makeInvestment() {
     }
 }
 
+// Calculate fee estimate when amount changes
+let feeCalculationTimeout = null;
+async function calculateEstimate() {
+    const amount = parseFloat(document.getElementById('investAmount').value);
+    const feeBox = document.getElementById('feeEstimateBox');
+    
+    if (!amount || amount < 20) {
+        feeBox.style.display = 'none';
+        return;
+    }
+    
+    // Debounce the calculation
+    if (feeCalculationTimeout) {
+        clearTimeout(feeCalculationTimeout);
+    }
+    
+    feeCalculationTimeout = setTimeout(async () => {
+        try {
+            // Get estimate from API
+            const response = await fetch(`${API_URL}/api/payment/estimate?amount=${amount}&currency=usdtbsc`, {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                
+                // Update the fee box
+                document.getElementById('feeInvestAmount').textContent = `$${amount.toFixed(2)}`;
+                document.getElementById('feeNetworkFee').textContent = `~$${data.estimated_fee.toFixed(4)}`;
+                document.getElementById('feeTotalAmount').textContent = `${data.total_amount.toFixed(8)} USDT`;
+                
+                feeBox.style.display = 'block';
+            } else {
+                // If API fails, show approximate fee (0.5% + small fixed fee)
+                const estimatedFee = (amount * 0.005) + 0.5;
+                const totalAmount = amount + estimatedFee;
+                
+                document.getElementById('feeInvestAmount').textContent = `$${amount.toFixed(2)}`;
+                document.getElementById('feeNetworkFee').textContent = `~$${estimatedFee.toFixed(4)}`;
+                document.getElementById('feeTotalAmount').textContent = `${totalAmount.toFixed(4)} USDT`;
+                
+                feeBox.style.display = 'block';
+            }
+        } catch (error) {
+            // Fallback estimate
+            const estimatedFee = (amount * 0.005) + 0.5;
+            const totalAmount = amount + estimatedFee;
+            
+            document.getElementById('feeInvestAmount').textContent = `$${amount.toFixed(2)}`;
+            document.getElementById('feeNetworkFee').textContent = `~$${estimatedFee.toFixed(4)}`;
+            document.getElementById('feeTotalAmount').textContent = `${totalAmount.toFixed(4)} USDT`;
+            
+            feeBox.style.display = 'block';
+        }
+    }, 500);
+}
+
 // Helper function to get crypto display name
 function getCryptoName(code) {
     const cryptoNames = {
+        'usdtbsc': 'USDT (BSC Network)',
         'btc': 'Bitcoin (BTC)',
         'eth': 'Ethereum (ETH)',
         'usdttrc20': 'Tether USDT (TRC20)',
@@ -704,14 +767,27 @@ function getCryptoName(code) {
 
 // Check for payment success/cancelled in URL
 function checkPaymentStatus() {
-    const urlParams = new URLSearchParams(window.location.search);
     const hash = window.location.hash;
     
-    if (hash.includes('payment=success')) {
-        const investmentId = urlParams.get('investment_id') || new URLSearchParams(hash.split('?')[1]).get('investment_id');
+    // Only show notification if we have the payment parameter AND haven't shown it yet
+    const paymentShown = sessionStorage.getItem('paymentNotificationShown');
+    
+    if (hash.includes('payment=success') && !paymentShown) {
+        const hashParams = hash.includes('?') ? new URLSearchParams(hash.split('?')[1]) : null;
+        const investmentId = hashParams?.get('investment_id');
         showPaymentSuccessNotification(investmentId);
-    } else if (hash.includes('payment=cancelled')) {
+        
+        // Mark as shown so it doesn't show again on refresh
+        sessionStorage.setItem('paymentNotificationShown', 'true');
+        
+        // Clean up the URL by removing payment parameters
+        window.history.replaceState(null, '', window.location.pathname + '#dashboard');
+    } else if (hash.includes('payment=cancelled') && !paymentShown) {
         showPaymentCancelledNotification();
+        sessionStorage.setItem('paymentNotificationShown', 'true');
+        
+        // Clean up the URL
+        window.history.replaceState(null, '', window.location.pathname + '#invest');
     }
 }
 

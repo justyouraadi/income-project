@@ -135,7 +135,7 @@ class Investment(BaseModel):
 class InvestRequest(BaseModel):
     amount: float
     plan: Optional[str] = "premium"
-    cryptocurrency: Optional[str] = "btc"  # Default to BTC, supports: btc, eth, usdttrc20, usdcerc20, bnbmainnet, ltc, xrp, doge
+    cryptocurrency: Optional[str] = "usdtbsc"  # Default to USDT BSC Network
 
 class Transaction(BaseModel):
     id: str
@@ -734,6 +734,75 @@ async def handle_nowpayments_webhook(request: Request):
         logging.error(f"Error processing webhook: {str(e)}")
         # Return 200 to prevent retries
         return JSONResponse(status_code=200, content={"received": True, "error": str(e)})
+
+
+@api_router.get("/payment/estimate")
+async def get_payment_estimate(amount: float, currency: str = "usdtbsc", current_user: dict = Depends(get_current_user)):
+    """Get estimated payment amount including network fees from NOWPayments"""
+    if amount < 20:
+        raise HTTPException(status_code=400, detail="Minimum amount is $20")
+    
+    if not NOWPAYMENTS_API_KEY:
+        # Return fallback estimate
+        estimated_fee = (amount * 0.005) + 0.5
+        return {
+            "amount": amount,
+            "currency": currency,
+            "estimated_fee": estimated_fee,
+            "total_amount": amount + estimated_fee,
+            "source": "estimated"
+        }
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            # Get estimated price from NOWPayments
+            response = await client.get(
+                f"{NOWPAYMENTS_API_BASE_URL}/estimate",
+                params={
+                    "amount": amount,
+                    "currency_from": "usd",
+                    "currency_to": currency
+                },
+                headers={"x-api-key": NOWPAYMENTS_API_KEY}
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                estimated_amount = float(data.get("estimated_amount", amount))
+                
+                # Calculate the fee (difference between estimated and original)
+                # USDT is typically 1:1 with USD, so any difference is fees
+                estimated_fee = max(0, estimated_amount - amount)
+                
+                return {
+                    "amount": amount,
+                    "currency": currency,
+                    "estimated_fee": estimated_fee,
+                    "total_amount": estimated_amount,
+                    "source": "nowpayments"
+                }
+            else:
+                # Fallback estimate
+                estimated_fee = (amount * 0.005) + 0.5
+                return {
+                    "amount": amount,
+                    "currency": currency,
+                    "estimated_fee": estimated_fee,
+                    "total_amount": amount + estimated_fee,
+                    "source": "estimated"
+                }
+                
+    except Exception as e:
+        logging.error(f"Error getting estimate: {str(e)}")
+        # Fallback estimate
+        estimated_fee = (amount * 0.005) + 0.5
+        return {
+            "amount": amount,
+            "currency": currency,
+            "estimated_fee": estimated_fee,
+            "total_amount": amount + estimated_fee,
+            "source": "estimated"
+        }
 
 
 @api_router.get("/payment/status/{investment_id}")
