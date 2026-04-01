@@ -3293,7 +3293,12 @@ function renderPlans(plans) {
         return;
     }
     
-    grid.innerHTML = plans.map(plan => `
+    grid.innerHTML = plans.map(plan => {
+        // Calculate total level income %
+        const levelIncome = plan.level_income || {};
+        const totalLevelIncome = Object.values(levelIncome).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
+        
+        return `
         <div class="plan-card ${plan.is_active ? '' : 'inactive'}">
             <div class="plan-header">
                 <h3>${plan.name}</h3>
@@ -3316,7 +3321,7 @@ function renderPlans(plans) {
                 </div>
                 <div class="plan-stat">
                     <span class="stat-label">Level Income</span>
-                    <span class="stat-value">${plan.level_income || 1}%</span>
+                    <span class="stat-value">${totalLevelIncome.toFixed(1)}% (20 lvls)</span>
                 </div>
                 <div class="plan-stat">
                     <span class="stat-label">Validity</span>
@@ -3337,7 +3342,7 @@ function renderPlans(plans) {
                 <button class="btn btn-small btn-danger" onclick="deletePlan('${plan.id}')">Delete</button>
             </div>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 function showAddPlanModal() {
@@ -3349,7 +3354,19 @@ function showAddPlanModal() {
     document.getElementById('planMinInvestment').value = 20;
     document.getElementById('planTotalReturn').value = 2;
     document.getElementById('planDirectIncome').value = 5;
-    document.getElementById('planLevelIncome').value = 1;
+    
+    // Set default level incomes
+    const defaultLevels = {
+        1: 1.0, 2: 0.8, 3: 0.6, 4: 0.5, 5: 0.4,
+        6: 0.3, 7: 0.3, 8: 0.2, 9: 0.2, 10: 0.2,
+        11: 0.1, 12: 0.1, 13: 0.1, 14: 0.1, 15: 0.1,
+        16: 0.1, 17: 0.1, 18: 0.1, 19: 0.1, 20: 0.1
+    };
+    for (let i = 1; i <= 20; i++) {
+        const input = document.getElementById(`levelIncome${i}`);
+        if (input) input.value = defaultLevels[i];
+    }
+    
     document.getElementById('planModal').style.display = 'flex';
 }
 
@@ -3374,12 +3391,21 @@ async function editPlan(planId) {
                 document.getElementById('planDailyRoi').value = plan.daily_roi;
                 document.getElementById('planTotalReturn').value = plan.total_return || 2;
                 document.getElementById('planDirectIncome').value = plan.direct_income || 5;
-                document.getElementById('planLevelIncome').value = plan.level_income || 1;
                 document.getElementById('planValidityDays').value = plan.validity_days;
                 document.getElementById('planMinInvestment').value = plan.min_investment;
                 document.getElementById('planMaxInvestment').value = plan.max_investment || '';
                 document.getElementById('planDescription').value = plan.description || '';
                 document.getElementById('planActive').checked = plan.is_active;
+                
+                // Load level incomes
+                const levelIncome = plan.level_income || {};
+                for (let i = 1; i <= 20; i++) {
+                    const input = document.getElementById(`levelIncome${i}`);
+                    if (input) {
+                        input.value = levelIncome[i.toString()] || levelIncome[i] || 0;
+                    }
+                }
+                
                 document.getElementById('planModal').style.display = 'flex';
             }
         }
@@ -3393,12 +3419,22 @@ async function savePlan(event) {
     event.preventDefault();
     
     const planId = document.getElementById('editPlanId').value;
+    
+    // Collect level incomes
+    const levelIncome = {};
+    for (let i = 1; i <= 20; i++) {
+        const input = document.getElementById(`levelIncome${i}`);
+        if (input) {
+            levelIncome[i.toString()] = parseFloat(input.value) || 0;
+        }
+    }
+    
     const planData = {
         name: document.getElementById('planName').value,
         daily_roi: parseFloat(document.getElementById('planDailyRoi').value),
         total_return: parseFloat(document.getElementById('planTotalReturn').value),
         direct_income: parseFloat(document.getElementById('planDirectIncome').value),
-        level_income: parseFloat(document.getElementById('planLevelIncome').value),
+        level_income: levelIncome,
         validity_days: parseInt(document.getElementById('planValidityDays').value),
         min_investment: parseFloat(document.getElementById('planMinInvestment').value),
         max_investment: document.getElementById('planMaxInvestment').value ? 

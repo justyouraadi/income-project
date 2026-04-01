@@ -504,7 +504,7 @@ class InvestmentPlanCreate(BaseModel):
     daily_roi: float  # e.g., 1.0 for 1%
     total_return: float = 2.0  # e.g., 2.0 for 2x return
     direct_income: float = 5.0  # Direct referral income percentage
-    level_income: float = 1.0  # Level/slab income percentage
+    level_income: Dict[str, float] = None  # Level 1-20 income percentages
     min_investment: float = 20.0
     max_investment: Optional[float] = None
     validity_days: int = 100
@@ -516,12 +516,20 @@ class InvestmentPlanUpdate(BaseModel):
     daily_roi: Optional[float] = None
     total_return: Optional[float] = None
     direct_income: Optional[float] = None
-    level_income: Optional[float] = None
+    level_income: Optional[Dict[str, float]] = None
     min_investment: Optional[float] = None
     max_investment: Optional[float] = None
     validity_days: Optional[int] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None
+
+# Default level income structure (20 levels)
+DEFAULT_LEVEL_INCOME = {
+    "1": 1.0, "2": 0.8, "3": 0.6, "4": 0.5, "5": 0.4,
+    "6": 0.3, "7": 0.3, "8": 0.2, "9": 0.2, "10": 0.2,
+    "11": 0.1, "12": 0.1, "13": 0.1, "14": 0.1, "15": 0.1,
+    "16": 0.1, "17": 0.1, "18": 0.1, "19": 0.1, "20": 0.1
+}
 
 
 @api_router.get("/investment-plans")
@@ -532,8 +540,8 @@ async def get_investment_plans():
     # If no plans exist, return default plans
     if not plans:
         default_plans = [
-            {"id": "premium", "name": "Premium Plan", "daily_roi": 1.0, "total_return": 2.0, "direct_income": 5.0, "level_income": 1.0, "min_investment": 20, "validity_days": 100, "is_active": True},
-            {"id": "regular", "name": "Regular Plan", "daily_roi": 0.5, "total_return": 1.5, "direct_income": 5.0, "level_income": 0.5, "min_investment": 20, "validity_days": 100, "is_active": True}
+            {"id": "premium", "name": "Premium Plan", "daily_roi": 1.0, "total_return": 2.0, "direct_income": 5.0, "level_income": DEFAULT_LEVEL_INCOME, "min_investment": 20, "validity_days": 100, "is_active": True},
+            {"id": "regular", "name": "Regular Plan", "daily_roi": 0.5, "total_return": 1.5, "direct_income": 5.0, "level_income": DEFAULT_LEVEL_INCOME, "min_investment": 20, "validity_days": 100, "is_active": True}
         ]
         return default_plans
     
@@ -541,6 +549,9 @@ async def get_investment_plans():
     for plan in plans:
         if "_id" in plan:
             del plan["_id"]
+        # Ensure level_income has default structure if missing
+        if not plan.get("level_income"):
+            plan["level_income"] = DEFAULT_LEVEL_INCOME
     
     return plans
 
@@ -566,13 +577,16 @@ async def create_investment_plan(plan: InvestmentPlanCreate, current_user: dict 
     if not current_user.get("is_admin"):
         raise HTTPException(status_code=403, detail="Admin access required")
     
+    # Use provided level_income or default
+    level_income = plan.level_income if plan.level_income else DEFAULT_LEVEL_INCOME
+    
     new_plan = {
         "id": str(uuid.uuid4()),
         "name": plan.name,
         "daily_roi": plan.daily_roi,
         "total_return": plan.total_return,
         "direct_income": plan.direct_income,
-        "level_income": plan.level_income,
+        "level_income": level_income,
         "min_investment": plan.min_investment,
         "max_investment": plan.max_investment,
         "validity_days": plan.validity_days,

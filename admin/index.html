@@ -622,7 +622,7 @@
 
                 <!-- Add/Edit Plan Modal -->
                 <div id="planModal" class="modal" style="display: none;">
-                    <div class="modal-content">
+                    <div class="modal-content modal-large">
                         <span class="close" onclick="closePlanModal()">&times;</span>
                         <h2 id="planModalTitle">Add New Investment Plan</h2>
                         
@@ -653,26 +653,107 @@
                                     <small>Referral commission on investment</small>
                                 </div>
                                 <div class="form-group">
-                                    <label>Level Income (%) *</label>
-                                    <input type="number" id="planLevelIncome" step="0.1" min="0" value="1" placeholder="e.g., 1%" required>
-                                    <small>Income from downline levels</small>
+                                    <label>Validity (Days) *</label>
+                                    <input type="number" id="planValidityDays" min="1" value="100" required>
                                 </div>
                             </div>
                             
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label>Validity (Days) *</label>
-                                    <input type="number" id="planValidityDays" min="1" value="100" required>
-                                </div>
-                                <div class="form-group">
                                     <label>Min Investment ($) *</label>
                                     <input type="number" id="planMinInvestment" min="1" value="20" required>
                                 </div>
+                                <div class="form-group">
+                                    <label>Max Investment ($)</label>
+                                    <input type="number" id="planMaxInvestment" min="0" placeholder="Leave empty for no limit">
+                                </div>
                             </div>
                             
-                            <div class="form-group">
-                                <label>Max Investment ($)</label>
-                                <input type="number" id="planMaxInvestment" min="0" placeholder="Leave empty for no limit">
+                            <!-- Level Income Section (20 Levels) -->
+                            <div class="level-income-section">
+                                <label class="section-label">Level Income (%) - Set percentage for each level</label>
+                                <div class="level-income-grid">
+                                    <div class="level-input">
+                                        <span>L1</span>
+                                        <input type="number" id="levelIncome1" step="0.1" min="0" value="1.0" placeholder="%">
+                                    </div>
+                                    <div class="level-input">
+                                        <span>L2</span>
+                                        <input type="number" id="levelIncome2" step="0.1" min="0" value="0.8" placeholder="%">
+                                    </div>
+                                    <div class="level-input">
+                                        <span>L3</span>
+                                        <input type="number" id="levelIncome3" step="0.1" min="0" value="0.6" placeholder="%">
+                                    </div>
+                                    <div class="level-input">
+                                        <span>L4</span>
+                                        <input type="number" id="levelIncome4" step="0.1" min="0" value="0.5" placeholder="%">
+                                    </div>
+                                    <div class="level-input">
+                                        <span>L5</span>
+                                        <input type="number" id="levelIncome5" step="0.1" min="0" value="0.4" placeholder="%">
+                                    </div>
+                                    <div class="level-input">
+                                        <span>L6</span>
+                                        <input type="number" id="levelIncome6" step="0.1" min="0" value="0.3" placeholder="%">
+                                    </div>
+                                    <div class="level-input">
+                                        <span>L7</span>
+                                        <input type="number" id="levelIncome7" step="0.1" min="0" value="0.3" placeholder="%">
+                                    </div>
+                                    <div class="level-input">
+                                        <span>L8</span>
+                                        <input type="number" id="levelIncome8" step="0.1" min="0" value="0.2" placeholder="%">
+                                    </div>
+                                    <div class="level-input">
+                                        <span>L9</span>
+                                        <input type="number" id="levelIncome9" step="0.1" min="0" value="0.2" placeholder="%">
+                                    </div>
+                                    <div class="level-input">
+                                        <span>L10</span>
+                                        <input type="number" id="levelIncome10" step="0.1" min="0" value="0.2" placeholder="%">
+                                    </div>
+                                    <div class="level-input">
+                                        <span>L11</span>
+                                        <input type="number" id="levelIncome11" step="0.1" min="0" value="0.1" placeholder="%">
+                                    </div>
+                                    <div class="level-input">
+                                        <span>L12</span>
+                                        <input type="number" id="levelIncome12" step="0.1" min="0" value="0.1" placeholder="%">
+                                    </div>
+                                    <div class="level-input">
+                                        <span>L13</span>
+                                        <input type="number" id="levelIncome13" step="0.1" min="0" value="0.1" placeholder="%">
+                                    </div>
+                                    <div class="level-input">
+                                        <span>L14</span>
+                                        <input type="number" id="levelIncome14" step="0.1" min="0" value="0.1" placeholder="%">
+                                    </div>
+                                    <div class="level-input">
+                                        <span>L15</span>
+                                        <input type="number" id="levelIncome15" step="0.1" min="0" value="0.1" placeholder="%">
+                                    </div>
+                                    <div class="level-input">
+                                        <span>L16</span>
+                                        <input type="number" id="levelIncome16" step="0.1" min="0" value="0.1" placeholder="%">
+                                    </div>
+                                    <div class="level-input">
+                                        <span>L17</span>
+                                        <input type="number" id="levelIncome17" step="0.1" min="0" value="0.1" placeholder="%">
+                                    </div>
+                                    <div class="level-input">
+                                        <span>L18</span>
+                                        <input type="number" id="levelIncome18" step="0.1" min="0" value="0.1" placeholder="%">
+                                    </div>
+                                    <div class="level-input">
+                                        <span>L19</span>
+                                        <input type="number" id="levelIncome19" step="0.1" min="0" value="0.1" placeholder="%">
+                                    </div>
+                                    <div class="level-input">
+                                        <span>L20</span>
+                                        <input type="number" id="levelIncome20" step="0.1" min="0" value="0.1" placeholder="%">
+                                    </div>
+                                </div>
                             </div>
                             
                             <div class="form-group">

@@ -2171,3 +2171,69 @@ select:focus {
     color: #7f8c8d;
     grid-column: 1 / -1;
 }
+
+/* Level Income Grid */
+.modal-large {
+    max-width: 700px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.level-income-section {
+    margin: 20px 0;
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    border: 1px solid #2d3e50;
+}
+
+.section-label {
+    display: block;
+    margin-bottom: 15px;
+    font-weight: 600;
+    color: #f1c40f;
+}
+
+.level-income-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+}
+
+.level-input {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 8px;
+    border-radius: 8px;
+}
+
+.level-input span {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #7f8c8d;
+    min-width: 25px;
+}
+
+.level-input input {
+    width: 100%;
+    padding: 6px 8px;
+    font-size: 0.85rem;
+    background: #1e2a38;
+    border: 1px solid #2d3e50;
+    border-radius: 5px;
+    color: #fff;
+    text-align: center;
+}
+
+.level-input input:focus {
+    border-color: #f1c40f;
+    outline: none;
+}
+
+@media (max-width: 600px) {
+    .level-income-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
