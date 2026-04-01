@@ -397,14 +397,17 @@ async function loadInvestmentPlans() {
                     <li><i class="fas fa-coins"></i> Total Return: ${plan.total_return || 2}x (${((plan.total_return || 2) - 1) * 100}% profit)</li>
                 `).join('');
                 
-                // Get first plan's direct/level income or defaults
+                // Get first plan's direct income or default
                 const directIncome = plans[0]?.direct_income || 5;
-                const levelIncome = plans[0]?.level_income || 1;
+                
+                // Calculate total level income from first plan
+                const levelIncome = plans[0]?.level_income || {};
+                const totalLevelIncome = Object.values(levelIncome).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
                 
                 benefitsList.innerHTML = `
                     ${planBenefits}
                     <li><i class="fas fa-users"></i> ${directIncome}% Direct Referral Income</li>
-                    <li><i class="fas fa-sitemap"></i> ${levelIncome}% Level Income</li>
+                    <li><i class="fas fa-sitemap"></i> ${totalLevelIncome.toFixed(1)}% Level Income (20 Levels)</li>
                     <li><i class="fas fa-gift"></i> Slab & Royalty Bonuses</li>
                 `;
             }

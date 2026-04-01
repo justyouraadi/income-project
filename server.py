@@ -1063,31 +1063,102 @@ async def get_available_cryptocurrencies():
         logging.error(f"Error fetching currencies: {str(e)}")
         return {"currencies": ["btc", "eth", "usdttrc20", "usdcerc20", "bnbmainnet"]}
 
+def is_working_day(date_to_check=None):
+    """
+    Check if a given date is a working day.
+    Non-working days: Saturday (5), Sunday (6), December 25th (Christmas)
+    """
+    if date_to_check is None:
+        date_to_check = datetime.utcnow()
+    
+    # Check if weekend (Saturday=5, Sunday=6)
+    if date_to_check.weekday() in [5, 6]:
+        return False
+    
+    # Check if December 25th (Christmas)
+    if date_to_check.month == 12 and date_to_check.day == 25:
+        return False
+    
+    return True
+
+
+def get_next_working_day(from_date=None):
+    """Get the next working day from a given date"""
+    if from_date is None:
+        from_date = datetime.utcnow()
+    
+    next_day = from_date + timedelta(days=1)
+    while not is_working_day(next_day):
+        next_day += timedelta(days=1)
+    
+    return next_day
+
+
 @api_router.post("/wallet/calculate-roi")
 async def calculate_daily_roi(current_user: dict = Depends(get_current_user)):
-    """Calculate and credit 1.5% daily ROI"""
+    """Calculate and credit daily ROI based on investment plan (excludes weekends and Dec 25)"""
+    
+    # Check if today is a working day
+    today = datetime.utcnow()
+    if not is_working_day(today):
+        day_name = today.strftime("%A")
+        if today.month == 12 and today.day == 25:
+            return {"message": "ROI not credited on Christmas Day (December 25)", "roi": 0, "is_holiday": True}
+        return {"message": f"ROI not credited on {day_name} (non-working day)", "roi": 0, "is_holiday": True}
+    
     wallet = await db.wallets.find_one({"user_id": current_user["id"]})
     
-    if wallet["total_invested"] <= 0:
+    if not wallet or wallet.get("total_invested", 0) <= 0:
         return {"message": "No active investment", "roi": 0}
     
     # Check if ROI already calculated today
     if wallet.get("last_roi_date"):
         last_date = wallet["last_roi_date"].date()
-        today = datetime.utcnow().date()
-        if last_date == today:
+        if last_date == today.date():
             return {"message": "ROI already calculated today", "roi": 0}
     
-    # Calculate 1.5% daily ROI
-    roi_amount = wallet["total_invested"] * 0.015
+    # Get user's active investments to calculate ROI based on plan
+    active_investments = await db.investments.find({
+        "user_id": current_user["id"],
+        "status": "active"
+    }).to_list(100)
+    
+    if not active_investments:
+        return {"message": "No active investments", "roi": 0}
+    
+    total_roi = 0
+    roi_details = []
+    
+    for investment in active_investments:
+        # Get the plan for this investment
+        plan_id = investment.get("plan", "premium")
+        plan = await db.investment_plans.find_one({"id": plan_id})
+        
+        # Use plan's daily_roi or default to 1%
+        daily_roi_percent = plan.get("daily_roi", 1.0) if plan else 1.0
+        
+        # Calculate ROI for this investment
+        investment_amount = investment.get("amount", 0)
+        roi_amount = investment_amount * (daily_roi_percent / 100)
+        total_roi += roi_amount
+        
+        roi_details.append({
+            "investment_id": investment.get("id"),
+            "amount": investment_amount,
+            "roi_percent": daily_roi_percent,
+            "roi_amount": roi_amount
+        })
+    
+    if total_roi <= 0:
+        return {"message": "No ROI to credit", "roi": 0}
     
     # Update wallet
     await db.wallets.update_one(
         {"user_id": current_user["id"]},
         {
             "$inc": {
-                "daily_roi": roi_amount,
-                "total_balance": roi_amount
+                "daily_roi": total_roi,
+                "total_balance": total_roi
             },
             "$set": {"last_roi_date": datetime.utcnow()}
         }
@@ -1098,13 +1169,55 @@ async def calculate_daily_roi(current_user: dict = Depends(get_current_user)):
         "id": str(uuid.uuid4()),
         "user_id": current_user["id"],
         "type": "daily_roi",
-        "amount": roi_amount,
-        "description": "Daily ROI (1.5%)",
-        "date": datetime.utcnow()
+        "amount": total_roi,
+        "description": f"Daily ROI - {today.strftime('%Y-%m-%d')}",
+        "date": datetime.utcnow(),
+        "details": roi_details
     }
     await db.transactions.insert_one(transaction)
     
-    return {"message": "ROI calculated successfully", "roi": roi_amount}
+    return {
+        "message": "ROI calculated successfully",
+        "roi": total_roi,
+        "date": today.strftime("%Y-%m-%d"),
+        "is_working_day": True,
+        "details": roi_details
+    }
+
+
+@api_router.get("/working-days/status")
+async def get_working_day_status():
+    """Check if today is a working day and get upcoming working/non-working days"""
+    today = datetime.utcnow()
+    
+    # Get next 7 days status
+    upcoming_days = []
+    for i in range(7):
+        check_date = today + timedelta(days=i)
+        day_info = {
+            "date": check_date.strftime("%Y-%m-%d"),
+            "day_name": check_date.strftime("%A"),
+            "is_working_day": is_working_day(check_date),
+            "reason": None
+        }
+        
+        if not day_info["is_working_day"]:
+            if check_date.weekday() == 5:
+                day_info["reason"] = "Saturday"
+            elif check_date.weekday() == 6:
+                day_info["reason"] = "Sunday"
+            elif check_date.month == 12 and check_date.day == 25:
+                day_info["reason"] = "Christmas Day"
+        
+        upcoming_days.append(day_info)
+    
+    return {
+        "today": today.strftime("%Y-%m-%d"),
+        "today_name": today.strftime("%A"),
+        "is_today_working_day": is_working_day(today),
+        "non_working_days": ["Saturday", "Sunday", "December 25 (Christmas)"],
+        "upcoming_days": upcoming_days
+    }
 
 # ==================== TRANSACTION ROUTES ====================
 
@@ -1223,8 +1336,18 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
     # Calculate total balance
     total_net_worth = wallet.get("total_balance", 0)
     
-    # Calculate daily ROI potential
-    daily_roi = wallet.get("total_invested", 0) * 0.015
+    # Calculate daily ROI potential based on active investments and their plans
+    daily_roi = 0
+    active_investments = await db.investments.find({
+        "user_id": current_user["id"],
+        "status": "active"
+    }).to_list(100)
+    
+    for investment in active_investments:
+        plan_id = investment.get("plan", "premium")
+        plan = await db.investment_plans.find_one({"id": plan_id})
+        roi_percent = plan.get("daily_roi", 1.0) if plan else 1.0
+        daily_roi += investment.get("amount", 0) * (roi_percent / 100)
     
     # Get team stats
     referrals = await db.users.find({"referred_by": current_user["id"]}).to_list(100)

@@ -2628,3 +2628,31 @@ body {
     margin-top: 20px;
     width: 100%;
 }
+
+/* Working Days Info */
+.working-days-info {
+    margin-top: 15px;
+    padding: 15px;
+    background: linear-gradient(135deg, rgba(52, 152, 219, 0.1), rgba(41, 128, 185, 0.05));
+    border-radius: 12px;
+    border: 1px solid rgba(52, 152, 219, 0.2);
+}
+
+.working-days-info h4 {
+    color: #3498db;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.95rem;
+}
+
+.working-days-info p {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+.working-days-info strong {
+    color: #e74c3c;
+}
