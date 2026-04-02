@@ -115,6 +115,7 @@ class Wallet(BaseModel):
     user_id: str
     daily_roi: float = 0.0
     direct_income: float = 0.0
+    level_income: float = 0.0  # Total level income from downline investments (Levels 1-20)
     slab_income: float = 0.0
     royalty_income: float = 0.0
     salary_income: float = 0.0
@@ -338,6 +339,7 @@ async def register(user_data: UserCreate):
         "user_id": user_id,
         "daily_roi": 0.0,
         "direct_income": 0.0,
+        "level_income": 0.0,  # Level income from downline (Levels 1-20)
         "slab_income": 0.0,
         "royalty_income": 0.0,
         "salary_income": 0.0,
@@ -746,6 +748,101 @@ async def create_investment(request: InvestRequest, current_user: dict = Depends
 
 # ==================== NOWPAYMENTS WEBHOOK ====================
 
+async def distribute_level_income(user_id: str, investment_amount: float, plan_id: str):
+    """
+    Distribute level income to upline users (up to 20 levels) based on the investment plan's level percentages.
+    
+    Args:
+        user_id: The ID of the user who made the investment
+        investment_amount: The amount invested
+        plan_id: The ID of the investment plan
+    
+    Returns:
+        List of distributions made
+    """
+    distributions = []
+    
+    # Get the investment plan to retrieve level income percentages
+    plan = await db.investment_plans.find_one({"id": plan_id})
+    if not plan:
+        # Use default level income if plan not found
+        level_income = DEFAULT_LEVEL_INCOME
+    else:
+        level_income = plan.get("level_income", DEFAULT_LEVEL_INCOME)
+    
+    # Get the investing user
+    current_user = await db.users.find_one({"id": user_id})
+    if not current_user:
+        return distributions
+    
+    # Traverse up the referral chain (up to 20 levels)
+    current_upline_id = current_user.get("referred_by")
+    level = 1
+    
+    while current_upline_id and level <= 20:
+        # Get the upline user
+        upline_user = await db.users.find_one({"id": current_upline_id})
+        
+        if not upline_user:
+            break
+        
+        # Only distribute to ACTIVE users
+        if upline_user.get("status") != "active":
+            # Move to next level but don't distribute
+            current_upline_id = upline_user.get("referred_by")
+            level += 1
+            continue
+        
+        # Get level income percentage (try string key first, then integer)
+        level_percent = level_income.get(str(level), level_income.get(level, 0))
+        
+        if level_percent > 0:
+            # Calculate level income amount
+            income_amount = investment_amount * (level_percent / 100)
+            
+            # Update upline's wallet - use level_income field
+            await db.wallets.update_one(
+                {"user_id": current_upline_id},
+                {
+                    "$inc": {
+                        "level_income": income_amount,
+                        "total_balance": income_amount
+                    }
+                }
+            )
+            
+            # Create transaction record
+            level_transaction = {
+                "id": str(uuid.uuid4()),
+                "user_id": current_upline_id,
+                "type": "level_income",
+                "amount": income_amount,
+                "description": f"Level {level} income from {current_user['full_name']}'s investment",
+                "date": datetime.utcnow(),
+                "source_user_id": user_id,
+                "level": level,
+                "investment_amount": investment_amount,
+                "percentage": level_percent
+            }
+            await db.transactions.insert_one(level_transaction)
+            
+            distributions.append({
+                "level": level,
+                "user_id": current_upline_id,
+                "user_name": upline_user.get("full_name", "Unknown"),
+                "amount": income_amount,
+                "percentage": level_percent
+            })
+            
+            logging.info(f"Level {level} income: ${income_amount:.2f} ({level_percent}%) credited to {upline_user['full_name']}")
+        
+        # Move to next level
+        current_upline_id = upline_user.get("referred_by")
+        level += 1
+    
+    return distributions
+
+
 @api_router.post("/webhooks/nowpayments")
 async def handle_nowpayments_webhook(request: Request):
     """
@@ -863,12 +960,17 @@ async def handle_nowpayments_webhook(request: Request):
                 }
             )
             
-            # Process referral income (5% direct income) - ONLY if referrer is ACTIVE
+            # Process referral income (Direct Income) - ONLY if referrer is ACTIVE
+            # Use plan's direct_income percentage or default to 5%
+            plan_id = investment.get("plan", "premium")
+            plan = await db.investment_plans.find_one({"id": plan_id})
+            direct_income_percent = plan.get("direct_income", 5.0) if plan else 5.0
+            
             if user.get("referred_by"):
                 referrer = await db.users.find_one({"id": user["referred_by"]})
                 
                 if referrer and referrer.get("status") == "active":
-                    referral_amount = amount * 0.05
+                    referral_amount = amount * (direct_income_percent / 100)
                     await db.wallets.update_one(
                         {"user_id": user["referred_by"]},
                         {
@@ -885,6 +987,7 @@ async def handle_nowpayments_webhook(request: Request):
                         "user_id": user["referred_by"],
                         "referred_user_id": user_id,
                         "amount": referral_amount,
+                        "percentage": direct_income_percent,
                         "date": datetime.utcnow()
                     }
                     await db.referral_income.insert_one(referral_income)
@@ -895,10 +998,17 @@ async def handle_nowpayments_webhook(request: Request):
                         "user_id": user["referred_by"],
                         "type": "direct_income",
                         "amount": referral_amount,
-                        "description": f"Direct referral income from {user['full_name']}",
+                        "description": f"Direct referral income ({direct_income_percent}%) from {user['full_name']}",
                         "date": datetime.utcnow()
                     }
                     await db.transactions.insert_one(referrer_transaction)
+                    
+                    logging.info(f"Direct income: ${referral_amount:.2f} ({direct_income_percent}%) credited to {referrer['full_name']}")
+            
+            # Distribute level income to upline users (Levels 1-20)
+            plan_id = investment.get("plan", "premium")
+            level_distributions = await distribute_level_income(user_id, amount, plan_id)
+            logging.info(f"Level income distributed to {len(level_distributions)} upline users")
             
             logging.info(f"Investment {investment_id} activated successfully")
         

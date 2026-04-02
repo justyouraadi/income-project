@@ -644,13 +644,14 @@ async function loadWallets() {
             
             document.getElementById('dailyRoiBalance').textContent = `$${(wallet.daily_roi || 0).toFixed(2)}`;
             document.getElementById('directIncomeBalance').textContent = `$${(wallet.direct_income || 0).toFixed(2)}`;
+            document.getElementById('levelIncomeBalance').textContent = `$${(wallet.level_income || 0).toFixed(2)}`;
             document.getElementById('slabIncomeBalance').textContent = `$${(wallet.slab_income || 0).toFixed(2)}`;
             document.getElementById('royaltyIncomeBalance').textContent = `$${(wallet.royalty_income || 0).toFixed(2)}`;
             document.getElementById('salaryIncomeBalance').textContent = `$${(wallet.salary_income || 0).toFixed(2)}`;
             
             const total = (wallet.daily_roi || 0) + (wallet.direct_income || 0) + 
-                         (wallet.slab_income || 0) + (wallet.royalty_income || 0) + 
-                         (wallet.salary_income || 0);
+                         (wallet.level_income || 0) + (wallet.slab_income || 0) + 
+                         (wallet.royalty_income || 0) + (wallet.salary_income || 0);
             document.getElementById('mainWalletBalance').textContent = `$${total.toFixed(2)}`;
             document.getElementById('withdrawableBalance').textContent = `$${total.toFixed(2)}`;
         }
