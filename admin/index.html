@@ -1065,7 +1065,10 @@
                 </div>
                 
                 <div class="tab-section">
-                    <h3>💼 Investments</h3>
+                    <div class="tab-header-row">
+                        <h3>💼 Investments</h3>
+                        <button class="btn btn-primary btn-small" onclick="showAddInvestmentModal()">+ Add Investment</button>
+                    </div>
                     <div class="table-container">
                         <table class="data-table compact">
                             <thead>
@@ -1197,6 +1200,51 @@
                 <button class="btn btn-secondary" onclick="closeAddUserModal()">Cancel</button>
             </div>
             <div id="addUserMessage" class="message" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- Add Investment Modal -->
+    <div id="addInvestmentModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close" onclick="closeAddInvestmentModal()">&times;</span>
+            <h2>Add Investment for User</h2>
+            <input type="hidden" id="investmentUserId">
+            
+            <div class="investment-user-info">
+                <p><strong>User:</strong> <span id="investmentUserName">-</span></p>
+                <p><strong>Email:</strong> <span id="investmentUserEmail">-</span></p>
+            </div>
+            
+            <div class="form-group">
+                <label>Investment Plan *</label>
+                <select id="adminInvestmentPlan" required>
+                    <option value="">Loading plans...</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Investment Amount (USD) *</label>
+                <input type="number" id="adminInvestmentAmount" min="20" placeholder="Enter amount (min $20)" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Payment Currency</label>
+                <select id="adminInvestmentCurrency" disabled>
+                    <option value="usdtbsc" selected>USDT (BEP20)</option>
+                </select>
+            </div>
+            
+            <div class="investment-note">
+                <p><i>ℹ️</i> This investment will be added directly as <strong>Active</strong>.</p>
+                <p>Direct income and level income will be distributed automatically.</p>
+            </div>
+            
+            <div id="adminInvestmentMessage" class="message"></div>
+            
+            <div class="button-group">
+                <button class="btn btn-success" onclick="createAdminInvestment()">Add Investment</button>
+                <button class="btn btn-secondary" onclick="closeAddInvestmentModal()">Cancel</button>
+            </div>
         </div>
     </div>
 

@@ -2237,3 +2237,46 @@ select:focus {
         grid-template-columns: repeat(4, 1fr);
     }
 }
+
+/* Admin Investment Modal Styles */
+.investment-user-info {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-left: 3px solid #f1c40f;
+}
+
+.investment-user-info p {
+    margin: 5px 0;
+    color: #ecf0f1;
+}
+
+.investment-note {
+    background: rgba(52, 152, 219, 0.1);
+    border: 1px solid rgba(52, 152, 219, 0.3);
+    border-radius: 8px;
+    padding: 12px;
+    margin: 15px 0;
+    font-size: 0.9rem;
+    color: #7f8c8d;
+}
+
+.investment-note p {
+    margin: 5px 0;
+}
+
+.investment-note strong {
+    color: #2ecc71;
+}
+
+.tab-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.tab-header-row h3 {
+    margin: 0;
+}

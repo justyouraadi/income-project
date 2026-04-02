@@ -2385,6 +2385,176 @@ async def get_all_investments(
         "limit": limit
     }
 
+
+class AdminInvestmentCreate(BaseModel):
+    user_id: str
+    amount: float
+    plan_id: str
+
+
+@api_router.post("/admin/investments/create")
+async def admin_create_investment(
+    investment_data: AdminInvestmentCreate,
+    admin_user: dict = Depends(get_admin_user)
+):
+    """
+    Admin can create an investment for any user directly (bypasses payment gateway).
+    This also triggers direct income and level income distribution.
+    """
+    user_id = investment_data.user_id
+    amount = investment_data.amount
+    plan_id = investment_data.plan_id
+    
+    if amount < 20:
+        raise HTTPException(status_code=400, detail="Minimum investment is $20")
+    
+    # Verify user exists
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get the investment plan
+    plan = await db.investment_plans.find_one({"id": plan_id})
+    if not plan:
+        # Try to find by name for default plans
+        plan = await db.investment_plans.find_one({"name": {"$regex": plan_id, "$options": "i"}})
+    
+    if not plan:
+        # Use default values if plan not found
+        plan = {
+            "id": plan_id,
+            "name": plan_id,
+            "daily_roi": 1.0,
+            "direct_income": 5.0,
+            "level_income": DEFAULT_LEVEL_INCOME,
+            "validity_days": 100
+        }
+    
+    # Generate investment ID
+    investment_id = str(uuid.uuid4())
+    order_id = f"ADM-{investment_id[:8].upper()}"
+    
+    # Check if this is user's first investment
+    is_first_investment = user.get("status") == "inactive"
+    
+    # Create investment record (directly active)
+    start_date = datetime.utcnow()
+    end_date = start_date + timedelta(days=plan.get("validity_days", 100))
+    
+    new_investment = {
+        "id": investment_id,
+        "user_id": user_id,
+        "amount": amount,
+        "plan": plan_id,
+        "plan_name": plan.get("name", plan_id),
+        "cryptocurrency": "usdtbsc",
+        "order_id": order_id,
+        "date": start_date,
+        "end_date": end_date,
+        "status": "active",
+        "validity_days": plan.get("validity_days", 100),
+        "created_by_admin": True,
+        "admin_id": admin_user["id"],
+        "admin_email": admin_user["email"]
+    }
+    await db.investments.insert_one(new_investment)
+    
+    # Update user's wallet
+    await db.wallets.update_one(
+        {"user_id": user_id},
+        {
+            "$inc": {
+                "total_invested": amount,
+                "total_balance": amount
+            }
+        }
+    )
+    
+    # Activate user if first investment
+    if is_first_investment:
+        await db.users.update_one(
+            {"id": user_id},
+            {"$set": {"status": "active"}}
+        )
+    
+    # Create transaction record
+    transaction = {
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "type": "investment",
+        "amount": amount,
+        "description": f"Investment of ${amount} - {plan.get('name', plan_id)} (Added by Admin)",
+        "date": datetime.utcnow(),
+        "investment_id": investment_id,
+        "created_by_admin": True
+    }
+    await db.transactions.insert_one(transaction)
+    
+    # Process direct income (using plan's percentage)
+    direct_income_percent = plan.get("direct_income", 5.0)
+    direct_income_paid = 0
+    
+    if user.get("referred_by"):
+        referrer = await db.users.find_one({"id": user["referred_by"]})
+        
+        if referrer and referrer.get("status") == "active":
+            referral_amount = amount * (direct_income_percent / 100)
+            direct_income_paid = referral_amount
+            
+            await db.wallets.update_one(
+                {"user_id": user["referred_by"]},
+                {
+                    "$inc": {
+                        "direct_income": referral_amount,
+                        "total_balance": referral_amount
+                    }
+                }
+            )
+            
+            # Record referral income
+            referral_income = {
+                "id": str(uuid.uuid4()),
+                "user_id": user["referred_by"],
+                "referred_user_id": user_id,
+                "amount": referral_amount,
+                "percentage": direct_income_percent,
+                "date": datetime.utcnow()
+            }
+            await db.referral_income.insert_one(referral_income)
+            
+            # Create transaction for referrer
+            referrer_transaction = {
+                "id": str(uuid.uuid4()),
+                "user_id": user["referred_by"],
+                "type": "direct_income",
+                "amount": referral_amount,
+                "description": f"Direct referral income ({direct_income_percent}%) from {user['full_name']}",
+                "date": datetime.utcnow()
+            }
+            await db.transactions.insert_one(referrer_transaction)
+    
+    # Distribute level income (Levels 1-20)
+    level_distributions = await distribute_level_income(user_id, amount, plan_id)
+    
+    return {
+        "message": "Investment created successfully",
+        "investment": {
+            "id": investment_id,
+            "user_id": user_id,
+            "user_name": user["full_name"],
+            "amount": amount,
+            "plan": plan.get("name", plan_id),
+            "status": "active",
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat()
+        },
+        "income_distributed": {
+            "direct_income": direct_income_paid,
+            "level_income_recipients": len(level_distributions)
+        }
+    }
+
+
 @api_router.post("/admin/calculate-all-roi")
 async def calculate_all_roi(admin_user: dict = Depends(get_admin_user)):
     """Calculate ROI for all users"""

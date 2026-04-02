@@ -376,6 +376,9 @@ async function viewUser(userId) {
             const user = data.user;
             const wallet = data.wallet || {};
             
+            // Store user for investment modal
+            selectedUserForInvestment = user;
+            
             document.getElementById('modalUserName').textContent = user.full_name;
             
             // Get referrer info
@@ -3515,5 +3518,124 @@ async function deletePlan(planId) {
     } catch (error) {
         console.error('Error:', error);
         alert('Error deleting plan');
+    }
+}
+
+// ==================== ADMIN INVESTMENT FUNCTIONS ====================
+
+let selectedUserForInvestment = null;
+
+async function showAddInvestmentModal() {
+    // Get the current selected user from user details modal
+    if (!selectedUserForInvestment) {
+        alert('Please select a user first');
+        return;
+    }
+    
+    document.getElementById('investmentUserId').value = selectedUserForInvestment.id;
+    document.getElementById('investmentUserName').textContent = selectedUserForInvestment.full_name;
+    document.getElementById('investmentUserEmail').textContent = selectedUserForInvestment.email;
+    document.getElementById('adminInvestmentAmount').value = '';
+    document.getElementById('adminInvestmentMessage').textContent = '';
+    document.getElementById('adminInvestmentMessage').className = 'message';
+    
+    // Load investment plans
+    await loadInvestmentPlansForAdmin();
+    
+    document.getElementById('addInvestmentModal').style.display = 'flex';
+}
+
+function closeAddInvestmentModal() {
+    document.getElementById('addInvestmentModal').style.display = 'none';
+}
+
+async function loadInvestmentPlansForAdmin() {
+    try {
+        const response = await fetch(`${API_URL}/api/investment-plans`);
+        
+        if (response.ok) {
+            const plans = await response.json();
+            const select = document.getElementById('adminInvestmentPlan');
+            
+            if (plans.length > 0) {
+                select.innerHTML = plans.map(plan => 
+                    `<option value="${plan.id}">${plan.name} (${plan.daily_roi}% Daily ROI - ${plan.total_return || 2}x Return)</option>`
+                ).join('');
+            } else {
+                select.innerHTML = `
+                    <option value="premium">Premium Plan (1% Daily ROI - 2x Return)</option>
+                    <option value="regular">Regular Plan (0.5% Daily ROI - 1.5x Return)</option>
+                `;
+            }
+        } else {
+            document.getElementById('adminInvestmentPlan').innerHTML = `
+                <option value="premium">Premium Plan (1% Daily ROI)</option>
+                <option value="regular">Regular Plan (0.5% Daily ROI)</option>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading plans:', error);
+        document.getElementById('adminInvestmentPlan').innerHTML = `
+            <option value="premium">Premium Plan (1% Daily ROI)</option>
+        `;
+    }
+}
+
+async function createAdminInvestment() {
+    const userId = document.getElementById('investmentUserId').value;
+    const planId = document.getElementById('adminInvestmentPlan').value;
+    const amount = parseFloat(document.getElementById('adminInvestmentAmount').value);
+    const messageDiv = document.getElementById('adminInvestmentMessage');
+    
+    if (!planId) {
+        messageDiv.textContent = 'Please select an investment plan';
+        messageDiv.className = 'message error';
+        return;
+    }
+    
+    if (!amount || amount < 20) {
+        messageDiv.textContent = 'Minimum investment amount is $20';
+        messageDiv.className = 'message error';
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/api/admin/investments/create`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({
+                user_id: userId,
+                amount: amount,
+                plan_id: planId
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            messageDiv.innerHTML = `
+                <strong>Investment created successfully!</strong><br>
+                Amount: $${amount}<br>
+                Direct Income distributed: $${data.income_distributed?.direct_income?.toFixed(2) || '0.00'}<br>
+                Level Income recipients: ${data.income_distributed?.level_income_recipients || 0}
+            `;
+            messageDiv.className = 'message success';
+            
+            // Refresh the user's transaction history
+            setTimeout(() => {
+                closeAddInvestmentModal();
+                loadUserTransactionHistory(userId);
+            }, 2000);
+        } else {
+            messageDiv.textContent = data.detail || 'Failed to create investment';
+            messageDiv.className = 'message error';
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        messageDiv.textContent = 'Network error. Please try again.';
+        messageDiv.className = 'message error';
     }
 }
