@@ -731,7 +731,7 @@ async def create_investment(request: InvestRequest, current_user: dict = Depends
     order_id = f"INV-{investment_id[:8].upper()}"
     
     # Get base URL for callbacks (using frontend URL since it's publicly accessible)
-    base_url = "https://earn-learn-lead-test.preview.emergentagent.com"
+    base_url = "https://ssmoneyresource.tech"
     webhook_url = f"{base_url}/api/webhooks/nowpayments"
     success_url = f"{base_url}/api/user/#dashboard?payment=success&investment_id={investment_id}"
     cancel_url = f"{base_url}/api/user/#invest?payment=cancelled"
