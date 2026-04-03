@@ -488,6 +488,83 @@ body {
     margin-right: 10px;
 }
 
+/* Plan Feature Boxes */
+.plan-features-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.plan-feature-box {
+    padding: 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+}
+
+.plan-feature-box.gold {
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.15), rgba(255, 193, 7, 0.05));
+    border-color: rgba(255, 193, 7, 0.3);
+}
+
+.plan-feature-box.silver {
+    background: linear-gradient(135deg, rgba(192, 192, 192, 0.15), rgba(192, 192, 192, 0.05));
+    border-color: rgba(192, 192, 192, 0.3);
+}
+
+.plan-feature-box h4 {
+    color: var(--primary);
+    font-size: 16px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.plan-feature-box.gold h4 {
+    color: #ffc107;
+}
+
+.plan-feature-box.silver h4 {
+    color: #c0c0c0;
+}
+
+.plan-feature-box .invest-benefits {
+    margin: 0;
+}
+
+.plan-feature-box .invest-benefits li {
+    padding: 6px 0;
+    font-size: 13px;
+    border-bottom: none;
+}
+
+.plan-feature-box .invest-benefits li::before {
+    display: none;
+}
+
+.plan-feature-box .invest-benefits li i {
+    color: var(--success);
+    margin-right: 8px;
+    width: 14px;
+}
+
+.common-benefits {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.common-benefits li::before {
+    display: none;
+}
+
+.common-benefits li i {
+    color: var(--primary);
+    margin-right: 10px;
+    width: 16px;
+}
+
 /* P2P Card */
 .p2p-card {
     background: var(--bg-card);
