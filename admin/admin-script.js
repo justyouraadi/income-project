@@ -3297,10 +3297,6 @@ function renderPlans(plans) {
     }
     
     grid.innerHTML = plans.map(plan => {
-        // Calculate total level income %
-        const levelIncome = plan.level_income || {};
-        const totalLevelIncome = Object.values(levelIncome).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
-        
         return `
         <div class="plan-card ${plan.is_active ? '' : 'inactive'}">
             <div class="plan-header">
@@ -3324,7 +3320,7 @@ function renderPlans(plans) {
                 </div>
                 <div class="plan-stat">
                     <span class="stat-label">Level Income</span>
-                    <span class="stat-value">${totalLevelIncome.toFixed(1)}% (20 lvls)</span>
+                    <span class="stat-value">5-45% (Fixed Slabs)</span>
                 </div>
                 <div class="plan-stat">
                     <span class="stat-label">Validity</span>
@@ -3357,19 +3353,6 @@ function showAddPlanModal() {
     document.getElementById('planMinInvestment').value = 20;
     document.getElementById('planTotalReturn').value = 2;
     document.getElementById('planDirectIncome').value = 5;
-    
-    // Set default level incomes
-    const defaultLevels = {
-        1: 1.0, 2: 0.8, 3: 0.6, 4: 0.5, 5: 0.4,
-        6: 0.3, 7: 0.3, 8: 0.2, 9: 0.2, 10: 0.2,
-        11: 0.1, 12: 0.1, 13: 0.1, 14: 0.1, 15: 0.1,
-        16: 0.1, 17: 0.1, 18: 0.1, 19: 0.1, 20: 0.1
-    };
-    for (let i = 1; i <= 20; i++) {
-        const input = document.getElementById(`levelIncome${i}`);
-        if (input) input.value = defaultLevels[i];
-    }
-    
     document.getElementById('planModal').style.display = 'flex';
 }
 
@@ -3399,16 +3382,6 @@ async function editPlan(planId) {
                 document.getElementById('planMaxInvestment').value = plan.max_investment || '';
                 document.getElementById('planDescription').value = plan.description || '';
                 document.getElementById('planActive').checked = plan.is_active;
-                
-                // Load level incomes
-                const levelIncome = plan.level_income || {};
-                for (let i = 1; i <= 20; i++) {
-                    const input = document.getElementById(`levelIncome${i}`);
-                    if (input) {
-                        input.value = levelIncome[i.toString()] || levelIncome[i] || 0;
-                    }
-                }
-                
                 document.getElementById('planModal').style.display = 'flex';
             }
         }
@@ -3423,21 +3396,11 @@ async function savePlan(event) {
     
     const planId = document.getElementById('editPlanId').value;
     
-    // Collect level incomes
-    const levelIncome = {};
-    for (let i = 1; i <= 20; i++) {
-        const input = document.getElementById(`levelIncome${i}`);
-        if (input) {
-            levelIncome[i.toString()] = parseFloat(input.value) || 0;
-        }
-    }
-    
     const planData = {
         name: document.getElementById('planName').value,
         daily_roi: parseFloat(document.getElementById('planDailyRoi').value),
         total_return: parseFloat(document.getElementById('planTotalReturn').value),
         direct_income: parseFloat(document.getElementById('planDirectIncome').value),
-        level_income: levelIncome,
         validity_days: parseInt(document.getElementById('planValidityDays').value),
         min_investment: parseFloat(document.getElementById('planMinInvestment').value),
         max_investment: document.getElementById('planMaxInvestment').value ? 
@@ -3620,7 +3583,7 @@ async function createAdminInvestment() {
                 <strong>Investment created successfully!</strong><br>
                 Amount: $${amount}<br>
                 Direct Income distributed: $${data.income_distributed?.direct_income?.toFixed(2) || '0.00'}<br>
-                Level Income recipients: ${data.income_distributed?.level_income_recipients || 0}
+                <small style="color: #999;">${data.income_distributed?.note || 'Level income will be distributed when team earns ROI'}</small>
             `;
             messageDiv.className = 'message success';
             

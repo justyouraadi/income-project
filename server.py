@@ -57,6 +57,60 @@ NOWPAYMENTS_API_BASE_URL = "https://api.nowpayments.io/v1"
 # In-memory OTP storage (for production, use Redis or DB)
 otp_storage: Dict[str, dict] = {}
 
+# ==================== FIXED LEVEL INCOME SLABS ====================
+# Level Income is based on USER's TEAM TOTAL INVESTMENT (sum of all downline investments)
+# When team members earn Daily ROI, the upline receives a percentage of that ROI
+# based on their team's total investment slab (NOT editable per plan - these are fixed)
+# 1 lakh = 100,000 USD
+LEVEL_INCOME_SLABS = [
+    {"min": 1000, "max": 5000, "percent": 5},       # Level 1: Team investment $1,000 - $5,000 → 5%
+    {"min": 5000, "max": 10000, "percent": 10},     # Level 2: Team investment $5,000 - $10,000 → 10%
+    {"min": 10000, "max": 25000, "percent": 15},    # Level 3: Team investment $10,000 - $25,000 → 15%
+    {"min": 25000, "max": 50000, "percent": 20},    # Level 4: Team investment $25,000 - $50,000 → 20%
+    {"min": 50000, "max": 100000, "percent": 25},   # Level 5: Team investment $50,000 - $1 lakh → 25%
+    {"min": 100000, "max": 200000, "percent": 30},  # Level 6: Team investment $1 lakh - $2 lakh → 30%
+    {"min": 200000, "max": 500000, "percent": 35},  # Level 7: Team investment $2 lakh - $5 lakh → 35%
+    {"min": 500000, "max": 1000000, "percent": 40}, # Level 8: Team investment $5 lakh - $10 lakh → 40%
+    {"min": 1000000, "max": float('inf'), "percent": 45},  # Level 9+: Team investment $10 lakh+ → 45%
+]
+
+def get_level_income_percent(team_total_investment: float) -> float:
+    """
+    Get the level income percentage based on user's TEAM total investment amount.
+    Returns 0 if team investment is below minimum threshold ($1,000).
+    """
+    if team_total_investment < 1000:
+        return 0
+    
+    for slab in LEVEL_INCOME_SLABS:
+        if slab["min"] <= team_total_investment < slab["max"]:
+            return slab["percent"]
+    
+    # If above all slabs (shouldn't happen due to infinity), return max
+    return 45
+
+
+async def calculate_team_total_investment(user_id: str) -> float:
+    """
+    Calculate the total investment of a user's entire team (all downlines).
+    This recursively sums up investments from all levels of the referral tree.
+    """
+    total = 0
+    
+    # Get all direct referrals
+    direct_referrals = await db.users.find({"referred_by": user_id}).to_list(1000)
+    
+    for referral in direct_referrals:
+        # Get this referral's wallet to get their investment
+        wallet = await db.wallets.find_one({"user_id": referral["id"]})
+        if wallet:
+            total += wallet.get("total_invested", 0)
+        
+        # Recursively get their team's investment
+        total += await calculate_team_total_investment(referral["id"])
+    
+    return total
+
 # Security
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 SECRET_KEY = os.environ.get("SECRET_KEY", secrets.token_urlsafe(32))
@@ -86,6 +140,35 @@ async def root():
     """Root endpoint - redirect to website"""
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url="/api/website/")
+
+@api_router.get("/level-income-slabs")
+async def get_level_income_slabs():
+    """
+    Get the fixed level income slabs information.
+    Level income is based on user's TEAM TOTAL INVESTMENT (sum of all downline investments).
+    When team members earn Daily ROI, uplines receive a percentage based on their team's investment slab.
+    """
+    return {
+        "description": "Level income is a percentage of your team's Daily ROI based on your TEAM's total investment",
+        "slabs": [
+            {"level": 1, "min_investment": 1000, "max_investment": 5000, "percent": 5, "label": "Team Investment $1,000 - $5,000"},
+            {"level": 2, "min_investment": 5000, "max_investment": 10000, "percent": 10, "label": "Team Investment $5,000 - $10,000"},
+            {"level": 3, "min_investment": 10000, "max_investment": 25000, "percent": 15, "label": "Team Investment $10,000 - $25,000"},
+            {"level": 4, "min_investment": 25000, "max_investment": 50000, "percent": 20, "label": "Team Investment $25,000 - $50,000"},
+            {"level": 5, "min_investment": 50000, "max_investment": 100000, "percent": 25, "label": "Team Investment $50,000 - $1 Lakh"},
+            {"level": 6, "min_investment": 100000, "max_investment": 200000, "percent": 30, "label": "Team Investment $1 Lakh - $2 Lakh"},
+            {"level": 7, "min_investment": 200000, "max_investment": 500000, "percent": 35, "label": "Team Investment $2 Lakh - $5 Lakh"},
+            {"level": 8, "min_investment": 500000, "max_investment": 1000000, "percent": 40, "label": "Team Investment $5 Lakh - $10 Lakh"},
+            {"level": 9, "min_investment": 1000000, "max_investment": None, "percent": 45, "label": "Team Investment $10 Lakh & Above (up to Level 20)"}
+        ],
+        "notes": [
+            "Minimum TEAM investment of $1,000 required to earn level income",
+            "Level income applies up to 20 levels deep in your team",
+            "Only distributed when team members earn Daily ROI",
+            "These percentages are fixed and cannot be changed per plan",
+            "Team investment = sum of all your downline's investments"
+        ]
+    }
 
 # ==================== MODELS ====================
 
@@ -506,7 +589,6 @@ class InvestmentPlanCreate(BaseModel):
     daily_roi: float  # e.g., 1.0 for 1%
     total_return: float = 2.0  # e.g., 2.0 for 2x return
     direct_income: float = 5.0  # Direct referral income percentage
-    level_income: Dict[str, float] = None  # Level 1-20 income percentages
     min_investment: float = 20.0
     max_investment: Optional[float] = None
     validity_days: int = 100
@@ -518,20 +600,11 @@ class InvestmentPlanUpdate(BaseModel):
     daily_roi: Optional[float] = None
     total_return: Optional[float] = None
     direct_income: Optional[float] = None
-    level_income: Optional[Dict[str, float]] = None
     min_investment: Optional[float] = None
     max_investment: Optional[float] = None
     validity_days: Optional[int] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None
-
-# Default level income structure (20 levels)
-DEFAULT_LEVEL_INCOME = {
-    "1": 1.0, "2": 0.8, "3": 0.6, "4": 0.5, "5": 0.4,
-    "6": 0.3, "7": 0.3, "8": 0.2, "9": 0.2, "10": 0.2,
-    "11": 0.1, "12": 0.1, "13": 0.1, "14": 0.1, "15": 0.1,
-    "16": 0.1, "17": 0.1, "18": 0.1, "19": 0.1, "20": 0.1
-}
 
 
 @api_router.get("/investment-plans")
@@ -542,8 +615,8 @@ async def get_investment_plans():
     # If no plans exist, return default plans
     if not plans:
         default_plans = [
-            {"id": "premium", "name": "Premium Plan", "daily_roi": 1.0, "total_return": 2.0, "direct_income": 5.0, "level_income": DEFAULT_LEVEL_INCOME, "min_investment": 20, "validity_days": 100, "is_active": True},
-            {"id": "regular", "name": "Regular Plan", "daily_roi": 0.5, "total_return": 1.5, "direct_income": 5.0, "level_income": DEFAULT_LEVEL_INCOME, "min_investment": 20, "validity_days": 100, "is_active": True}
+            {"id": "premium", "name": "Premium Plan", "daily_roi": 1.0, "total_return": 2.0, "direct_income": 5.0, "min_investment": 20, "validity_days": 100, "is_active": True},
+            {"id": "regular", "name": "Regular Plan", "daily_roi": 0.5, "total_return": 1.5, "direct_income": 5.0, "min_investment": 20, "validity_days": 100, "is_active": True}
         ]
         return default_plans
     
@@ -551,9 +624,6 @@ async def get_investment_plans():
     for plan in plans:
         if "_id" in plan:
             del plan["_id"]
-        # Ensure level_income has default structure if missing
-        if not plan.get("level_income"):
-            plan["level_income"] = DEFAULT_LEVEL_INCOME
     
     return plans
 
@@ -579,16 +649,12 @@ async def create_investment_plan(plan: InvestmentPlanCreate, current_user: dict 
     if not current_user.get("is_admin"):
         raise HTTPException(status_code=403, detail="Admin access required")
     
-    # Use provided level_income or default
-    level_income = plan.level_income if plan.level_income else DEFAULT_LEVEL_INCOME
-    
     new_plan = {
         "id": str(uuid.uuid4()),
         "name": plan.name,
         "daily_roi": plan.daily_roi,
         "total_return": plan.total_return,
         "direct_income": plan.direct_income,
-        "level_income": level_income,
         "min_investment": plan.min_investment,
         "max_investment": plan.max_investment,
         "validity_days": plan.validity_days,
@@ -665,7 +731,7 @@ async def create_investment(request: InvestRequest, current_user: dict = Depends
     order_id = f"INV-{investment_id[:8].upper()}"
     
     # Get base URL for callbacks (using frontend URL since it's publicly accessible)
-    base_url = "https://ssmoneyresource.tech"
+    base_url = "https://earn-learn-lead-test.preview.emergentagent.com"
     webhook_url = f"{base_url}/api/webhooks/nowpayments"
     success_url = f"{base_url}/api/user/#dashboard?payment=success&investment_id={investment_id}"
     cancel_url = f"{base_url}/api/user/#invest?payment=cancelled"
@@ -748,29 +814,22 @@ async def create_investment(request: InvestRequest, current_user: dict = Depends
 
 # ==================== NOWPAYMENTS WEBHOOK ====================
 
-async def distribute_level_income(user_id: str, investment_amount: float, plan_id: str):
+async def distribute_level_income_from_roi(user_id: str, roi_amount: float, source_user_name: str):
     """
-    Distribute level income to upline users (up to 20 levels) based on the investment plan's level percentages.
+    Distribute level income to upline users (up to 20 levels) when a team member earns Daily ROI.
+    The percentage is based on the UPLINE's TEAM TOTAL INVESTMENT (slab-based, fixed).
     
     Args:
-        user_id: The ID of the user who made the investment
-        investment_amount: The amount invested
-        plan_id: The ID of the investment plan
+        user_id: The ID of the user who earned the ROI
+        roi_amount: The ROI amount earned by the team member
+        source_user_name: Name of the user who earned ROI (for transaction description)
     
     Returns:
         List of distributions made
     """
     distributions = []
     
-    # Get the investment plan to retrieve level income percentages
-    plan = await db.investment_plans.find_one({"id": plan_id})
-    if not plan:
-        # Use default level income if plan not found
-        level_income = DEFAULT_LEVEL_INCOME
-    else:
-        level_income = plan.get("level_income", DEFAULT_LEVEL_INCOME)
-    
-    # Get the investing user
+    # Get the user who earned ROI
     current_user = await db.users.find_one({"id": user_id})
     if not current_user:
         return distributions
@@ -793,12 +852,15 @@ async def distribute_level_income(user_id: str, investment_amount: float, plan_i
             level += 1
             continue
         
-        # Get level income percentage (try string key first, then integer)
-        level_percent = level_income.get(str(level), level_income.get(level, 0))
+        # Calculate upline's TEAM total investment (sum of all downline investments)
+        team_total_investment = await calculate_team_total_investment(current_upline_id)
+        
+        # Get level income percentage based on upline's TEAM investment slab
+        level_percent = get_level_income_percent(team_total_investment)
         
         if level_percent > 0:
-            # Calculate level income amount
-            income_amount = investment_amount * (level_percent / 100)
+            # Calculate level income amount (percentage of team member's ROI)
+            income_amount = roi_amount * (level_percent / 100)
             
             # Update upline's wallet - use level_income field
             await db.wallets.update_one(
@@ -817,12 +879,13 @@ async def distribute_level_income(user_id: str, investment_amount: float, plan_i
                 "user_id": current_upline_id,
                 "type": "level_income",
                 "amount": income_amount,
-                "description": f"Level {level} income from {current_user['full_name']}'s investment",
+                "description": f"Level {level} income ({level_percent}%) from {source_user_name}'s ROI",
                 "date": datetime.utcnow(),
                 "source_user_id": user_id,
                 "level": level,
-                "investment_amount": investment_amount,
-                "percentage": level_percent
+                "roi_amount": roi_amount,
+                "percentage": level_percent,
+                "team_total_investment": team_total_investment
             }
             await db.transactions.insert_one(level_transaction)
             
@@ -831,10 +894,11 @@ async def distribute_level_income(user_id: str, investment_amount: float, plan_i
                 "user_id": current_upline_id,
                 "user_name": upline_user.get("full_name", "Unknown"),
                 "amount": income_amount,
-                "percentage": level_percent
+                "percentage": level_percent,
+                "team_total_investment": team_total_investment
             })
             
-            logging.info(f"Level {level} income: ${income_amount:.2f} ({level_percent}%) credited to {upline_user['full_name']}")
+            logging.info(f"Level {level} income: ${income_amount:.4f} ({level_percent}%) credited to {upline_user['full_name']} (team investment ${team_total_investment})")
         
         # Move to next level
         current_upline_id = upline_user.get("referred_by")
@@ -1005,10 +1069,8 @@ async def handle_nowpayments_webhook(request: Request):
                     
                     logging.info(f"Direct income: ${referral_amount:.2f} ({direct_income_percent}%) credited to {referrer['full_name']}")
             
-            # Distribute level income to upline users (Levels 1-20)
-            plan_id = investment.get("plan", "premium")
-            level_distributions = await distribute_level_income(user_id, amount, plan_id)
-            logging.info(f"Level income distributed to {len(level_distributions)} upline users")
+            # NOTE: Level income is now distributed when team members earn Daily ROI,
+            # not when investments are made. See distribute_level_income_from_roi() function.
             
             logging.info(f"Investment {investment_id} activated successfully")
         
@@ -1286,12 +1348,21 @@ async def calculate_daily_roi(current_user: dict = Depends(get_current_user)):
     }
     await db.transactions.insert_one(transaction)
     
+    # Distribute level income to upline users based on this user's ROI
+    # Uplines receive a percentage of this ROI based on their own investment slab
+    level_distributions = await distribute_level_income_from_roi(
+        current_user["id"], 
+        total_roi, 
+        current_user.get("full_name", "User")
+    )
+    
     return {
         "message": "ROI calculated successfully",
         "roi": total_roi,
         "date": today.strftime("%Y-%m-%d"),
         "is_working_day": True,
-        "details": roi_details
+        "details": roi_details,
+        "level_income_distributed": len(level_distributions)
     }
 
 
@@ -2426,9 +2497,10 @@ async def admin_create_investment(
             "name": plan_id,
             "daily_roi": 1.0,
             "direct_income": 5.0,
-            "level_income": DEFAULT_LEVEL_INCOME,
             "validity_days": 100
         }
+        # Note: Level income is now based on fixed slabs (user's own investment amount)
+        # and is distributed when team members earn ROI, not at investment time
     
     # Generate investment ID
     investment_id = str(uuid.uuid4())
@@ -2533,8 +2605,8 @@ async def admin_create_investment(
             }
             await db.transactions.insert_one(referrer_transaction)
     
-    # Distribute level income (Levels 1-20)
-    level_distributions = await distribute_level_income(user_id, amount, plan_id)
+    # NOTE: Level income is distributed when team members earn Daily ROI,
+    # not at investment time. See distribute_level_income_from_roi() function.
     
     return {
         "message": "Investment created successfully",
@@ -2550,60 +2622,109 @@ async def admin_create_investment(
         },
         "income_distributed": {
             "direct_income": direct_income_paid,
-            "level_income_recipients": len(level_distributions)
+            "note": "Level income will be distributed when team earns Daily ROI"
         }
     }
 
 
 @api_router.post("/admin/calculate-all-roi")
 async def calculate_all_roi(admin_user: dict = Depends(get_admin_user)):
-    """Calculate ROI for all users"""
-    wallets = await db.wallets.find({"investment_balance": {"$gt": 0}}).to_list(1000)
+    """Calculate ROI for all users with active investments (excludes weekends and Dec 25)"""
+    
+    # Check if today is a working day
+    today = datetime.utcnow()
+    if not is_working_day(today):
+        day_name = today.strftime("%A")
+        reason = "Christmas Day (December 25)" if (today.month == 12 and today.day == 25) else f"{day_name} (non-working day)"
+        return {
+            "message": f"ROI not calculated - {reason}",
+            "users_processed": 0,
+            "total_roi_distributed": 0,
+            "is_working_day": False
+        }
+    
+    # Get all active investments
+    active_investments = await db.investments.find({"status": "active"}).to_list(10000)
     
     roi_calculated = 0
     total_roi = 0
+    level_income_distributions = 0
+    processed_users = set()
     
-    for wallet in wallets:
+    for investment in active_investments:
+        user_id = investment["user_id"]
+        
+        # Skip if user already processed today
+        if user_id in processed_users:
+            continue
+        
+        # Get user's wallet
+        wallet = await db.wallets.find_one({"user_id": user_id})
+        if not wallet:
+            continue
+        
         # Check if ROI already calculated today
         if wallet.get("last_roi_date"):
             last_date = wallet["last_roi_date"].date()
-            today = datetime.utcnow().date()
-            if last_date == today:
+            if last_date == today.date():
                 continue
         
-        # Calculate 1.5% ROI
-        roi_amount = wallet["investment_balance"] * 0.015
+        # Get all user's active investments and calculate ROI
+        user_investments = [inv for inv in active_investments if inv["user_id"] == user_id]
+        user_total_roi = 0
+        
+        for inv in user_investments:
+            plan_id = inv.get("plan", "premium")
+            plan = await db.investment_plans.find_one({"id": plan_id})
+            daily_roi_percent = plan.get("daily_roi", 1.0) if plan else 1.0
+            roi_amount = inv.get("amount", 0) * (daily_roi_percent / 100)
+            user_total_roi += roi_amount
+        
+        if user_total_roi <= 0:
+            continue
         
         # Update wallet
         await db.wallets.update_one(
-            {"user_id": wallet["user_id"]},
+            {"user_id": user_id},
             {
                 "$inc": {
-                    "earning_balance": roi_amount,
-                    "total_earned": roi_amount
+                    "daily_roi": user_total_roi,
+                    "total_balance": user_total_roi
                 },
                 "$set": {"last_roi_date": datetime.utcnow()}
             }
         )
         
+        # Get user info for transaction
+        user = await db.users.find_one({"id": user_id})
+        user_name = user.get("full_name", "User") if user else "User"
+        
         # Create transaction
         transaction = {
             "id": str(uuid.uuid4()),
-            "user_id": wallet["user_id"],
-            "type": "roi",
-            "amount": roi_amount,
-            "description": "Daily ROI (1.5%)",
+            "user_id": user_id,
+            "type": "daily_roi",
+            "amount": user_total_roi,
+            "description": f"Daily ROI - {today.strftime('%Y-%m-%d')}",
             "date": datetime.utcnow()
         }
         await db.transactions.insert_one(transaction)
         
+        # Distribute level income to uplines
+        if user:
+            distributions = await distribute_level_income_from_roi(user_id, user_total_roi, user_name)
+            level_income_distributions += len(distributions)
+        
         roi_calculated += 1
-        total_roi += roi_amount
+        total_roi += user_total_roi
+        processed_users.add(user_id)
     
     return {
         "message": f"ROI calculated for {roi_calculated} users",
         "users_processed": roi_calculated,
-        "total_roi_distributed": total_roi
+        "total_roi_distributed": total_roi,
+        "level_income_distributions": level_income_distributions,
+        "is_working_day": True
     }
 
 @api_router.delete("/admin/users/{user_id}")
