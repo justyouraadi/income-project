@@ -23,6 +23,8 @@ import httpx
 import hmac
 import hashlib
 import json
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -1420,6 +1422,9 @@ async def get_active_investments(current_user: dict = Depends(get_current_user))
     now = datetime.utcnow()
     result = []
     
+    # Cache plans for performance
+    plans_cache = {}
+    
     for inv in investments:
         start_date = inv.get("date", now)
         validity_days = inv.get("validity_days", 100)
@@ -1439,10 +1444,18 @@ async def get_active_investments(current_user: dict = Depends(get_current_user))
             )
             continue
         
+        # Get plan name
+        plan_id = inv.get("plan", "premium")
+        if plan_id not in plans_cache:
+            plan_doc = await db.investment_plans.find_one({"id": plan_id})
+            plans_cache[plan_id] = plan_doc.get("name", plan_id) if plan_doc else plan_id
+        plan_name = plans_cache[plan_id]
+        
         result.append({
             "id": inv["id"],
             "amount": inv["amount"],
-            "plan": inv.get("plan", "premium"),
+            "plan": plan_name,  # Now returns plan NAME instead of ID
+            "plan_id": plan_id,
             "start_date": start_date.isoformat(),
             "end_date": end_date.isoformat(),
             "validity_days": validity_days,
@@ -2215,6 +2228,26 @@ async def get_user_transactions(user_id: str, admin_user: dict = Depends(get_adm
     # Get all withdrawals
     withdrawals = await db.withdrawals.find({"user_id": user_id}).sort("request_timestamp", -1).to_list(100)
     
+    # Get plan names for investments
+    plans_cache = {}
+    investments_with_names = []
+    for i in investments:
+        plan_id = i.get("plan", "premium")
+        if plan_id not in plans_cache:
+            plan_doc = await db.investment_plans.find_one({"id": plan_id})
+            plans_cache[plan_id] = plan_doc.get("name", plan_id) if plan_doc else plan_id
+        
+        investments_with_names.append({
+            "id": i.get("id"),
+            "amount": i.get("amount"),
+            "plan": plans_cache[plan_id],  # Plan NAME instead of ID
+            "plan_id": plan_id,
+            "status": i.get("status"),
+            "validity_days": i.get("validity_days", 100),
+            "start_date": i.get("date").isoformat() if hasattr(i.get("date"), 'isoformat') else str(i.get("date", "")),
+            "end_date": i.get("end_date").isoformat() if hasattr(i.get("end_date"), 'isoformat') else str(i.get("end_date", ""))
+        })
+    
     return {
         "user_id": user_id,
         "user_name": user["full_name"],
@@ -2227,17 +2260,7 @@ async def get_user_transactions(user_id: str, admin_user: dict = Depends(get_adm
                 "date": t.get("date").isoformat() if hasattr(t.get("date"), 'isoformat') else str(t.get("date", ""))
             } for t in transactions
         ],
-        "investments": [
-            {
-                "id": i.get("id"),
-                "amount": i.get("amount"),
-                "plan": i.get("plan", "premium"),
-                "status": i.get("status"),
-                "validity_days": i.get("validity_days", 100),
-                "start_date": i.get("date").isoformat() if hasattr(i.get("date"), 'isoformat') else str(i.get("date", "")),
-                "end_date": i.get("end_date").isoformat() if hasattr(i.get("end_date"), 'isoformat') else str(i.get("end_date", ""))
-            } for i in investments
-        ],
+        "investments": investments_with_names,
         "withdrawals": [
             {
                 "id": w.get("id"),
@@ -4540,6 +4563,133 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# ==================== DAILY ROI CRON JOB ====================
+scheduler = AsyncIOScheduler()
+
+async def scheduled_daily_roi_calculation():
+    """
+    Scheduled job to calculate and distribute daily ROI at midnight (12:00 AM).
+    This runs automatically every day and skips weekends and Dec 25.
+    """
+    logging.info("=== SCHEDULED DAILY ROI CALCULATION STARTED ===")
+    
+    today = datetime.utcnow()
+    
+    # Check if today is a working day
+    if not is_working_day(today):
+        day_name = today.strftime("%A")
+        reason = "Christmas Day" if (today.month == 12 and today.day == 25) else f"{day_name}"
+        logging.info(f"Skipping ROI calculation - {reason} (non-working day)")
+        return
+    
+    try:
+        # Get all active investments
+        active_investments = await db.investments.find({"status": "active"}).to_list(10000)
+        
+        roi_calculated = 0
+        total_roi = 0
+        level_income_distributions = 0
+        processed_users = set()
+        
+        for investment in active_investments:
+            user_id = investment["user_id"]
+            
+            # Skip if user already processed today
+            if user_id in processed_users:
+                continue
+            
+            # Get user's wallet
+            wallet = await db.wallets.find_one({"user_id": user_id})
+            if not wallet:
+                continue
+            
+            # Check if ROI already calculated today
+            if wallet.get("last_roi_date"):
+                last_date = wallet["last_roi_date"].date()
+                if last_date == today.date():
+                    continue
+            
+            # Get all user's active investments and calculate ROI
+            user_investments = [inv for inv in active_investments if inv["user_id"] == user_id]
+            user_total_roi = 0
+            
+            for inv in user_investments:
+                plan_id = inv.get("plan", "premium")
+                plan = await db.investment_plans.find_one({"id": plan_id})
+                daily_roi_percent = plan.get("daily_roi", 1.0) if plan else 1.0
+                roi_amount = inv.get("amount", 0) * (daily_roi_percent / 100)
+                user_total_roi += roi_amount
+            
+            if user_total_roi <= 0:
+                continue
+            
+            # Update wallet
+            await db.wallets.update_one(
+                {"user_id": user_id},
+                {
+                    "$inc": {
+                        "daily_roi": user_total_roi,
+                        "total_balance": user_total_roi
+                    },
+                    "$set": {"last_roi_date": datetime.utcnow()}
+                }
+            )
+            
+            # Get user info for transaction
+            user = await db.users.find_one({"id": user_id})
+            user_name = user.get("full_name", "User") if user else "User"
+            
+            # Create transaction
+            transaction = {
+                "id": str(uuid.uuid4()),
+                "user_id": user_id,
+                "type": "daily_roi",
+                "amount": user_total_roi,
+                "description": f"Daily ROI - {today.strftime('%Y-%m-%d')} (Auto-credited)",
+                "date": datetime.utcnow()
+            }
+            await db.transactions.insert_one(transaction)
+            
+            # Distribute level income to uplines
+            if user:
+                distributions = await distribute_level_income_from_roi(user_id, user_total_roi, user_name)
+                level_income_distributions += len(distributions)
+            
+            roi_calculated += 1
+            total_roi += user_total_roi
+            processed_users.add(user_id)
+        
+        logging.info(f"=== DAILY ROI COMPLETED: {roi_calculated} users, ${total_roi:.2f} distributed, {level_income_distributions} level income distributions ===")
+        
+        # Store cron execution log
+        await db.cron_logs.insert_one({
+            "job": "daily_roi",
+            "executed_at": datetime.utcnow(),
+            "users_processed": roi_calculated,
+            "total_roi_distributed": total_roi,
+            "level_income_distributions": level_income_distributions,
+            "is_working_day": True
+        })
+        
+    except Exception as e:
+        logging.error(f"Error in scheduled ROI calculation: {str(e)}")
+
+@app.on_event("startup")
+async def start_scheduler():
+    """Start the background scheduler for daily ROI calculations"""
+    # Run daily at 00:00 IST (India Standard Time)
+    # IST is UTC+5:30, so 00:00 IST = 18:30 UTC (previous day)
+    scheduler.add_job(
+        scheduled_daily_roi_calculation,
+        CronTrigger(hour=18, minute=30),  # 12:00 AM IST = 6:30 PM UTC
+        id="daily_roi_job",
+        replace_existing=True
+    )
+    scheduler.start()
+    logging.info("Daily ROI scheduler started - will run at 00:00 IST (18:30 UTC) daily")
+
 @app.on_event("shutdown")
-async def shutdown_db_client():
+async def shutdown_scheduler():
+    """Shutdown the scheduler gracefully"""
+    scheduler.shutdown()
     client.close()

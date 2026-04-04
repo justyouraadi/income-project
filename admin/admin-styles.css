@@ -2280,3 +2280,15 @@ select:focus {
 .tab-header-row h3 {
     margin: 0;
 }
+
+/* Clickable Stat Cards */
+.stat-card.clickable {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.stat-card.clickable:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(243, 156, 18, 0.2);
+    border-color: var(--primary);
+}

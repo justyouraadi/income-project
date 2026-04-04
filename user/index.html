@@ -144,6 +144,10 @@
                     <span class="nav-icon">💰</span>
                     <span>Wallet</span>
                 </a>
+                <a href="#" class="nav-item" data-page="transactions">
+                    <span class="nav-icon">📜</span>
+                    <span>Transactions</span>
+                </a>
                 <a href="#" class="nav-item" data-page="invest">
                     <span class="nav-icon">📈</span>
                     <span>Invest</span>
@@ -393,6 +397,47 @@
                     </div>
                 </div>
 
+                <!-- Transactions Page -->
+                <div id="transactionsPage" class="page-content" style="display: none;">
+                    <h2 class="page-subtitle">Transaction History</h2>
+                    
+                    <!-- Filter Section -->
+                    <div class="filter-section">
+                        <div class="filter-group">
+                            <label>Type:</label>
+                            <select id="txnFilterType" onchange="loadAllTransactions()">
+                                <option value="">All Types</option>
+                                <option value="daily_roi">Daily ROI</option>
+                                <option value="direct_income">Direct Income</option>
+                                <option value="level_income">Level Income</option>
+                                <option value="investment">Investment</option>
+                                <option value="withdrawal">Withdrawal</option>
+                                <option value="p2p_transfer">P2P Transfer</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Date Range:</label>
+                            <input type="date" id="txnFilterFrom" onchange="loadAllTransactions()">
+                            <span>to</span>
+                            <input type="date" id="txnFilterTo" onchange="loadAllTransactions()">
+                        </div>
+                    </div>
+
+                    <!-- Transactions List -->
+                    <div class="transactions-card">
+                        <div class="transactions-list" id="allTransactionsList">
+                            <div class="loading-spinner">Loading transactions...</div>
+                        </div>
+                        
+                        <!-- Pagination -->
+                        <div class="pagination" id="txnPagination">
+                            <button class="btn btn-outline btn-small" onclick="loadAllTransactions(currentTxnPage - 1)" id="txnPrevBtn" disabled>Previous</button>
+                            <span id="txnPageInfo">Page 1</span>
+                            <button class="btn btn-outline btn-small" onclick="loadAllTransactions(currentTxnPage + 1)" id="txnNextBtn">Next</button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- P2P Transfer Page -->
                 <div id="p2pPage" class="page-content" style="display: none;">
                     <h2 class="page-subtitle">P2P Wallet Transfer</h2>
@@ -457,6 +502,13 @@
                             <span class="team-stat-label">Direct Referrals</span>
                         </div>
                     </div>
+                    
+                    <!-- View Toggle -->
+                    <div class="team-view-toggle">
+                        <button class="active" data-view="list" onclick="setTeamView('list')">📋 List View</button>
+                        <button data-view="tree" onclick="setTeamView('tree')">🌳 Tree View</button>
+                    </div>
+                    
                     <div class="section-card">
                         <h3>Team Members</h3>
                         <div class="team-list" id="teamList">

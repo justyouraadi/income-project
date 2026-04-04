@@ -355,6 +355,9 @@ function loadPageData(page) {
         case 'wallet':
             loadWallets();
             break;
+        case 'transactions':
+            loadAllTransactions(1);
+            break;
         case 'invest':
             loadInvestmentPlans();
             break;
@@ -1024,6 +1027,12 @@ async function loadP2PHistory() {
 
 // Load Team
 async function loadTeam() {
+    // Check if tree view is selected
+    if (teamViewMode === 'tree') {
+        await loadTeamTree();
+        return;
+    }
+    
     try {
         const response = await fetch(`${API_URL}/api/team/members`, {
             headers: { 'Authorization': `Bearer ${authToken}` }
@@ -1761,4 +1770,165 @@ function closeVideoPlayer() {
     
     iframe.src = '';
     modal.style.display = 'none';
+}
+
+// ==================== TRANSACTIONS PAGE ====================
+let currentTxnPage = 1;
+const TXN_PER_PAGE = 20;
+
+// Load all transactions with filters
+async function loadAllTransactions(page = 1) {
+    const container = document.getElementById('allTransactionsList');
+    if (!container) return;
+    
+    currentTxnPage = page;
+    container.innerHTML = '<div class="loading-spinner">Loading transactions...</div>';
+    
+    try {
+        const filterType = document.getElementById('txnFilterType')?.value || '';
+        const filterFrom = document.getElementById('txnFilterFrom')?.value || '';
+        const filterTo = document.getElementById('txnFilterTo')?.value || '';
+        
+        let url = `${API_URL}/api/transactions?limit=${TXN_PER_PAGE}&skip=${(page - 1) * TXN_PER_PAGE}`;
+        if (filterType) url += `&type=${filterType}`;
+        if (filterFrom) url += `&from_date=${filterFrom}`;
+        if (filterTo) url += `&to_date=${filterTo}`;
+        
+        const response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            const transactions = data.transactions || data;
+            const total = data.total || transactions.length;
+            
+            if (transactions.length === 0) {
+                container.innerHTML = '<p class="empty-state">No transactions found</p>';
+                document.getElementById('txnPagination').style.display = 'none';
+                return;
+            }
+            
+            container.innerHTML = transactions.map(txn => {
+                const isCredit = ['daily_roi', 'direct_income', 'level_income', 'slab_income', 'royalty_income', 'salary_income', 'deposit', 'credit'].includes(txn.type);
+                const amount = parseFloat(txn.amount) || 0;
+                return `
+                    <div class="txn-item">
+                        <div class="txn-info">
+                            <span class="txn-type">${formatTransactionType(txn.type)}</span>
+                            <span class="txn-desc">${txn.description || ''}</span>
+                            <span class="txn-date">${new Date(txn.date).toLocaleString()}</span>
+                        </div>
+                        <span class="txn-amount ${isCredit ? 'credit' : 'debit'}">
+                            ${isCredit ? '+' : '-'}$${Math.abs(amount).toFixed(2)}
+                        </span>
+                    </div>
+                `;
+            }).join('');
+            
+            // Update pagination
+            const totalPages = Math.ceil(total / TXN_PER_PAGE);
+            document.getElementById('txnPagination').style.display = 'flex';
+            document.getElementById('txnPageInfo').textContent = `Page ${page} of ${totalPages}`;
+            document.getElementById('txnPrevBtn').disabled = page <= 1;
+            document.getElementById('txnNextBtn').disabled = page >= totalPages;
+        }
+    } catch (error) {
+        console.error('Error loading transactions:', error);
+        container.innerHTML = '<p class="empty-state">Error loading transactions</p>';
+    }
+}
+
+function formatTransactionType(type) {
+    const types = {
+        'daily_roi': 'Daily ROI',
+        'direct_income': 'Direct Income',
+        'level_income': 'Level Income',
+        'slab_income': 'Slab Income',
+        'royalty_income': 'Royalty Income',
+        'salary_income': 'Salary Income',
+        'investment': 'Investment',
+        'withdrawal': 'Withdrawal',
+        'p2p_transfer': 'P2P Transfer',
+        'p2p_received': 'P2P Received',
+        'credit': 'Credit',
+        'debit': 'Debit'
+    };
+    return types[type] || type.replace(/_/g, ' ');
+}
+
+// ==================== TEAM TREE VIEW ====================
+let teamViewMode = 'list'; // 'list' or 'tree'
+
+// Toggle between list and tree view
+function setTeamView(mode) {
+    teamViewMode = mode;
+    document.querySelectorAll('.team-view-toggle button').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.view === mode);
+    });
+    loadTeam();
+}
+
+// Load team with tree view support
+async function loadTeamTree(parentId = null, container = null, level = 0) {
+    if (level > 5) return; // Max 5 levels deep
+    
+    try {
+        const url = parentId 
+            ? `${API_URL}/api/team/members?parent_id=${parentId}`
+            : `${API_URL}/api/team/members`;
+            
+        const response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            const members = data.members || data;
+            
+            if (!container) {
+                container = document.getElementById('teamList');
+                container.innerHTML = '';
+            }
+            
+            members.forEach(member => {
+                const node = document.createElement('div');
+                node.className = 'tree-node';
+                node.innerHTML = `
+                    <div class="tree-node-content" onclick="toggleTreeNode(this, '${member.id}')">
+                        <div class="tree-node-avatar">${(member.full_name || 'U')[0]}</div>
+                        <div class="tree-node-info">
+                            <h4>${member.full_name || 'User'}</h4>
+                            <span>#${member.user_number || member.id.slice(0,6)} • $${(member.total_investment || 0).toFixed(2)}</span>
+                        </div>
+                        ${member.team_size > 0 ? `<span class="tree-toggle">▶ ${member.team_size}</span>` : ''}
+                    </div>
+                    <div class="tree-children" data-user-id="${member.id}"></div>
+                `;
+                container.appendChild(node);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading team tree:', error);
+    }
+}
+
+async function toggleTreeNode(element, userId) {
+    const childrenContainer = element.nextElementSibling;
+    const toggle = element.querySelector('.tree-toggle');
+    
+    if (childrenContainer.classList.contains('show')) {
+        childrenContainer.classList.remove('show');
+        element.classList.remove('expanded');
+        if (toggle) toggle.textContent = '▶ ' + toggle.textContent.split(' ')[1];
+    } else {
+        childrenContainer.classList.add('show');
+        element.classList.add('expanded');
+        if (toggle) toggle.textContent = '▼ ' + toggle.textContent.split(' ')[1];
+        
+        // Load children if not already loaded
+        if (childrenContainer.children.length === 0) {
+            await loadTeamTree(userId, childrenContainer, 1);
+        }
+    }
 }
