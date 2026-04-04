@@ -1810,8 +1810,10 @@ async function loadAllTransactions(page = 1) {
             }
             
             container.innerHTML = transactions.map(txn => {
-                const isCredit = ['daily_roi', 'direct_income', 'level_income', 'slab_income', 'royalty_income', 'salary_income', 'deposit', 'credit'].includes(txn.type);
                 const amount = parseFloat(txn.amount) || 0;
+                // Use amount-based check (positive = credit, negative = debit)
+                // This matches the dashboard logic for consistency
+                const isCredit = amount >= 0;
                 return `
                     <div class="txn-item">
                         <div class="txn-info">

@@ -104,6 +104,52 @@ function logout() {
     location.reload();
 }
 
+// Show a specific section (used by clickable dashboard cards)
+function showSection(sectionName) {
+    // Map section names to page names
+    const sectionMap = {
+        'users': 'users',
+        'investments': 'investments',
+        'transactions': 'transactions',
+        'withdrawals': 'withdrawals'
+    };
+    
+    const page = sectionMap[sectionName];
+    if (!page) return;
+    
+    // Update active nav item
+    document.querySelectorAll('.nav-item').forEach(nav => {
+        nav.classList.remove('active');
+        if (nav.getAttribute('data-page') === page) {
+            nav.classList.add('active');
+        }
+    });
+    
+    // Hide all pages and show the selected one
+    document.querySelectorAll('.page-content').forEach(p => p.style.display = 'none');
+    
+    const pageElement = document.getElementById(page + 'Page');
+    if (pageElement) {
+        pageElement.style.display = 'block';
+        
+        const titles = {
+            'overview': 'Dashboard Overview',
+            'users': 'User Management',
+            'wallets': 'Wallet Management',
+            'p2p': 'P2P Wallet Transfer',
+            'withdrawals': 'Withdrawal Requests',
+            'investments': 'Investments',
+            'transactions': 'Transactions',
+            'income': 'Income Calculator',
+            'learning': 'Learning Center',
+            'tickets': 'Support Tickets'
+        };
+        document.getElementById('pageTitle').textContent = titles[page] || page;
+        
+        loadPageData(page);
+    }
+}
+
 // Navigation
 document.querySelectorAll('.nav-item').forEach(item => {
     item.addEventListener('click', function(e) {
