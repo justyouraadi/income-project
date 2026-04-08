@@ -327,14 +327,14 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
 @api_router.get("/auth/lookup-referrer/{code}")
 async def lookup_referrer(code: str):
-    """Look up a referrer by referral code or user number"""
+    """Look up a referrer by referral code or user number (format: 01SSMR)"""
     # Remove # prefix if present
-    clean_code = code.lstrip('#')
+    clean_code = code.lstrip('#').strip()
     
-    # Try to find by user_number first (if it's a number)
-    try:
-        user_number = int(clean_code)
-        referrer = await db.users.find_one({"user_number": user_number})
+    # Try to find by user_number (format: 01SSMR, 02SSMR, etc.)
+    # Check if code ends with SSMR (case insensitive)
+    if clean_code.upper().endswith('SSMR'):
+        referrer = await db.users.find_one({"user_number": clean_code.upper()})
         if referrer:
             return {
                 "found": True,
@@ -342,8 +342,6 @@ async def lookup_referrer(code: str):
                 "user_number": referrer["user_number"],
                 "referral_code": referrer["referral_code"]
             }
-    except ValueError:
-        pass
     
     # Try to find by referral_code
     referrer = await db.users.find_one({"referral_code": clean_code.upper()})
@@ -378,16 +376,13 @@ async def register(user_data: UserCreate):
     referrer = None
     if user_data.referral_code:
         # Remove # prefix if present
-        clean_code = user_data.referral_code.lstrip('#')
+        clean_code = user_data.referral_code.lstrip('#').strip()
         
-        # Try to find by user_number first (if it's a number)
-        try:
-            user_number_ref = int(clean_code)
-            referrer = await db.users.find_one({"user_number": user_number_ref})
-        except ValueError:
-            pass
+        # Try to find by user_number (format: 01SSMR, 02SSMR, etc.)
+        if clean_code.upper().endswith('SSMR'):
+            referrer = await db.users.find_one({"user_number": clean_code.upper()})
         
-        # If not found by number, try by referral_code
+        # If not found by user_number, try by referral_code
         if not referrer:
             referrer = await db.users.find_one({"referral_code": clean_code.upper()})
         if not referrer:
@@ -396,9 +391,10 @@ async def register(user_data: UserCreate):
         if not referrer:
             raise HTTPException(status_code=400, detail="Invalid referral code")
     
-    # Generate unique user ID number (6 digits starting from 100001)
-    last_user = await db.users.find_one(sort=[("user_number", -1)])
-    user_number = (last_user.get("user_number", 100000) + 1) if last_user else 100001
+    # Generate unique user number in format: 01SSMR, 02SSMR, etc.
+    last_user = await db.users.find_one(sort=[("user_seq", -1)])
+    user_seq = (last_user.get("user_seq", 0) + 1) if last_user else 1
+    user_number = f"{user_seq:02d}SSMR"  # Format: 01SSMR, 02SSMR, etc.
     
     # Create user
     user_id = str(uuid.uuid4())
@@ -407,7 +403,8 @@ async def register(user_data: UserCreate):
     
     user = {
         "id": user_id,
-        "user_number": user_number,  # Unique numeric ID
+        "user_seq": user_seq,  # Sequential number for generating user_number
+        "user_number": user_number,  # Display format: 01SSMR, 02SSMR, etc.
         "email": user_data.email,
         "password": hashed_password,
         "full_name": user_data.full_name,
@@ -1851,20 +1848,21 @@ async def admin_create_user(user_data: AdminCreateUser, admin_user: dict = Depen
     # Validate referral code if provided
     referrer = None
     if user_data.referral_code:
-        clean_code = user_data.referral_code.lstrip('#')
-        try:
-            user_number_ref = int(clean_code)
-            referrer = await db.users.find_one({"user_number": user_number_ref})
-        except ValueError:
-            pass
+        clean_code = user_data.referral_code.lstrip('#').strip()
+        
+        # Try to find by user_number (format: 01SSMR, 02SSMR, etc.)
+        if clean_code.upper().endswith('SSMR'):
+            referrer = await db.users.find_one({"user_number": clean_code.upper()})
+        
         if not referrer:
             referrer = await db.users.find_one({"referral_code": clean_code.upper()})
         if not referrer:
             referrer = await db.users.find_one({"referral_code": clean_code})
     
-    # Generate unique user ID number
-    last_user = await db.users.find_one(sort=[("user_number", -1)])
-    user_number = (last_user.get("user_number", 100000) + 1) if last_user else 100001
+    # Generate unique user number in format: 01SSMR, 02SSMR, etc.
+    last_user = await db.users.find_one(sort=[("user_seq", -1)])
+    user_seq = (last_user.get("user_seq", 0) + 1) if last_user else 1
+    user_number = f"{user_seq:02d}SSMR"  # Format: 01SSMR, 02SSMR, etc.
     
     # Create user
     user_id = str(uuid.uuid4())
@@ -1873,7 +1871,8 @@ async def admin_create_user(user_data: AdminCreateUser, admin_user: dict = Depen
     
     user = {
         "id": user_id,
-        "user_number": user_number,
+        "user_seq": user_seq,  # Sequential number for generating user_number
+        "user_number": user_number,  # Display format: 01SSMR, 02SSMR, etc.
         "email": user_data.email,
         "password": hashed_password,
         "full_name": user_data.full_name,
