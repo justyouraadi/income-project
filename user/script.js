@@ -1897,7 +1897,7 @@ async function loadTeamTree(parentId = null, container = null, level = 0) {
                 const node = document.createElement('div');
                 node.className = 'tree-node';
                 node.innerHTML = `
-                    <div class="tree-node-content" onclick="toggleTreeNode(this, '${member.id}')">
+                    <div class="tree-node-content" onclick="toggleTreeNode(this, '${member.user_id}')">
                         <div class="tree-node-avatar">${(member.full_name || 'U')[0]}</div>
                         <div class="tree-node-info">
                             <h4>${member.full_name || 'User'}</h4>
