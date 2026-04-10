@@ -1029,9 +1029,14 @@ async function loadP2PHistory() {
 async function loadTeam() {
     // Check if tree view is selected
     if (teamViewMode === 'tree') {
+        const treeContainer = document.getElementById('teamList');
+        if (treeContainer) treeContainer.classList.add('tree-layout');
         await loadTeamTree();
         return;
     }
+
+    const listContainer = document.getElementById('teamList');
+    if (listContainer) listContainer.classList.remove('tree-layout');
     
     try {
         const response = await fetch(`${API_URL}/api/team/members`, {
@@ -1896,6 +1901,7 @@ async function loadTeamTree(parentId = null, container = null, level = 0) {
             if (!container) {
                 container = document.getElementById('teamList');
                 container.innerHTML = '';
+                container.classList.add('tree-layout');
             }
 
             if (members.length === 0 && level === 0) {
@@ -1906,19 +1912,26 @@ async function loadTeamTree(parentId = null, container = null, level = 0) {
             members.forEach(member => {
                 const memberId = member.id || member.user_id;
                 const teamSize = Number(member.team_size || 0);
-                const toggleMarkup = teamSize > 0 ? `<span class="tree-toggle">▶ ${teamSize}</span>` : '';
+                const fullNameRaw = (member.full_name || 'User').trim();
+                const fullName = escapeHtml(fullNameRaw);
+                const firstInitial = fullNameRaw ? fullNameRaw.charAt(0).toUpperCase() : 'U';
+                const referralCode = escapeHtml((member.referral_code || 'N/A').toString());
+                const toggleMarkup = teamSize > 0
+                    ? `<button class="tree-toggle" type="button" onclick="toggleTreeNode(this, '${memberId}')" aria-label="Toggle referral tree">+</button>`
+                    : '';
 
                 const node = document.createElement('div');
                 node.className = 'tree-node';
+                node.dataset.level = String(level);
                 node.innerHTML = `
-                    <div class="tree-node-content" ${memberId ? `onclick="toggleTreeNode(this, '${memberId}')"` : ''}>
-                        <div class="tree-node-avatar">${(member.full_name || 'U')[0]}</div>
+                    <div class="tree-node-content ${teamSize > 0 ? 'has-children' : ''}">
+                        <div class="tree-node-avatar">${firstInitial}</div>
                         <div class="tree-node-info">
-                            <h4>${member.full_name || 'User'}</h4>
-                            <span>#${member.referral_code || (memberId ? memberId.slice(0, 6) : 'N/A')} • $${(member.total_investment || 0).toFixed(2)}</span>
+                            <h4>${fullName}</h4>
+                            <span>${referralCode}</span>
                         </div>
-                        ${toggleMarkup}
                     </div>
+                    ${toggleMarkup}
                     <div class="tree-children" data-user-id="${memberId || ''}" data-level="${level + 1}"></div>
                 `;
                 container.appendChild(node);
@@ -1932,23 +1945,23 @@ async function loadTeamTree(parentId = null, container = null, level = 0) {
 async function toggleTreeNode(element, userId) {
     if (!userId) return;
 
-    const childrenContainer = element.nextElementSibling;
-    const toggle = element.querySelector('.tree-toggle');
+    const treeNode = element.closest('.tree-node');
+    if (!treeNode) return;
+
+    const childrenContainer = treeNode.querySelector('.tree-children');
+    if (!childrenContainer) return;
+
+    const nodeContent = treeNode.querySelector('.tree-node-content');
+    const toggle = element.classList.contains('tree-toggle') ? element : treeNode.querySelector('.tree-toggle');
     
     if (childrenContainer.classList.contains('show')) {
         childrenContainer.classList.remove('show');
-        element.classList.remove('expanded');
-        if (toggle) {
-            const count = toggle.textContent.split(' ').slice(1).join(' ') || '';
-            toggle.textContent = `▶ ${count}`.trim();
-        }
+        if (nodeContent) nodeContent.classList.remove('expanded');
+        if (toggle) toggle.textContent = '+';
     } else {
         childrenContainer.classList.add('show');
-        element.classList.add('expanded');
-        if (toggle) {
-            const count = toggle.textContent.split(' ').slice(1).join(' ') || '';
-            toggle.textContent = `▼ ${count}`.trim();
-        }
+        if (nodeContent) nodeContent.classList.add('expanded');
+        if (toggle) toggle.textContent = '−';
         
         // Load children if not already loaded
         if (childrenContainer.children.length === 0) {
