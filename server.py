@@ -1531,8 +1531,18 @@ async def get_transactions(
     total = await db.transactions.count_documents(query)
     transactions = await db.transactions.find(query).sort("date", -1).skip(skip).limit(limit).to_list(limit)
 
+    serialized_transactions = []
+    for transaction in transactions:
+        tx = {k: v for k, v in transaction.items() if k != "_id"}
+        tx_date = tx.get("date")
+        if hasattr(tx_date, "isoformat"):
+            tx["date"] = tx_date.isoformat()
+        elif tx_date is not None:
+            tx["date"] = str(tx_date)
+        serialized_transactions.append(tx)
+
     return {
-        "transactions": transactions,
+        "transactions": serialized_transactions,
         "total": total,
         "limit": limit,
         "skip": skip
