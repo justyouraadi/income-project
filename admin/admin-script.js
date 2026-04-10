@@ -299,30 +299,55 @@ function sortUsersForTree(a, b) {
 }
 
 function buildUsersTreeNode(node, level = 0) {
-    const wallet = node.wallet || {};
-    const invested = Number(wallet.total_invested || 0);
-    const statusClass = node.status === 'active' ? 'status-active' : 'status-inactive';
-    const statusText = node.status === 'active' ? 'Active' : 'Inactive';
-    const directCount = node.children.length;
-    const joinedDate = node.created_at ? new Date(node.created_at).toLocaleDateString() : 'N/A';
-    const childrenMarkup = directCount > 0
-        ? `<ul class="users-tree-list">${node.children.map(child => buildUsersTreeNode(child, level + 1)).join('')}</ul>`
-        : '<div class="tree-node-empty">No direct referrals</div>';
+    const children = Array.isArray(node.children) ? node.children : [];
+    const memberId = node.id || node.user_id || '';
+    const teamSize = children.length;
+    const fullNameRaw = (node.full_name || 'User').trim();
+    const fullName = escapeTreeHtml(fullNameRaw || 'User');
+    const firstInitial = escapeTreeHtml(fullNameRaw ? fullNameRaw.charAt(0).toUpperCase() : 'U');
+    const referralCode = escapeTreeHtml((node.referral_code || 'N/A').toString());
+    const childrenMarkup = children.map(child => buildUsersTreeNode(child, level + 1)).join('');
+    const toggleMarkup = teamSize > 0
+        ? '<button class="tree-toggle" type="button" onclick="toggleUsersTreeNode(this)" aria-label="Toggle referral tree">+</button>'
+        : '';
 
     return `
-        <li class="tree-item">
-            <details ${level === 0 ? 'open' : ''}>
-                <summary>
-                    <span class="tree-code">#${escapeTreeHtml(node.referral_code || 'N/A')}</span>
-                    <span class="tree-name">${escapeTreeHtml(node.full_name || 'Unnamed User')}</span>
-                    <span class="tree-email">${escapeTreeHtml(node.email || '')}</span>
-                    <span class="status-badge ${statusClass}">${statusText}</span>
-                    <span class="tree-meta">$${invested.toFixed(2)} invested • ${directCount} direct • ${joinedDate}</span>
-                </summary>
+        <div class="tree-node" data-level="${level}" data-user-id="${escapeTreeHtml(String(memberId))}">
+            <div class="tree-node-content ${teamSize > 0 ? 'has-children' : ''}">
+                <div class="tree-node-avatar">${firstInitial}</div>
+                <div class="tree-node-info">
+                    <h4>${fullName}</h4>
+                    <span>${referralCode}</span>
+                </div>
+            </div>
+            ${toggleMarkup}
+            <div class="tree-children" data-user-id="${escapeTreeHtml(String(memberId))}" data-level="${level + 1}">
                 ${childrenMarkup}
-            </details>
-        </li>
+            </div>
+        </div>
     `;
+}
+
+function toggleUsersTreeNode(element) {
+    const treeNode = element.closest('.tree-node');
+    if (!treeNode) return;
+
+    const childrenContainer = Array.from(treeNode.children).find(child =>
+        child.classList && child.classList.contains('tree-children')
+    );
+    if (!childrenContainer || childrenContainer.children.length === 0) return;
+
+    const nodeContent = treeNode.querySelector('.tree-node-content');
+
+    if (childrenContainer.classList.contains('show')) {
+        childrenContainer.classList.remove('show');
+        if (nodeContent) nodeContent.classList.remove('expanded');
+        element.textContent = '+';
+    } else {
+        childrenContainer.classList.add('show');
+        if (nodeContent) nodeContent.classList.add('expanded');
+        element.textContent = '−';
+    }
 }
 
 function renderUsersTreeView(users) {
@@ -333,9 +358,11 @@ function renderUsersTreeView(users) {
         return;
     }
 
+    treeContainer.classList.add('tree-layout');
+
     if (!users || users.length === 0) {
         treeStats.textContent = '0 users shown • 0 root nodes';
-        treeContainer.innerHTML = '<div class="loading">No users to display in tree view.</div>';
+        treeContainer.innerHTML = '<p class="empty-state">No team members yet. Share your referral link!</p>';
         return;
     }
 
@@ -361,7 +388,7 @@ function renderUsersTreeView(users) {
     sortTree(roots);
 
     treeStats.textContent = `${users.length} users shown • ${roots.length} root nodes`;
-    treeContainer.innerHTML = `<ul class="users-tree-list">${roots.map(root => buildUsersTreeNode(root)).join('')}</ul>`;
+    treeContainer.innerHTML = roots.map(root => buildUsersTreeNode(root)).join('');
 }
 
 function getFilteredUsersForDisplay() {
