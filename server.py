@@ -2568,6 +2568,7 @@ async def get_all_transactions(
         result.append({
             "id": transaction.get("id", str(transaction.get("_id", ""))),
             "user_id": transaction["user_id"],
+            "referral_code": user.get("referral_code", "N/A") if user else "N/A",
             "user_email": user["email"] if user else "N/A",
             "user_name": user["full_name"] if user else "Unknown",
             "type": transaction.get("type", "unknown"),
@@ -2600,6 +2601,7 @@ async def get_all_investments(
         result.append({
             "id": investment.get("id", str(investment.get("_id", ""))),
             "user_id": investment["user_id"],
+            "referral_code": user.get("referral_code", "N/A") if user else "N/A",
             "user_email": user["email"] if user else "N/A",
             "user_name": user["full_name"] if user else "Unknown",
             "amount": investment.get("amount", 0),
