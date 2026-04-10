@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import ReturnDocument
 import os
 import logging
 import asyncio
@@ -301,8 +302,55 @@ def create_access_token(data: dict):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-def generate_referral_code():
-    return secrets.token_urlsafe(6).upper()[:8]
+REFERRAL_CODE_SUFFIX = "SSMR"
+REFERRAL_CODE_MIN_WIDTH = 2
+
+def generate_referral_code(sequence: int) -> str:
+    """Build referral code as NNSSMR (suffix fixed as SSMR)."""
+    return f"{sequence:0{REFERRAL_CODE_MIN_WIDTH}d}{REFERRAL_CODE_SUFFIX}"
+
+async def get_max_existing_referral_sequence() -> int:
+    """Get the largest numeric prefix from existing codes ending with SSMR."""
+    suffix_len = len(REFERRAL_CODE_SUFFIX)
+    max_sequence = 0
+    codes = await db.users.find(
+        {"referral_code": {"$regex": f"^[0-9]+{REFERRAL_CODE_SUFFIX}$"}},
+        {"referral_code": 1, "_id": 0}
+    ).to_list(100000)
+
+    for doc in codes:
+        code = str(doc.get("referral_code", "")).upper()
+        if not code.endswith(REFERRAL_CODE_SUFFIX):
+            continue
+        prefix = code[:-suffix_len]
+        if prefix.isdigit():
+            max_sequence = max(max_sequence, int(prefix))
+
+    return max_sequence
+
+async def generate_unique_referral_code() -> str:
+    """Generate a unique sequential referral code using an atomic MongoDB counter."""
+    counter_doc = await db.counters.find_one({"_id": "referral_code_seq"})
+    if not counter_doc:
+        max_existing = await get_max_existing_referral_sequence()
+        await db.counters.update_one(
+            {"_id": "referral_code_seq"},
+            {"$setOnInsert": {"value": max_existing}},
+            upsert=True
+        )
+
+    while True:
+        counter = await db.counters.find_one_and_update(
+            {"_id": "referral_code_seq"},
+            {"$inc": {"value": 1}},
+            upsert=True,
+            return_document=ReturnDocument.AFTER
+        )
+        sequence = int(counter.get("value", 1))
+        code = generate_referral_code(sequence)
+        existing = await db.users.find_one({"referral_code": code})
+        if not existing:
+            return code
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
@@ -327,21 +375,9 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
 @api_router.get("/auth/lookup-referrer/{code}")
 async def lookup_referrer(code: str):
-    """Look up a referrer by referral code or user number (format: 01SSMR)"""
+    """Look up a referrer by referral code."""
     # Remove # prefix if present
     clean_code = code.lstrip('#').strip()
-    
-    # Try to find by user_number (format: 01SSMR, 02SSMR, etc.)
-    # Check if code ends with SSMR (case insensitive)
-    if clean_code.upper().endswith('SSMR'):
-        referrer = await db.users.find_one({"user_number": clean_code.upper()})
-        if referrer:
-            return {
-                "found": True,
-                "name": referrer["full_name"],
-                "user_number": referrer["user_number"],
-                "referral_code": referrer["referral_code"]
-            }
     
     # Try to find by referral_code
     referrer = await db.users.find_one({"referral_code": clean_code.upper()})
@@ -349,7 +385,6 @@ async def lookup_referrer(code: str):
         return {
             "found": True,
             "name": referrer["full_name"],
-            "user_number": referrer.get("user_number"),
             "referral_code": referrer["referral_code"]
         }
     
@@ -359,7 +394,6 @@ async def lookup_referrer(code: str):
         return {
             "found": True,
             "name": referrer["full_name"],
-            "user_number": referrer.get("user_number"),
             "referral_code": referrer["referral_code"]
         }
     
@@ -377,12 +411,7 @@ async def register(user_data: UserCreate):
     if user_data.referral_code:
         # Remove # prefix if present
         clean_code = user_data.referral_code.lstrip('#').strip()
-        
-        # Try to find by user_number (format: 01SSMR, 02SSMR, etc.)
-        if clean_code.upper().endswith('SSMR'):
-            referrer = await db.users.find_one({"user_number": clean_code.upper()})
-        
-        # If not found by user_number, try by referral_code
+
         if not referrer:
             referrer = await db.users.find_one({"referral_code": clean_code.upper()})
         if not referrer:
@@ -391,20 +420,13 @@ async def register(user_data: UserCreate):
         if not referrer:
             raise HTTPException(status_code=400, detail="Invalid referral code")
     
-    # Generate unique user number in format: 01SSMR, 02SSMR, etc.
-    last_user = await db.users.find_one(sort=[("user_seq", -1)])
-    user_seq = (last_user.get("user_seq", 0) + 1) if last_user else 1
-    user_number = f"{user_seq:02d}SSMR"  # Format: 01SSMR, 02SSMR, etc.
-    
     # Create user
     user_id = str(uuid.uuid4())
     hashed_password = get_password_hash(user_data.password)
-    referral_code = generate_referral_code()
+    referral_code = await generate_unique_referral_code()
     
     user = {
         "id": user_id,
-        "user_seq": user_seq,  # Sequential number for generating user_number
-        "user_number": user_number,  # Display format: 01SSMR, 02SSMR, etc.
         "email": user_data.email,
         "password": hashed_password,
         "full_name": user_data.full_name,
@@ -502,7 +524,6 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         "referred_by": current_user.get("referred_by"),
         "created_at": current_user["created_at"],
         "is_admin": current_user.get("is_admin", False),
-        "user_number": current_user.get("user_number"),
         "status": current_user.get("status", "active"),
         "total_investment": total_invested,
         "total_withdrawn": withdrawn_amount,
@@ -1477,7 +1498,7 @@ async def get_team_members(current_user: dict = Depends(get_current_user)):
         wallet = await db.wallets.find_one({"user_id": referral["id"]})
         team_members.append({
             "user_id": referral["id"],
-            "user_number": referral.get("user_number", "N/A"),
+            "referral_code": referral.get("referral_code", "N/A"),
             "full_name": referral["full_name"],
             "email": referral["email"],
             "joined_date": referral["created_at"].isoformat() if hasattr(referral["created_at"], 'isoformat') else str(referral["created_at"]),
@@ -1597,7 +1618,7 @@ async def create_ticket(ticket: TicketCreate, current_user: dict = Depends(get_c
         "user_id": current_user["id"],
         "user_email": current_user["email"],
         "user_name": current_user.get("full_name", "User"),
-        "user_number": current_user.get("user_number", "N/A"),
+        "user_referral_code": current_user.get("referral_code", "N/A"),
         "subject": ticket.subject,
         "category": ticket.category,
         "priority": ticket.priority,
@@ -1694,7 +1715,7 @@ async def create_admin():
     
     admin_id = str(uuid.uuid4())
     hashed_password = get_password_hash("admin123")  # Change this password immediately
-    referral_code = generate_referral_code()
+    referral_code = await generate_unique_referral_code()
     
     admin = {
         "id": admin_id,
@@ -1811,10 +1832,9 @@ async def get_all_users(
         
         users_with_wallets.append({
             "id": user["id"],
-            "user_number": user.get("user_number", "N/A"),
+            "referral_code": user.get("referral_code", "N/A"),
             "email": user["email"],
             "full_name": user["full_name"],
-            "referral_code": user["referral_code"],
             "status": user.get("status", "active"),
             "created_at": user["created_at"].isoformat() if hasattr(user["created_at"], 'isoformat') else str(user["created_at"]),
             "is_admin": user.get("is_admin", False),
@@ -1849,30 +1869,19 @@ async def admin_create_user(user_data: AdminCreateUser, admin_user: dict = Depen
     referrer = None
     if user_data.referral_code:
         clean_code = user_data.referral_code.lstrip('#').strip()
-        
-        # Try to find by user_number (format: 01SSMR, 02SSMR, etc.)
-        if clean_code.upper().endswith('SSMR'):
-            referrer = await db.users.find_one({"user_number": clean_code.upper()})
-        
+
         if not referrer:
             referrer = await db.users.find_one({"referral_code": clean_code.upper()})
         if not referrer:
             referrer = await db.users.find_one({"referral_code": clean_code})
     
-    # Generate unique user number in format: 01SSMR, 02SSMR, etc.
-    last_user = await db.users.find_one(sort=[("user_seq", -1)])
-    user_seq = (last_user.get("user_seq", 0) + 1) if last_user else 1
-    user_number = f"{user_seq:02d}SSMR"  # Format: 01SSMR, 02SSMR, etc.
-    
     # Create user
     user_id = str(uuid.uuid4())
     hashed_password = get_password_hash(user_data.password)
-    referral_code = generate_referral_code()
+    referral_code = await generate_unique_referral_code()
     
     user = {
         "id": user_id,
-        "user_seq": user_seq,  # Sequential number for generating user_number
-        "user_number": user_number,  # Display format: 01SSMR, 02SSMR, etc.
         "email": user_data.email,
         "password": hashed_password,
         "full_name": user_data.full_name,
@@ -1907,7 +1916,6 @@ async def admin_create_user(user_data: AdminCreateUser, admin_user: dict = Depen
         "message": "User created successfully",
         "user": {
             "id": user_id,
-            "user_number": user_number,
             "email": user_data.email,
             "full_name": user_data.full_name,
             "referral_code": referral_code,
@@ -1926,10 +1934,9 @@ async def get_admin_created_users(admin_user: dict = Depends(get_admin_user)):
         
         users_list.append({
             "id": user["id"],
-            "user_number": user.get("user_number"),
+            "referral_code": user.get("referral_code"),
             "email": user["email"],
             "full_name": user["full_name"],
-            "referral_code": user.get("referral_code"),
             "status": user.get("status", "active"),
             "total_invested": wallet.get("total_invested", 0) if wallet else 0,
             "created_at": user["created_at"].isoformat() if hasattr(user["created_at"], 'isoformat') else str(user["created_at"]),
@@ -1978,16 +1985,10 @@ async def change_user_referrer(user_id: str, data: ChangeReferrer, admin_user: d
     
     old_referrer_id = user.get("referred_by")
     
-    # Find new referrer by user number or referral code
+    # Find new referrer by referral code
     new_referrer = None
     clean_code = data.new_referrer_code.lstrip('#')
-    
-    try:
-        user_number = int(clean_code)
-        new_referrer = await db.users.find_one({"user_number": user_number})
-    except ValueError:
-        pass
-    
+
     if not new_referrer:
         new_referrer = await db.users.find_one({"referral_code": clean_code.upper()})
     if not new_referrer:
@@ -2065,7 +2066,7 @@ async def change_user_referrer(user_id: str, data: ChangeReferrer, admin_user: d
         "old_referrer": old_referrer_id,
         "new_referrer": {
             "id": new_referrer["id"],
-            "user_number": new_referrer.get("user_number"),
+            "referral_code": new_referrer.get("referral_code"),
             "full_name": new_referrer["full_name"]
         },
         "bonus_shifted": total_bonus_to_shift
@@ -2073,16 +2074,10 @@ async def change_user_referrer(user_id: str, data: ChangeReferrer, admin_user: d
 
 @api_router.get("/admin/lookup-user/{code}")
 async def admin_lookup_user(code: str, admin_user: dict = Depends(get_admin_user)):
-    """Lookup a user by user number or referral code"""
+    """Lookup a user by referral code"""
     clean_code = code.lstrip('#')
     user = None
-    
-    try:
-        user_number = int(clean_code)
-        user = await db.users.find_one({"user_number": user_number})
-    except ValueError:
-        pass
-    
+
     if not user:
         user = await db.users.find_one({"referral_code": clean_code.upper()})
     if not user:
@@ -2093,7 +2088,7 @@ async def admin_lookup_user(code: str, admin_user: dict = Depends(get_admin_user
     
     return {
         "id": user["id"],
-        "user_number": user.get("user_number"),
+        "referral_code": user.get("referral_code"),
         "full_name": user["full_name"],
         "email": user["email"],
         "status": user.get("status", "active")
@@ -2302,7 +2297,7 @@ async def get_user_referrals(user_id: str, admin_user: dict = Depends(get_admin_
         
         referrals_data.append({
             "id": ref["id"],
-            "user_number": ref.get("user_number"),
+            "referral_code": ref.get("referral_code"),
             "full_name": ref["full_name"],
             "email": ref["email"],
             "status": ref.get("status", "active"),
@@ -2319,7 +2314,7 @@ async def get_user_referrals(user_id: str, admin_user: dict = Depends(get_admin_
         if referrer:
             referred_by_user = {
                 "id": referrer["id"],
-                "user_number": referrer.get("user_number"),
+                "referral_code": referrer.get("referral_code"),
                 "full_name": referrer["full_name"],
                 "email": referrer["email"]
             }
@@ -2899,7 +2894,7 @@ async def get_all_withdrawals(
             "user_id": w["user_id"],
             "user_name": user["full_name"] if user else "Unknown",
             "user_email": user["email"] if user else "N/A",
-            "user_number": user.get("user_number", "N/A") if user else "N/A",
+            "referral_code": user.get("referral_code", "N/A") if user else "N/A",
             "amount": w["amount"],
             "wallet_type": w.get("wallet_type", "earning"),
             "bank_details": w.get("bank_details"),
@@ -3398,7 +3393,7 @@ async def calculate_salary_income(admin_user: dict = Depends(get_admin_user)):
         
         results.append({
             "user": user["full_name"],
-            "user_number": user.get("user_number"),
+            "referral_code": user.get("referral_code"),
             "business_volume": leg_business["total"],
             "monthly_salary": monthly_salary,
             "power_leg_percent": eligibility["power_leg_percent"],
@@ -3431,7 +3426,7 @@ async def get_all_salary_status(admin_user: dict = Depends(get_admin_user)):
         
         results.append({
             "user_id": user["id"],
-            "user_number": user.get("user_number"),
+            "referral_code": user.get("referral_code"),
             "full_name": user["full_name"],
             "business_volume": leg_business["total"],
             "power_leg": leg_business["power_leg"],
@@ -3862,6 +3857,12 @@ async def get_all_tickets(
         query["status"] = status
     
     tickets = await db.tickets.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
+
+    # Backfill referral code for older ticket documents
+    for ticket in tickets:
+        if not ticket.get("user_referral_code") and ticket.get("user_id"):
+            ticket_user = await db.users.find_one({"id": ticket["user_id"]})
+            ticket["user_referral_code"] = ticket_user.get("referral_code") if ticket_user else "N/A"
     
     # Calculate summary
     all_tickets = await db.tickets.find({}, {"status": 1}).to_list(1000)
@@ -3882,6 +3883,10 @@ async def get_ticket_admin(ticket_id: str, admin_user: dict = Depends(get_admin_
     
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
+
+    if not ticket.get("user_referral_code") and ticket.get("user_id"):
+        ticket_user = await db.users.find_one({"id": ticket["user_id"]})
+        ticket["user_referral_code"] = ticket_user.get("referral_code") if ticket_user else "N/A"
     
     return ticket
 
@@ -3949,7 +3954,7 @@ async def delete_ticket(ticket_id: str, admin_user: dict = Depends(get_admin_use
 # ==================== P2P WALLET TRANSFER ====================
 
 class P2PTransferRequest(BaseModel):
-    recipient_user_number: int  # The user_number of the recipient (e.g., 100001)
+    recipient_referral_code: str
     amount: float
 
 class P2PVerifyOTP(BaseModel):
@@ -4034,10 +4039,13 @@ async def initiate_p2p_transfer(
     if request.amount > main_wallet_balance:
         raise HTTPException(status_code=400, detail=f"Insufficient balance. Available: ${main_wallet_balance:.2f}")
     
-    # Find recipient by user_number
-    recipient = await db.users.find_one({"user_number": request.recipient_user_number})
+    # Find recipient by referral_code
+    recipient_code = request.recipient_referral_code.lstrip('#').strip()
+    recipient = await db.users.find_one({"referral_code": recipient_code.upper()})
     if not recipient:
-        raise HTTPException(status_code=404, detail="Recipient not found. Please check the User ID.")
+        recipient = await db.users.find_one({"referral_code": recipient_code})
+    if not recipient:
+        raise HTTPException(status_code=404, detail="Recipient not found. Please check the referral code.")
     
     if recipient["id"] == current_user["id"]:
         raise HTTPException(status_code=400, detail="Cannot transfer to yourself")
@@ -4055,7 +4063,7 @@ async def initiate_p2p_transfer(
         "sender_id": current_user["id"],
         "recipient_id": recipient["id"],
         "recipient_name": recipient["full_name"],
-        "recipient_user_number": recipient["user_number"],
+        "recipient_referral_code": recipient.get("referral_code"),
         "amount": request.amount,
         "created_at": datetime.utcnow(),
         "expires_at": datetime.utcnow() + timedelta(minutes=10),
@@ -4077,7 +4085,7 @@ async def initiate_p2p_transfer(
         "message": "OTP sent to your email",
         "transfer_id": transfer_id,
         "recipient_name": recipient["full_name"],
-        "recipient_user_number": recipient["user_number"],
+        "recipient_referral_code": recipient.get("referral_code"),
         "amount": request.amount,
         "otp_sent_to": current_user["email"],
         "expires_in_minutes": 10
@@ -4160,7 +4168,7 @@ async def verify_p2p_transfer(
         "user_id": current_user["id"],
         "type": "p2p_transfer_out",
         "amount": -amount,
-        "description": f"P2P Transfer to #{transfer['recipient_user_number']} ({transfer['recipient_name']})",
+        "description": f"P2P Transfer to #{transfer['recipient_referral_code']} ({transfer['recipient_name']})",
         "date": datetime.utcnow()
     }
     await db.transactions.insert_one(sender_transaction)
@@ -4172,7 +4180,7 @@ async def verify_p2p_transfer(
         "user_id": transfer["recipient_id"],
         "type": "p2p_transfer_in",
         "amount": amount,
-        "description": f"P2P Transfer from #{sender_user.get('user_number', 'N/A')} ({current_user['full_name']})",
+        "description": f"P2P Transfer from #{sender_user.get('referral_code', 'N/A')} ({current_user['full_name']})",
         "date": datetime.utcnow()
     }
     await db.transactions.insert_one(recipient_transaction)
@@ -4181,9 +4189,9 @@ async def verify_p2p_transfer(
     transfer_record = {
         "id": request.transfer_id,
         "sender_id": current_user["id"],
-        "sender_user_number": sender_user.get("user_number"),
+        "sender_referral_code": sender_user.get("referral_code"),
         "recipient_id": transfer["recipient_id"],
-        "recipient_user_number": transfer["recipient_user_number"],
+        "recipient_referral_code": transfer["recipient_referral_code"],
         "amount": amount,
         "status": "completed",
         "created_at": transfer["created_at"],
@@ -4199,7 +4207,7 @@ async def verify_p2p_transfer(
         "message": "Transfer successful",
         "amount": amount,
         "recipient": transfer["recipient_name"],
-        "recipient_user_number": transfer["recipient_user_number"],
+        "recipient_referral_code": transfer["recipient_referral_code"],
         "transfer_id": request.transfer_id
     }
 
@@ -4224,7 +4232,7 @@ async def get_p2p_transfer_history(current_user: dict = Depends(get_current_user
                 "id": t["id"],
                 "type": "sent",
                 "amount": -t["amount"],
-                "other_user_number": t["recipient_user_number"],
+                "other_user_referral_code": other_user.get("referral_code") if other_user else None,
                 "other_user_name": other_user["full_name"] if other_user else "Unknown",
                 "date": t["completed_at"].isoformat() if hasattr(t["completed_at"], 'isoformat') else str(t["completed_at"])
             })
@@ -4234,17 +4242,20 @@ async def get_p2p_transfer_history(current_user: dict = Depends(get_current_user
                 "id": t["id"],
                 "type": "received",
                 "amount": t["amount"],
-                "other_user_number": t["sender_user_number"],
+                "other_user_referral_code": other_user.get("referral_code") if other_user else None,
                 "other_user_name": other_user["full_name"] if other_user else "Unknown",
                 "date": t["completed_at"].isoformat() if hasattr(t["completed_at"], 'isoformat') else str(t["completed_at"])
             })
     
     return {"transfers": result}
 
-@api_router.get("/p2p/lookup-user/{user_number}")
-async def lookup_user_by_number(user_number: int, current_user: dict = Depends(get_current_user)):
-    """Look up a user by their user number for P2P transfer"""
-    user = await db.users.find_one({"user_number": user_number})
+@api_router.get("/p2p/lookup-user/{referral_code}")
+async def lookup_user_by_referral_code(referral_code: str, current_user: dict = Depends(get_current_user)):
+    """Look up a user by referral code for P2P transfer."""
+    clean_code = referral_code.lstrip('#').strip()
+    user = await db.users.find_one({"referral_code": clean_code.upper()})
+    if not user:
+        user = await db.users.find_one({"referral_code": clean_code})
     
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -4253,7 +4264,7 @@ async def lookup_user_by_number(user_number: int, current_user: dict = Depends(g
         raise HTTPException(status_code=400, detail="Cannot lookup yourself")
     
     return {
-        "user_number": user["user_number"],
+        "referral_code": user.get("referral_code"),
         "full_name": user["full_name"],
         "status": user.get("status", "active")
     }
@@ -4261,8 +4272,8 @@ async def lookup_user_by_number(user_number: int, current_user: dict = Depends(g
 # ==================== ADMIN P2P TRANSFER ====================
 
 class AdminP2PTransfer(BaseModel):
-    sender_user_number: int
-    recipient_user_number: int
+    sender_referral_code: str
+    recipient_referral_code: str
     amount: float
     description: str = ""
 
@@ -4276,12 +4287,18 @@ async def admin_p2p_transfer(
         raise HTTPException(status_code=400, detail="Amount must be positive")
     
     # Find sender
-    sender = await db.users.find_one({"user_number": request.sender_user_number})
+    sender_code = request.sender_referral_code.lstrip('#').strip()
+    sender = await db.users.find_one({"referral_code": sender_code.upper()})
+    if not sender:
+        sender = await db.users.find_one({"referral_code": sender_code})
     if not sender:
         raise HTTPException(status_code=404, detail="Sender not found")
     
     # Find recipient
-    recipient = await db.users.find_one({"user_number": request.recipient_user_number})
+    recipient_code = request.recipient_referral_code.lstrip('#').strip()
+    recipient = await db.users.find_one({"referral_code": recipient_code.upper()})
+    if not recipient:
+        recipient = await db.users.find_one({"referral_code": recipient_code})
     if not recipient:
         raise HTTPException(status_code=404, detail="Recipient not found")
     
@@ -4338,7 +4355,7 @@ async def admin_p2p_transfer(
         "user_id": sender["id"],
         "type": "admin_p2p_transfer_out",
         "amount": -request.amount,
-        "description": f"Admin P2P Transfer to #{request.recipient_user_number}{desc_suffix}",
+        "description": f"Admin P2P Transfer to #{request.recipient_referral_code}{desc_suffix}",
         "date": datetime.utcnow()
     }
     await db.transactions.insert_one(sender_transaction)
@@ -4348,7 +4365,7 @@ async def admin_p2p_transfer(
         "user_id": recipient["id"],
         "type": "admin_p2p_transfer_in",
         "amount": request.amount,
-        "description": f"Admin P2P Transfer from #{request.sender_user_number}{desc_suffix}",
+        "description": f"Admin P2P Transfer from #{request.sender_referral_code}{desc_suffix}",
         "date": datetime.utcnow()
     }
     await db.transactions.insert_one(recipient_transaction)
@@ -4357,9 +4374,9 @@ async def admin_p2p_transfer(
     transfer_record = {
         "id": transfer_id,
         "sender_id": sender["id"],
-        "sender_user_number": sender["user_number"],
+        "sender_referral_code": sender.get("referral_code"),
         "recipient_id": recipient["id"],
-        "recipient_user_number": recipient["user_number"],
+        "recipient_referral_code": recipient.get("referral_code"),
         "amount": request.amount,
         "status": "completed",
         "admin_initiated": True,
@@ -4375,11 +4392,11 @@ async def admin_p2p_transfer(
         "transfer_id": transfer_id,
         "amount": request.amount,
         "sender": {
-            "user_number": sender["user_number"],
+            "referral_code": sender.get("referral_code"),
             "name": sender["full_name"]
         },
         "recipient": {
-            "user_number": recipient["user_number"],
+            "referral_code": recipient.get("referral_code"),
             "name": recipient["full_name"]
         }
     }
@@ -4401,9 +4418,9 @@ async def get_admin_p2p_transfers(
         
         result.append({
             "id": t["id"],
-            "sender_user_number": t["sender_user_number"],
+            "sender_referral_code": t.get("sender_referral_code") or (sender.get("referral_code") if sender else None),
             "sender_name": sender["full_name"] if sender else "Unknown",
-            "recipient_user_number": t["recipient_user_number"],
+            "recipient_referral_code": t.get("recipient_referral_code") or (recipient.get("referral_code") if recipient else None),
             "recipient_name": recipient["full_name"] if recipient else "Unknown",
             "amount": t["amount"],
             "status": t["status"],

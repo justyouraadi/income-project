@@ -366,8 +366,8 @@ function renderUsersTable(users) {
         const row = document.createElement('tr');
         row.innerHTML = `
             <td><input type="checkbox" value="${user.id}" onchange="toggleUserSelection('${user.id}')"></td>
-            <td><strong>#${user.user_number || 'N/A'}</strong></td>
-            <td><code>${user.referral_code}</code></td>
+            <td><strong>#${user.referral_code || 'N/A'}</strong></td>
+            <td>${user.email}</td>
             <td><span class="status-badge ${statusClass}">${statusText}</span></td>
             <td>$${(wallet.total_invested || 0).toFixed(2)}</td>
             <td>$${totalIncome.toFixed(2)}</td>
@@ -436,7 +436,7 @@ async function viewUser(userId) {
                     });
                     if (refResponse.ok) {
                         const refData = await refResponse.json();
-                        referrerInfo = `${refData.user.full_name} (#${refData.user.user_number})`;
+                        referrerInfo = `${refData.user.full_name} (#${refData.user.referral_code || 'N/A'})`;
                     }
                 } catch (e) {}
             }
@@ -444,8 +444,8 @@ async function viewUser(userId) {
             const content = `
                 <div class="user-details">
                     <div class="detail-row">
-                        <span class="detail-label">User ID:</span>
-                        <span class="detail-value"><strong>#${user.user_number || 'N/A'}</strong></span>
+                        <span class="detail-label">Referral Code:</span>
+                        <span class="detail-value"><strong>#${user.referral_code || 'N/A'}</strong></span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Email:</span>
@@ -653,7 +653,7 @@ async function loadUserReferrals(userId) {
                     <div class="info">
                         <div class="name">${data.referred_by.full_name}</div>
                         <div class="email">${data.referred_by.email}</div>
-                        <div class="user-number">#${data.referred_by.user_number || 'N/A'}</div>
+                        <div class="user-number">#${data.referred_by.referral_code || 'N/A'}</div>
                     </div>
                 `;
             } else {
@@ -665,7 +665,7 @@ async function loadUserReferrals(userId) {
             if (data.direct_referrals.length > 0) {
                 refTable.innerHTML = data.direct_referrals.map(ref => `
                     <tr>
-                        <td><strong>#${ref.user_number || 'N/A'}</strong></td>
+                        <td><strong>#${ref.referral_code || 'N/A'}</strong></td>
                         <td>${ref.full_name}</td>
                         <td>${ref.email}</td>
                         <td><span class="status-${ref.status}">${ref.status}</span></td>
@@ -815,7 +815,7 @@ function renderWithdrawalsTable(withdrawals) {
         
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td><strong>#${w.user_number || 'N/A'}</strong></td>
+            <td><strong>#${w.referral_code || 'N/A'}</strong></td>
             <td>${w.user_name}<br><small>${w.user_email}</small></td>
             <td><strong>$${w.amount.toFixed(2)}</strong></td>
             <td>${paymentDetails}</td>
@@ -1217,7 +1217,7 @@ async function viewSalaryStatus() {
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>
-                        <strong>#${user.user_number || 'N/A'}</strong><br>
+                        <strong>#${user.referral_code || 'N/A'}</strong><br>
                         <small>${user.full_name}</small>
                     </td>
                     <td><strong>$${(user.business_volume || 0).toFixed(2)}</strong></td>
@@ -1254,7 +1254,7 @@ async function loadUsersForSalary() {
             
             data.users.forEach(user => {
                 if (!user.is_admin) {
-                    select.innerHTML += `<option value="${user.id}">#${user.user_number || 'N/A'} - ${user.full_name} (${user.email})</option>`;
+                    select.innerHTML += `<option value="${user.id}">#${user.referral_code || 'N/A'} - ${user.full_name} (${user.email})</option>`;
                 }
             });
         }
@@ -1395,7 +1395,7 @@ function renderInvestmentsTable(investments) {
         const slabRate = getSlabRate(investment.amount);
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td><strong>#${investment.user_number || 'N/A'}</strong></td>
+            <td><strong>#${investment.referral_code || 'N/A'}</strong></td>
             <td>${investment.user_name || 'Unknown'}</td>
             <td>${investment.user_email || 'N/A'}</td>
             <td><strong>$${(investment.amount || 0).toFixed(2)}</strong></td>
@@ -1451,7 +1451,7 @@ async function doExportInvestments(startDate, endDate) {
         }
         
         const exportData = investments.map(inv => ({
-            'User #': inv.user_number || 'N/A',
+            'Referral Code': inv.referral_code || 'N/A',
             'Name': inv.user_name || 'Unknown',
             'Email': inv.user_email || 'N/A',
             'Amount': inv.amount,
@@ -1733,11 +1733,11 @@ async function loadP2PTransfers() {
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>
-                        <strong>#${transfer.sender_user_number}</strong><br>
+                        <strong>#${transfer.sender_referral_code || 'N/A'}</strong><br>
                         <small>${transfer.sender_name}</small>
                     </td>
                     <td>
-                        <strong>#${transfer.recipient_user_number}</strong><br>
+                        <strong>#${transfer.recipient_referral_code || 'N/A'}</strong><br>
                         <small>${transfer.recipient_name}</small>
                     </td>
                     <td style="color: #27ae60; font-weight: bold;">$${transfer.amount.toFixed(2)}</td>
@@ -1757,15 +1757,15 @@ async function loadP2PTransfers() {
 }
 
 async function executeP2PTransfer() {
-    const senderUserNumber = document.getElementById('p2pSenderUserId').value;
-    const recipientUserNumber = document.getElementById('p2pRecipientUserId').value;
+    const senderReferralCode = document.getElementById('p2pSenderUserId').value.trim();
+    const recipientReferralCode = document.getElementById('p2pRecipientUserId').value.trim();
     const amount = parseFloat(document.getElementById('p2pAmount').value);
     const description = document.getElementById('p2pDescription').value;
     const resultDiv = document.getElementById('p2pResult');
     
     // Validation
-    if (!senderUserNumber || !recipientUserNumber) {
-        showP2PResult('Please enter both Sender and Recipient User IDs', 'error');
+    if (!senderReferralCode || !recipientReferralCode) {
+        showP2PResult('Please enter both Sender and Recipient referral codes', 'error');
         return;
     }
     
@@ -1774,12 +1774,12 @@ async function executeP2PTransfer() {
         return;
     }
     
-    if (senderUserNumber === recipientUserNumber) {
+    if (senderReferralCode === recipientReferralCode) {
         showP2PResult('Sender and Recipient cannot be the same', 'error');
         return;
     }
     
-    if (!confirm(`Are you sure you want to transfer $${amount.toFixed(2)} from User #${senderUserNumber} to User #${recipientUserNumber}?`)) {
+    if (!confirm(`Are you sure you want to transfer $${amount.toFixed(2)} from #${senderReferralCode} to #${recipientReferralCode}?`)) {
         return;
     }
     
@@ -1791,8 +1791,8 @@ async function executeP2PTransfer() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                sender_user_number: parseInt(senderUserNumber),
-                recipient_user_number: parseInt(recipientUserNumber),
+                sender_referral_code: senderReferralCode,
+                recipient_referral_code: recipientReferralCode,
                 amount: amount,
                 description: description
             })
@@ -1802,7 +1802,7 @@ async function executeP2PTransfer() {
         
         if (response.ok) {
             showP2PResult(
-                `Transfer Successful! $${amount.toFixed(2)} transferred from ${data.sender.name} (#${data.sender.user_number}) to ${data.recipient.name} (#${data.recipient.user_number})`,
+                `Transfer Successful! $${amount.toFixed(2)} transferred from ${data.sender.name} (#${data.sender.referral_code || 'N/A'}) to ${data.recipient.name} (#${data.recipient.referral_code || 'N/A'})`,
                 'success'
             );
             // Clear form
@@ -1834,12 +1834,12 @@ function showP2PResult(message, type) {
     }
 }
 
-// User ID lookup on input change
+// Referral code lookup on input change
 document.getElementById('p2pSenderUserId')?.addEventListener('blur', async function() {
-    const userNumber = this.value;
+    const referralCode = this.value.trim().toUpperCase();
     const infoDiv = document.getElementById('senderInfo');
     
-    if (!userNumber) {
+    if (!referralCode) {
         infoDiv.style.display = 'none';
         return;
     }
@@ -1851,7 +1851,7 @@ document.getElementById('p2pSenderUserId')?.addEventListener('blur', async funct
         
         if (response.ok) {
             const data = await response.json();
-            const user = data.users.find(u => u.user_number == userNumber);
+            const user = data.users.find(u => (u.referral_code || '').toUpperCase() === referralCode);
             
             if (user) {
                 const totalBalance = (user.wallet?.daily_roi || 0) + (user.wallet?.direct_income || 0) + 
@@ -1870,10 +1870,10 @@ document.getElementById('p2pSenderUserId')?.addEventListener('blur', async funct
 });
 
 document.getElementById('p2pRecipientUserId')?.addEventListener('blur', async function() {
-    const userNumber = this.value;
+    const referralCode = this.value.trim().toUpperCase();
     const infoDiv = document.getElementById('recipientInfo');
     
-    if (!userNumber) {
+    if (!referralCode) {
         infoDiv.style.display = 'none';
         return;
     }
@@ -1885,7 +1885,7 @@ document.getElementById('p2pRecipientUserId')?.addEventListener('blur', async fu
         
         if (response.ok) {
             const data = await response.json();
-            const user = data.users.find(u => u.user_number == userNumber);
+            const user = data.users.find(u => (u.referral_code || '').toUpperCase() === referralCode);
             
             if (user) {
                 infoDiv.innerHTML = `<span style="color: #27ae60;">✓ ${user.full_name}</span> | Status: ${user.status === 'active' ? '<span style="color:#27ae60;">Active</span>' : '<span style="color:#e74c3c;">Inactive</span>'}`;
@@ -1951,7 +1951,7 @@ async function createUser() {
         const data = await response.json();
         
         if (response.ok) {
-            messageDiv.textContent = `User created successfully! User #${data.user.user_number}`;
+            messageDiv.textContent = `User created successfully! Referral Code: #${data.user.referral_code}`;
             messageDiv.className = 'message success';
             messageDiv.style.display = 'block';
             
@@ -2069,7 +2069,7 @@ function renderAdminCreatedUsersTable(users) {
     tbody.innerHTML = users.map(user => `
         <tr>
             <td><input type="checkbox" value="${user.id}" onchange="toggleAdminCreatedSelection('${user.id}')"></td>
-            <td><strong>#${user.user_number || 'N/A'}</strong></td>
+            <td><strong>#${user.referral_code || 'N/A'}</strong></td>
             <td>${user.full_name}</td>
             <td>${user.email}</td>
             <td><span class="status-${user.status}">${user.status}</span></td>
@@ -2159,7 +2159,7 @@ document.getElementById('newReferrerCode')?.addEventListener('blur', async funct
         
         if (response.ok) {
             const user = await response.json();
-            infoDiv.innerHTML = `<span style="color: #27ae60;">✓ Found: ${user.full_name} (#${user.user_number}) - ${user.status}</span>`;
+            infoDiv.innerHTML = `<span style="color: #27ae60;">✓ Found: ${user.full_name} (#${user.referral_code || 'N/A'}) - ${user.status}</span>`;
             infoDiv.style.display = 'block';
         } else {
             infoDiv.innerHTML = `<span style="color: #e74c3c;">✗ User not found</span>`;
@@ -2176,7 +2176,7 @@ async function changeUserReferrer() {
     const messageDiv = document.getElementById('editUserMessage');
     
     if (!newReferrerCode) {
-        messageDiv.textContent = 'Please enter the new referrer\'s user # or referral code';
+        messageDiv.textContent = 'Please enter the new referrer\'s referral code';
         messageDiv.className = 'message error';
         messageDiv.style.display = 'block';
         return;
@@ -2207,7 +2207,7 @@ async function changeUserReferrer() {
         const data = await response.json();
         
         if (response.ok) {
-            let msg = `Referrer changed to ${data.new_referrer.full_name} (#${data.new_referrer.user_number})`;
+            let msg = `Referrer changed to ${data.new_referrer.full_name} (#${data.new_referrer.referral_code || 'N/A'})`;
             if (data.bonus_shifted > 0) {
                 msg += `. $${data.bonus_shifted.toFixed(2)} bonus transferred.`;
             }
@@ -2581,10 +2581,9 @@ async function doExportUsers(startDate, endDate) {
             }
             
             const exportData = users.map(u => ({
-                'User ID': u.user_number || 'N/A',
+                'Referral Code': u.referral_code || 'N/A',
                 'Name': u.full_name,
                 'Email': u.email,
-                'Referral Code': u.referral_code,
                 'Status': u.status || 'active',
                 'Total Invested': u.wallet?.total_invested || 0,
                 'Total Income': (u.wallet?.daily_roi || 0) + (u.wallet?.direct_income || 0) + (u.wallet?.slab_income || 0) + (u.wallet?.royalty_income || 0) + (u.wallet?.salary_income || 0),
@@ -2619,7 +2618,7 @@ async function doExportWithdrawals(startDate, endDate) {
             }
             
             const exportData = withdrawals.map(w => ({
-                'User #': w.user_number || 'N/A',
+                'Referral Code': w.referral_code || 'N/A',
                 'User': w.user_name || 'Unknown',
                 'Email': w.user_email || '',
                 'Amount': w.amount,
@@ -2660,7 +2659,7 @@ async function doExportAdminCreatedUsers(startDate, endDate) {
             }
             
             const exportData = users.map(u => ({
-                'User #': u.user_number || 'N/A',
+                'Referral Code': u.referral_code || 'N/A',
                 'Name': u.full_name,
                 'Email': u.email,
                 'Status': u.status,
@@ -2898,7 +2897,7 @@ function renderAdminTicketsTable(tickets) {
         <tr>
             <td><strong>${ticket.ticket_number}</strong></td>
             <td>
-                <strong>#${ticket.user_number || 'N/A'}</strong><br>
+                <strong>#${ticket.user_referral_code || 'N/A'}</strong><br>
                 <small>${ticket.user_email}</small>
             </td>
             <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${ticket.subject}</td>
@@ -2951,7 +2950,7 @@ function showAdminTicketModal(ticket) {
                 <div>
                     <h3>${ticket.ticket_number} - ${ticket.subject}</h3>
                     <div class="admin-ticket-meta">
-                        <span>👤 ${ticket.user_name} (#${ticket.user_number || 'N/A'})</span>
+                        <span>👤 ${ticket.user_name} (#${ticket.user_referral_code || 'N/A'})</span>
                         <span>📧 ${ticket.user_email}</span>
                         <span>📁 ${ticket.category}</span>
                         <span>⚡ ${ticket.priority}</span>

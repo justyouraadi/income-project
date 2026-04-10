@@ -232,8 +232,8 @@
                             <thead>
                                 <tr>
                                     <th><input type="checkbox" id="selectAllUsers" onchange="toggleSelectAllUsers()"></th>
-                                    <th>User ID</th>
                                     <th>Referral Code</th>
+                                    <th>Email</th>
                                     <th>Status</th>
                                     <th>Total Invested</th>
                                     <th>Total Income</th>
@@ -320,7 +320,7 @@
                         <table class="data-table">
                             <thead>
                                 <tr>
-                                    <th>User ID</th>
+                                    <th>Referral Code</th>
                                     <th>User</th>
                                     <th>Amount</th>
                                     <th>Payment Details</th>
@@ -369,7 +369,7 @@
                         <table class="data-table">
                             <thead>
                                 <tr>
-                                    <th>User ID</th>
+                                    <th>Referral Code</th>
                                     <th>User</th>
                                     <th>Email</th>
                                     <th>Amount</th>
@@ -827,14 +827,14 @@
                             <p class="calc-desc">Transfer funds from one user's Main Wallet to another (No OTP required for admin)</p>
                             
                             <div class="form-group">
-                                <label>Sender User ID</label>
-                                <input type="number" id="p2pSenderUserId" placeholder="Enter sender's User ID (e.g., 100001)" style="width: 100%; padding: 12px;">
+                                <label>Sender Referral Code</label>
+                                <input type="text" id="p2pSenderUserId" placeholder="Enter sender referral code" style="width: 100%; padding: 12px;">
                                 <div id="senderInfo" class="user-info-preview" style="display: none;"></div>
                             </div>
                             
                             <div class="form-group">
-                                <label>Recipient User ID</label>
-                                <input type="number" id="p2pRecipientUserId" placeholder="Enter recipient's User ID (e.g., 100002)" style="width: 100%; padding: 12px;">
+                                <label>Recipient Referral Code</label>
+                                <input type="text" id="p2pRecipientUserId" placeholder="Enter recipient referral code" style="width: 100%; padding: 12px;">
                                 <div id="recipientInfo" class="user-info-preview" style="display: none;"></div>
                             </div>
                             
@@ -924,8 +924,8 @@
                         </div>
                         <div class="form-row">
                             <div class="form-group">
-                                <label>Change Referrer (User # or Referral Code)</label>
-                                <input type="text" id="newReferrerCode" placeholder="Enter new referrer's user # or code">
+                                <label>Change Referrer (Referral Code)</label>
+                                <input type="text" id="newReferrerCode" placeholder="Enter new referrer code">
                                 <small id="newReferrerInfo" style="display:none; margin-top: 5px;"></small>
                             </div>
                             <div class="form-group">
@@ -1061,7 +1061,7 @@
                         <table class="data-table compact">
                             <thead>
                                 <tr>
-                                    <th>User #</th>
+                                    <th>Referral Code</th>
                                     <th>Name</th>
                                     <th>Email</th>
                                     <th>Status</th>
@@ -1207,7 +1207,7 @@
                     <thead>
                         <tr>
                             <th><input type="checkbox" id="selectAllAdminCreated" onchange="toggleSelectAllAdminCreated()"></th>
-                            <th>User #</th>
+                            <th>Referral Code</th>
                             <th>Name</th>
                             <th>Email</th>
                             <th>Status</th>

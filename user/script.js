@@ -282,7 +282,7 @@ function showMainApp() {
     // Update user info
     document.getElementById('userNameSidebar').textContent = currentUser.full_name;
     document.getElementById('userNameDisplay').textContent = currentUser.full_name;
-    document.getElementById('userIdDisplay').textContent = `#${currentUser.user_number || '000000'}`;
+    document.getElementById('userIdDisplay').textContent = `#${currentUser.referral_code || 'N/A'}`;
     
     // Load dashboard data
     loadDashboard();
@@ -859,16 +859,16 @@ function showPaymentCancelledNotification() {
 
 // P2P Transfer Functions
 document.getElementById('p2pRecipientId')?.addEventListener('blur', async function() {
-    const userNumber = this.value;
+    const referralCode = this.value.trim();
     const infoDiv = document.getElementById('p2pRecipientInfo');
     
-    if (!userNumber) {
+    if (!referralCode) {
         infoDiv.style.display = 'none';
         return;
     }
     
     try {
-        const response = await fetch(`${API_URL}/api/p2p/lookup-user/${userNumber}`, {
+        const response = await fetch(`${API_URL}/api/p2p/lookup-user/${encodeURIComponent(referralCode)}`, {
             headers: { 'Authorization': `Bearer ${authToken}` }
         });
         
@@ -891,12 +891,12 @@ document.getElementById('p2pRecipientId')?.addEventListener('blur', async functi
 });
 
 async function initiateP2PTransfer() {
-    const recipientId = document.getElementById('p2pRecipientId').value;
+    const recipientCode = document.getElementById('p2pRecipientId').value.trim();
     const amount = parseFloat(document.getElementById('p2pAmountInput').value);
     const messageDiv = document.getElementById('p2pMessage');
     
-    if (!recipientId) {
-        messageDiv.textContent = 'Please enter recipient User ID';
+    if (!recipientCode) {
+        messageDiv.textContent = 'Please enter recipient referral code';
         messageDiv.className = 'message error';
         return;
     }
@@ -915,7 +915,7 @@ async function initiateP2PTransfer() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                recipient_user_number: parseInt(recipientId),
+                recipient_referral_code: recipientCode,
                 amount: amount
             })
         });
@@ -1008,7 +1008,7 @@ async function loadP2PHistory() {
                 container.innerHTML = data.transfers.map(t => `
                     <div class="transfer-item">
                         <div class="transfer-info">
-                            <span class="transfer-user">${t.type === 'sent' ? 'To' : 'From'}: #${t.other_user_number} (${t.other_user_name})</span>
+                            <span class="transfer-user">${t.type === 'sent' ? 'To' : 'From'}: #${t.other_user_referral_code || 'N/A'} (${t.other_user_name})</span>
                             <span class="transfer-date">${new Date(t.date).toLocaleString()}</span>
                         </div>
                         <span class="transfer-amount ${t.type === 'received' ? 'received' : 'sent'}">
@@ -1070,7 +1070,7 @@ async function loadTeam() {
                             <span class="team-member-name">${m.full_name}</span>
                             <span class="team-member-date">Joined: ${new Date(m.joined_date).toLocaleDateString()}</span>
                         </div>
-                        <span>${m.user_number ? '#' + m.user_number : ''}</span>
+                        <span>${m.referral_code ? '#' + m.referral_code : ''}</span>
                     </div>
                 `).join('');
             } else {
@@ -1170,7 +1170,7 @@ function loadProfile() {
     if (currentUser) {
         document.getElementById('profileName').textContent = currentUser.full_name;
         document.getElementById('profileFullName').textContent = currentUser.full_name;
-        document.getElementById('profileId').textContent = `#${currentUser.user_number || '000000'}`;
+        document.getElementById('profileId').textContent = `#${currentUser.referral_code || 'N/A'}`;
         document.getElementById('profileEmail').textContent = currentUser.email;
         document.getElementById('profileReferralCode').textContent = currentUser.referral_code || '-';
         document.getElementById('profileJoinDate').textContent = currentUser.joined_date ? 
@@ -1418,7 +1418,7 @@ async function lookupReferrer(code) {
         const data = await response.json();
         
         if (data.found) {
-            infoDiv.innerHTML = `<strong>Referrer Found:</strong> ${data.name} ${data.user_number ? '(#' + data.user_number + ')' : ''}`;
+            infoDiv.innerHTML = `<strong>Referrer Found:</strong> ${data.name} ${data.referral_code ? '(#' + data.referral_code + ')' : ''}`;
             infoDiv.className = 'referrer-info success';
         } else {
             infoDiv.textContent = 'Invalid referral code. Please check and try again.';
@@ -1901,7 +1901,7 @@ async function loadTeamTree(parentId = null, container = null, level = 0) {
                         <div class="tree-node-avatar">${(member.full_name || 'U')[0]}</div>
                         <div class="tree-node-info">
                             <h4>${member.full_name || 'User'}</h4>
-                            <span>#${member.user_number || member.id.slice(0,6)} • $${(member.total_investment || 0).toFixed(2)}</span>
+                            <span>#${member.referral_code || member.id.slice(0,6)} • $${(member.total_investment || 0).toFixed(2)}</span>
                         </div>
                         ${member.team_size > 0 ? `<span class="tree-toggle">▶ ${member.team_size}</span>` : ''}
                     </div>
