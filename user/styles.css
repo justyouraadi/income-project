@@ -2736,31 +2736,55 @@ body {
 }
 
 /* Transactions Page Styles */
-.filter-section {
+.transactions-hero {
     display: flex;
-    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-end;
     gap: 16px;
-    margin-bottom: 24px;
-    padding: 20px;
-    background: var(--bg-card);
-    border-radius: 12px;
+    margin-bottom: 18px;
+}
+
+.transactions-hero .page-subtitle {
+    margin-bottom: 6px;
+}
+
+.transactions-hero-subtitle {
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.btn-small {
+    padding: 10px 16px;
+    font-size: 13px;
+}
+
+.filter-section {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) minmax(280px, 1.2fr) minmax(220px, 1fr);
+    gap: 14px;
+    margin-bottom: 18px;
+    padding: 18px;
+    background: linear-gradient(160deg, rgba(26, 34, 53, 0.95) 0%, rgba(20, 27, 45, 0.88) 100%);
+    border-radius: 16px;
     border: 1px solid var(--border);
 }
 
 .filter-group {
     display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: 8px;
 }
 
 .filter-group label {
     color: var(--text-muted);
-    font-size: 14px;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
 }
 
 .filter-group select,
 .filter-group input[type="date"] {
-    padding: 8px 12px;
+    padding: 10px 12px;
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: 8px;
@@ -2768,44 +2792,216 @@ body {
     font-size: 14px;
 }
 
-.filter-group span {
+.filter-group-date .date-range-fields {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 8px;
+}
+
+.date-range-fields span {
     color: var(--text-muted);
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.quick-range-group {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+}
+
+.quick-range-label {
+    color: var(--text-muted);
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.quick-range-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.quick-range-btn {
+    border: 1px solid rgba(243, 156, 18, 0.35);
+    background: rgba(243, 156, 18, 0.1);
+    color: #f7c46a;
+    border-radius: 999px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.quick-range-btn:hover {
+    background: rgba(243, 156, 18, 0.2);
+    transform: translateY(-1px);
+}
+
+.quick-range-btn.active {
+    background: linear-gradient(135deg, rgba(243, 156, 18, 0.95) 0%, rgba(214, 137, 16, 0.95) 100%);
+    color: #111827;
+    border-color: transparent;
+}
+
+.txn-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.txn-summary-card {
+    position: relative;
+    overflow: hidden;
+    background: var(--bg-card);
+    border-radius: 14px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.txn-summary-card::after {
+    content: '';
+    position: absolute;
+    top: -22px;
+    right: -22px;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(243, 156, 18, 0.2) 0%, rgba(243, 156, 18, 0) 70%);
+    pointer-events: none;
+}
+
+.txn-summary-label {
+    color: var(--text-muted);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.txn-summary-value {
+    color: var(--text);
+    font-size: 22px;
+    font-weight: 700;
+}
+
+.txn-summary-credit .txn-summary-value {
+    color: var(--success);
+}
+
+.txn-summary-debit .txn-summary-value {
+    color: var(--danger);
+}
+
+.txn-summary-value.positive {
+    color: var(--success);
+}
+
+.txn-summary-value.negative {
+    color: var(--danger);
 }
 
 .transactions-card {
     background: var(--bg-card);
-    border-radius: 16px;
-    padding: 24px;
+    border-radius: 18px;
+    padding: 8px 0 0;
     border: 1px solid var(--border);
+    overflow: hidden;
 }
 
 .transactions-list .txn-item {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 14px;
     align-items: center;
-    padding: 16px;
-    border-bottom: 1px solid var(--border);
+    padding: 18px 20px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+    transition: background 0.2s ease;
+}
+
+.transactions-list .txn-item:hover {
+    background: rgba(243, 156, 18, 0.06);
 }
 
 .transactions-list .txn-item:last-child {
     border-bottom: none;
 }
 
+.txn-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    background: rgba(243, 156, 18, 0.12);
+    border: 1px solid rgba(243, 156, 18, 0.25);
+}
+
+.txn-item.credit .txn-icon {
+    background: rgba(39, 174, 96, 0.14);
+    border-color: rgba(39, 174, 96, 0.35);
+}
+
+.txn-item.debit .txn-icon {
+    background: rgba(231, 76, 60, 0.12);
+    border-color: rgba(231, 76, 60, 0.3);
+}
+
 .txn-info {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 5px;
+    min-width: 0;
+}
+
+.txn-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
 .txn-type {
     font-weight: 600;
     font-size: 15px;
-    text-transform: capitalize;
+    color: var(--text);
+}
+
+.txn-badge {
+    padding: 4px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.txn-badge.credit {
+    background: rgba(39, 174, 96, 0.18);
+    color: #69d18f;
+}
+
+.txn-badge.debit {
+    background: rgba(231, 76, 60, 0.18);
+    color: #ff8f84;
 }
 
 .txn-desc {
     font-size: 13px;
     color: var(--text-muted);
+    line-height: 1.4;
+    overflow-wrap: anywhere;
 }
 
 .txn-date {
@@ -2815,7 +3011,9 @@ body {
 
 .txn-amount {
     font-weight: 700;
-    font-size: 16px;
+    font-size: 22px;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
 }
 
 .txn-amount.credit {
@@ -2830,20 +3028,28 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 16px;
-    margin-top: 24px;
-    padding-top: 16px;
-    border-top: 1px solid var(--border);
+    gap: 14px;
+    margin-top: 0;
+    padding: 14px 18px 16px;
+    border-top: 1px solid rgba(148, 163, 184, 0.18);
+    background: rgba(10, 14, 23, 0.42);
+}
+
+.pagination .btn[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 #txnPageInfo {
     color: var(--text-muted);
-    font-size: 14px;
+    font-size: 13px;
+    min-width: 110px;
+    text-align: center;
 }
 
 .loading-spinner {
     text-align: center;
-    padding: 40px;
+    padding: 50px 30px;
     color: var(--text-muted);
 }
 
@@ -3032,12 +3238,64 @@ body {
 }
 
 @media (max-width: 768px) {
-    .filter-section {
+    .transactions-hero {
         flex-direction: column;
+        align-items: stretch;
     }
-    
-    .filter-group {
+
+    .transactions-hero .btn {
+        width: 100%;
+    }
+
+    .filter-section {
+        grid-template-columns: 1fr;
+        padding: 14px;
+    }
+
+    .filter-group-date .date-range-fields {
+        grid-template-columns: 1fr;
+    }
+
+    .date-range-fields span {
+        display: none;
+    }
+
+    .quick-range-btn {
+        flex: 1;
+        min-width: 64px;
+    }
+
+    .txn-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .transactions-list .txn-item {
+        grid-template-columns: 1fr;
+        gap: 10px;
+        padding: 14px 14px 16px;
+    }
+
+    .txn-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+    }
+
+    .txn-title-row {
+        justify-content: space-between;
+    }
+
+    .txn-amount {
+        font-size: 20px;
+    }
+
+    .pagination {
         flex-wrap: wrap;
+    }
+
+    #txnPageInfo {
+        width: 100%;
+        order: -1;
     }
 
     .team-list.tree-layout {

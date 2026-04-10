@@ -1781,68 +1781,239 @@ function closeVideoPlayer() {
 let currentTxnPage = 1;
 const TXN_PER_PAGE = 20;
 
+function formatDateForInput(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function setActiveTransactionRange(range) {
+    document.querySelectorAll('.quick-range-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.range === range);
+    });
+}
+
+function setTransactionDateRange(range) {
+    const fromInput = document.getElementById('txnFilterFrom');
+    const toInput = document.getElementById('txnFilterTo');
+
+    if (!fromInput || !toInput) return;
+
+    if (range === 'all') {
+        fromInput.value = '';
+        toInput.value = '';
+        setActiveTransactionRange('all');
+        loadAllTransactions(1);
+        return;
+    }
+
+    const dayMap = {
+        '7d': 7,
+        '30d': 30,
+        '90d': 90
+    };
+    const days = dayMap[range];
+    if (!days) return;
+
+    const toDate = new Date();
+    const fromDate = new Date();
+    toDate.setHours(0, 0, 0, 0);
+    fromDate.setHours(0, 0, 0, 0);
+    fromDate.setDate(toDate.getDate() - (days - 1));
+
+    fromInput.value = formatDateForInput(fromDate);
+    toInput.value = formatDateForInput(toDate);
+    setActiveTransactionRange(range);
+    loadAllTransactions(1);
+}
+
+function handleTransactionDateInputChange() {
+    setActiveTransactionRange('');
+    loadAllTransactions(1);
+}
+
+function resetTransactionFilters() {
+    const typeInput = document.getElementById('txnFilterType');
+    const fromInput = document.getElementById('txnFilterFrom');
+    const toInput = document.getElementById('txnFilterTo');
+
+    if (typeInput) typeInput.value = '';
+    if (fromInput) fromInput.value = '';
+    if (toInput) toInput.value = '';
+
+    setActiveTransactionRange('all');
+    loadAllTransactions(1);
+}
+
+function updateTransactionSummary(transactions) {
+    const countEl = document.getElementById('txnSummaryCount');
+    const creditsEl = document.getElementById('txnSummaryCredits');
+    const debitsEl = document.getElementById('txnSummaryDebits');
+    const netEl = document.getElementById('txnSummaryNet');
+
+    if (!countEl || !creditsEl || !debitsEl || !netEl) return;
+
+    let creditTotal = 0;
+    let debitTotal = 0;
+
+    transactions.forEach(txn => {
+        const amount = parseFloat(txn.amount) || 0;
+        if (amount >= 0) {
+            creditTotal += amount;
+        } else {
+            debitTotal += Math.abs(amount);
+        }
+    });
+
+    const netAmount = creditTotal - debitTotal;
+
+    countEl.textContent = String(transactions.length);
+    creditsEl.textContent = `+$${creditTotal.toFixed(2)}`;
+    debitsEl.textContent = `-$${debitTotal.toFixed(2)}`;
+    netEl.textContent = `${netAmount >= 0 ? '+' : '-'}$${Math.abs(netAmount).toFixed(2)}`;
+    netEl.classList.toggle('positive', netAmount >= 0);
+    netEl.classList.toggle('negative', netAmount < 0);
+}
+
+function formatTransactionDate(dateValue) {
+    const dateObj = new Date(dateValue);
+    if (Number.isNaN(dateObj.getTime())) {
+        return 'Unknown date';
+    }
+
+    return dateObj.toLocaleString(undefined, {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+function getTransactionIcon(type, isCredit) {
+    const typeIcons = {
+        'daily_roi': '📅',
+        'direct_income': '🤝',
+        'level_income': '🪜',
+        'slab_income': '🧱',
+        'royalty_income': '👑',
+        'salary_income': '💼',
+        'investment': '📈',
+        'withdrawal': '💸',
+        'p2p_transfer': '🔄',
+        'p2p_received': '🎁',
+        'credit': '➕',
+        'debit': '➖'
+    };
+
+    return typeIcons[type] || (isCredit ? '➕' : '➖');
+}
+
+function escapeHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // Load all transactions with filters
 async function loadAllTransactions(page = 1) {
     const container = document.getElementById('allTransactionsList');
+    const pagination = document.getElementById('txnPagination');
+    const pageInfo = document.getElementById('txnPageInfo');
+    const prevBtn = document.getElementById('txnPrevBtn');
+    const nextBtn = document.getElementById('txnNextBtn');
+
     if (!container) return;
-    
-    currentTxnPage = page;
+
+    currentTxnPage = Math.max(1, page);
     container.innerHTML = '<div class="loading-spinner">Loading transactions...</div>';
-    
+
     try {
         const filterType = document.getElementById('txnFilterType')?.value || '';
         const filterFrom = document.getElementById('txnFilterFrom')?.value || '';
         const filterTo = document.getElementById('txnFilterTo')?.value || '';
-        
-        let url = `${API_URL}/api/transactions?limit=${TXN_PER_PAGE}&skip=${(page - 1) * TXN_PER_PAGE}`;
+
+        if (!filterFrom && !filterTo) {
+            setActiveTransactionRange('all');
+        }
+
+        let url = `${API_URL}/api/transactions?limit=${TXN_PER_PAGE}&skip=${(currentTxnPage - 1) * TXN_PER_PAGE}`;
         if (filterType) url += `&type=${filterType}`;
         if (filterFrom) url += `&from_date=${filterFrom}`;
         if (filterTo) url += `&to_date=${filterTo}`;
-        
+
         const response = await fetch(url, {
             headers: { 'Authorization': `Bearer ${authToken}` }
         });
-        
-        if (response.ok) {
-            const data = await response.json();
-            const transactions = data.transactions || data;
-            const total = data.total || transactions.length;
-            
-            if (transactions.length === 0) {
-                container.innerHTML = '<p class="empty-state">No transactions found</p>';
-                document.getElementById('txnPagination').style.display = 'none';
-                return;
-            }
-            
-            container.innerHTML = transactions.map(txn => {
-                const amount = parseFloat(txn.amount) || 0;
-                // Use amount-based check (positive = credit, negative = debit)
-                // This matches the dashboard logic for consistency
-                const isCredit = amount >= 0;
-                return `
-                    <div class="txn-item">
-                        <div class="txn-info">
-                            <span class="txn-type">${formatTransactionType(txn.type)}</span>
-                            <span class="txn-desc">${txn.description || ''}</span>
-                            <span class="txn-date">${new Date(txn.date).toLocaleString()}</span>
+
+        if (!response.ok) {
+            throw new Error(`Request failed with status ${response.status}`);
+        }
+
+        const data = await response.json();
+        const transactions = Array.isArray(data?.transactions)
+            ? data.transactions
+            : (Array.isArray(data) ? data : []);
+        const total = typeof data?.total === 'number' ? data.total : transactions.length;
+
+        updateTransactionSummary(transactions);
+
+        if (transactions.length === 0) {
+            container.innerHTML = '<p class="empty-state">No transactions found for the selected filters.</p>';
+            if (pagination) pagination.style.display = 'none';
+            if (pageInfo) pageInfo.textContent = 'No results';
+            return;
+        }
+
+        container.innerHTML = transactions.map(txn => {
+            const amount = parseFloat(txn.amount) || 0;
+            const isCredit = amount >= 0;
+            const description = String(txn.description || 'Wallet transaction').trim();
+
+            return `
+                <article class="txn-item ${isCredit ? 'credit' : 'debit'}">
+                    <span class="txn-icon">${getTransactionIcon(txn.type, isCredit)}</span>
+                    <div class="txn-info">
+                        <div class="txn-title-row">
+                            <span class="txn-type">${escapeHtml(formatTransactionType(txn.type))}</span>
+                            <span class="txn-badge ${isCredit ? 'credit' : 'debit'}">${isCredit ? 'Credit' : 'Debit'}</span>
                         </div>
-                        <span class="txn-amount ${isCredit ? 'credit' : 'debit'}">
-                            ${isCredit ? '+' : '-'}$${Math.abs(amount).toFixed(2)}
-                        </span>
+                        <span class="txn-desc">${escapeHtml(description)}</span>
+                        <span class="txn-date">${escapeHtml(formatTransactionDate(txn.date))}</span>
                     </div>
-                `;
-            }).join('');
-            
-            // Update pagination
-            const totalPages = Math.ceil(total / TXN_PER_PAGE);
-            document.getElementById('txnPagination').style.display = 'flex';
-            document.getElementById('txnPageInfo').textContent = `Page ${page} of ${totalPages}`;
-            document.getElementById('txnPrevBtn').disabled = page <= 1;
-            document.getElementById('txnNextBtn').disabled = page >= totalPages;
+                    <span class="txn-amount ${isCredit ? 'credit' : 'debit'}">
+                        ${isCredit ? '+' : '-'}$${Math.abs(amount).toFixed(2)}
+                    </span>
+                </article>
+            `;
+        }).join('');
+
+        const totalPages = Math.max(1, Math.ceil(total / TXN_PER_PAGE));
+
+        if (pagination) {
+            pagination.style.display = totalPages > 1 ? 'flex' : 'none';
+        }
+
+        if (pageInfo) {
+            pageInfo.textContent = `Page ${currentTxnPage} of ${totalPages}`;
+        }
+
+        if (prevBtn) {
+            prevBtn.disabled = currentTxnPage <= 1;
+        }
+
+        if (nextBtn) {
+            nextBtn.disabled = currentTxnPage >= totalPages;
         }
     } catch (error) {
         console.error('Error loading transactions:', error);
+        updateTransactionSummary([]);
         container.innerHTML = '<p class="empty-state">Error loading transactions</p>';
+        if (pagination) pagination.style.display = 'none';
     }
 }
 
@@ -1861,7 +2032,7 @@ function formatTransactionType(type) {
         'credit': 'Credit',
         'debit': 'Debit'
     };
-    return types[type] || type.replace(/_/g, ' ');
+    return types[type] || String(type || 'unknown').replace(/_/g, ' ');
 }
 
 // ==================== TEAM TREE VIEW ====================
