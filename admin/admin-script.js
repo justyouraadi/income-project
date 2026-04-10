@@ -275,9 +275,129 @@ function refreshDashboard() {
 // Store all users for filtering
 let allUsersData = [];
 
+function filterNonAdminUsers(users) {
+    return (users || []).filter(user => !user.is_admin);
+}
+
+function escapeTreeHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function sortUsersForTree(a, b) {
+    const aCode = (a.referral_code || '').toString();
+    const bCode = (b.referral_code || '').toString();
+    const aName = (a.full_name || a.email || '').toString();
+    const bName = (b.full_name || b.email || '').toString();
+
+    return aCode.localeCompare(bCode, undefined, { numeric: true, sensitivity: 'base' }) ||
+        aName.localeCompare(bName, undefined, { sensitivity: 'base' });
+}
+
+function buildUsersTreeNode(node, level = 0) {
+    const wallet = node.wallet || {};
+    const invested = Number(wallet.total_invested || 0);
+    const statusClass = node.status === 'active' ? 'status-active' : 'status-inactive';
+    const statusText = node.status === 'active' ? 'Active' : 'Inactive';
+    const directCount = node.children.length;
+    const joinedDate = node.created_at ? new Date(node.created_at).toLocaleDateString() : 'N/A';
+    const childrenMarkup = directCount > 0
+        ? `<ul class="users-tree-list">${node.children.map(child => buildUsersTreeNode(child, level + 1)).join('')}</ul>`
+        : '<div class="tree-node-empty">No direct referrals</div>';
+
+    return `
+        <li class="tree-item">
+            <details ${level === 0 ? 'open' : ''}>
+                <summary>
+                    <span class="tree-code">#${escapeTreeHtml(node.referral_code || 'N/A')}</span>
+                    <span class="tree-name">${escapeTreeHtml(node.full_name || 'Unnamed User')}</span>
+                    <span class="tree-email">${escapeTreeHtml(node.email || '')}</span>
+                    <span class="status-badge ${statusClass}">${statusText}</span>
+                    <span class="tree-meta">$${invested.toFixed(2)} invested • ${directCount} direct • ${joinedDate}</span>
+                </summary>
+                ${childrenMarkup}
+            </details>
+        </li>
+    `;
+}
+
+function renderUsersTreeView(users) {
+    const treeContainer = document.getElementById('usersTreeContainer');
+    const treeStats = document.getElementById('usersTreeStats');
+
+    if (!treeContainer || !treeStats) {
+        return;
+    }
+
+    if (!users || users.length === 0) {
+        treeStats.textContent = '0 users shown • 0 root nodes';
+        treeContainer.innerHTML = '<div class="loading">No users to display in tree view.</div>';
+        return;
+    }
+
+    const userMap = new Map();
+    users.forEach(user => {
+        userMap.set(user.id, { ...user, children: [] });
+    });
+
+    const roots = [];
+    userMap.forEach(node => {
+        const parentId = node.referred_by;
+        if (parentId && userMap.has(parentId)) {
+            userMap.get(parentId).children.push(node);
+        } else {
+            roots.push(node);
+        }
+    });
+
+    const sortTree = (nodes) => {
+        nodes.sort(sortUsersForTree);
+        nodes.forEach(item => sortTree(item.children));
+    };
+    sortTree(roots);
+
+    treeStats.textContent = `${users.length} users shown • ${roots.length} root nodes`;
+    treeContainer.innerHTML = `<ul class="users-tree-list">${roots.map(root => buildUsersTreeNode(root)).join('')}</ul>`;
+}
+
+function getFilteredUsersForDisplay() {
+    let users = filterUsersByDate(allUsersData);
+    const searchTerm = (document.getElementById('userSearch')?.value || '').trim().toLowerCase();
+
+    if (!searchTerm) {
+        return users;
+    }
+
+    return users.filter(user => {
+        const referralCode = (user.referral_code || '').toString().toLowerCase();
+        const fullName = (user.full_name || '').toLowerCase();
+        const email = (user.email || '').toLowerCase();
+        const status = (user.status || '').toLowerCase();
+
+        return referralCode.includes(searchTerm) ||
+            fullName.includes(searchTerm) ||
+            email.includes(searchTerm) ||
+            status.includes(searchTerm);
+    });
+}
+
+function applyUsersFiltersAndRender() {
+    const filteredUsers = getFilteredUsersForDisplay();
+    renderUsersTable(filteredUsers);
+    renderUsersTreeView(filteredUsers);
+}
+
+function refreshUsersTreeView() {
+    applyUsersFiltersAndRender();
+}
+
 async function loadUsers() {
     const tbody = document.getElementById('usersTableBody');
-    tbody.innerHTML = '<tr><td colspan="10" class="loading">Loading users...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="loading">Loading users...</td></tr>';
     
     // Reset selection
     selectedUserIds = [];
@@ -292,15 +412,12 @@ async function loadUsers() {
         
         if (response.ok) {
             const data = await response.json();
-            allUsersData = data.users || [];
-            
-            // Apply date filter
-            const filteredUsers = filterUsersByDate(allUsersData);
-            renderUsersTable(filteredUsers);
+            allUsersData = filterNonAdminUsers(data.users || []);
+            applyUsersFiltersAndRender();
         }
     } catch (error) {
         console.error('Error loading users:', error);
-        tbody.innerHTML = '<tr><td colspan="10" class="loading">Error loading users</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="loading">Error loading users</td></tr>';
     }
 }
 
@@ -349,7 +466,7 @@ function renderUsersTable(users) {
     const tbody = document.getElementById('usersTableBody');
     
     if (!users || users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" class="loading">No users found for selected period</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="loading">No users found for selected period</td></tr>';
         return;
     }
     
@@ -652,7 +769,7 @@ async function loadUserReferrals(userId) {
                     <div class="avatar">${data.referred_by.full_name.charAt(0).toUpperCase()}</div>
                     <div class="info">
                         <div class="name">${data.referred_by.full_name}</div>
-                        <div class="email">${data.referred_by.email}</div>
+                        <div class="email">${data.referred_by.email || 'Email hidden for admin account'}</div>
                         <div class="user-number">#${data.referred_by.referral_code || 'N/A'}</div>
                     </div>
                 `;
@@ -667,7 +784,7 @@ async function loadUserReferrals(userId) {
                     <tr>
                         <td><strong>#${ref.referral_code || 'N/A'}</strong></td>
                         <td>${ref.full_name}</td>
-                        <td>${ref.email}</td>
+                        <td>${ref.email || 'Hidden for admin account'}</td>
                         <td><span class="status-${ref.status}">${ref.status}</span></td>
                         <td>$${ref.total_invested.toFixed(2)}</td>
                         <td>${ref.level2_referrals}</td>
@@ -1684,13 +1801,8 @@ async function deleteUser(userId) {
 }
 
 // Search handlers
-document.getElementById('userSearch')?.addEventListener('input', function(e) {
-    const searchTerm = e.target.value.toLowerCase();
-    const rows = document.querySelectorAll('#usersTableBody tr');
-    rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(searchTerm) ? '' : 'none';
-    });
+document.getElementById('userSearch')?.addEventListener('input', function() {
+    applyUsersFiltersAndRender();
 });
 
 document.getElementById('walletSearch')?.addEventListener('input', function(e) {
@@ -2074,7 +2186,7 @@ function renderAdminCreatedUsersTable(users) {
             <td>${user.email}</td>
             <td><span class="status-${user.status}">${user.status}</span></td>
             <td>$${(user.total_invested || 0).toFixed(2)}</td>
-            <td>${user.created_by_admin_email}</td>
+            <td>Admin</td>
             <td>${new Date(user.created_at).toLocaleDateString()}</td>
             <td class="action-buttons">
                 <button class="btn btn-info btn-sm" onclick="viewUser('${user.id}')">Manage</button>
@@ -2279,13 +2391,20 @@ function applyUserDateFilter() {
     
     if (filter === 'custom') {
         customRange.style.display = 'flex';
-        // Don't reload, wait for user to click Apply with dates
+        const customStart = document.getElementById('userStartDate').value;
+        const customEnd = document.getElementById('userEndDate').value;
+
+        if (customStart || customEnd) {
+            if (allUsersData.length > 0) {
+                applyUsersFiltersAndRender();
+            } else {
+                loadUsers();
+            }
+        }
     } else {
         customRange.style.display = 'none';
-        // Re-filter the existing data
         if (allUsersData.length > 0) {
-            const filteredUsers = filterUsersByDate(allUsersData);
-            renderUsersTable(filteredUsers);
+            applyUsersFiltersAndRender();
         } else {
             loadUsers();
         }
@@ -2570,7 +2689,7 @@ async function doExportUsers(startDate, endDate) {
         
         if (response.ok) {
             const data = await response.json();
-            let users = data.users || [];
+            let users = filterNonAdminUsers(data.users || []);
             
             // Apply date filter if specified
             if (startDate) {
@@ -2664,7 +2783,7 @@ async function doExportAdminCreatedUsers(startDate, endDate) {
                 'Email': u.email,
                 'Status': u.status,
                 'Total Invested': u.total_invested,
-                'Created By': u.created_by_admin_email,
+                'Created By': 'Admin',
                 'Created At': new Date(u.created_at).toLocaleDateString()
             }));
             

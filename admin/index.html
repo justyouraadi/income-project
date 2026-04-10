@@ -248,6 +248,18 @@
                             </tbody>
                         </table>
                     </div>
+
+                    <div class="users-tree-section">
+                        <div class="users-tree-header">
+                            <h3>Referral Tree View</h3>
+                            <button class="btn btn-info btn-sm" onclick="refreshUsersTreeView()">Refresh Tree</button>
+                        </div>
+                        <p class="users-tree-subtitle">Hierarchy for users currently visible with the active date and search filters.</p>
+                        <div id="usersTreeStats" class="users-tree-stats">0 users shown • 0 root nodes</div>
+                        <div id="usersTreeContainer" class="users-tree-container">
+                            <div class="loading">Tree will appear after users are loaded.</div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Withdrawals Page -->

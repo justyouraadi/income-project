@@ -399,6 +399,121 @@ body {
     color: var(--text-secondary);
 }
 
+/* Users Tree View */
+.users-tree-section {
+    margin-top: 24px;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(243, 156, 18, 0.2);
+    border-radius: 16px;
+}
+
+.users-tree-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.users-tree-header h3 {
+    color: var(--primary);
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.users-tree-subtitle {
+    margin-top: 8px;
+    margin-bottom: 14px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.users-tree-stats {
+    display: inline-flex;
+    gap: 14px;
+    margin-bottom: 14px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(243, 156, 18, 0.12);
+    color: var(--primary);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.users-tree-container {
+    max-height: 520px;
+    overflow: auto;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(243, 156, 18, 0.16);
+    background: rgba(0, 0, 0, 0.18);
+}
+
+.users-tree-container .loading {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 24px 12px;
+}
+
+.users-tree-list {
+    list-style: none;
+    margin: 0;
+    padding-left: 16px;
+}
+
+.tree-item {
+    margin-bottom: 10px;
+}
+
+.tree-item details {
+    border-radius: 10px;
+    border: 1px solid rgba(243, 156, 18, 0.16);
+    background: rgba(243, 156, 18, 0.06);
+    padding: 8px 10px;
+}
+
+.tree-item summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    list-style: none;
+    flex-wrap: wrap;
+}
+
+.tree-item summary::-webkit-details-marker {
+    display: none;
+}
+
+.tree-code {
+    color: var(--primary);
+    font-weight: 700;
+}
+
+.tree-name {
+    font-weight: 600;
+    color: var(--text);
+}
+
+.tree-email {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.tree-meta {
+    margin-left: auto;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.tree-node-empty {
+    margin-top: 10px;
+    margin-left: 6px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
 .action-btn {
     padding: 6px 12px;
     border-radius: 6px;

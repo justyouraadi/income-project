@@ -1973,6 +1973,7 @@ async def get_all_users(
             "referral_code": user.get("referral_code", "N/A"),
             "email": user["email"],
             "full_name": user["full_name"],
+            "referred_by": user.get("referred_by"),
             "status": user.get("status", "active"),
             "created_at": user["created_at"].isoformat() if hasattr(user["created_at"], 'isoformat') else str(user["created_at"]),
             "is_admin": user.get("is_admin", False),
@@ -2437,7 +2438,8 @@ async def get_user_referrals(user_id: str, admin_user: dict = Depends(get_admin_
             "id": ref["id"],
             "referral_code": ref.get("referral_code"),
             "full_name": ref["full_name"],
-            "email": ref["email"],
+            "email": "" if ref.get("is_admin", False) else ref["email"],
+            "is_admin": ref.get("is_admin", False),
             "status": ref.get("status", "active"),
             "total_invested": ref_invested,
             "joined_date": ref["created_at"].isoformat() if hasattr(ref["created_at"], 'isoformat') else str(ref["created_at"]),
@@ -2454,7 +2456,8 @@ async def get_user_referrals(user_id: str, admin_user: dict = Depends(get_admin_
                 "id": referrer["id"],
                 "referral_code": referrer.get("referral_code"),
                 "full_name": referrer["full_name"],
-                "email": referrer["email"]
+                "email": "" if referrer.get("is_admin", False) else referrer["email"],
+                "is_admin": referrer.get("is_admin", False)
             }
     
     return {
