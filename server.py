@@ -4654,7 +4654,7 @@ scheduler = AsyncIOScheduler()
 
 async def scheduled_daily_roi_calculation():
     """
-    Scheduled job to calculate and distribute daily ROI at midnight (12:00 AM).
+    Scheduled job to calculate and distribute daily ROI at 10:00 PM IST.
     This runs automatically every day and skips weekends and Dec 25.
     """
     logging.info("=== SCHEDULED DAILY ROI CALCULATION STARTED ===")
@@ -4763,16 +4763,16 @@ async def scheduled_daily_roi_calculation():
 @app.on_event("startup")
 async def start_scheduler():
     """Start the background scheduler for daily ROI calculations"""
-    # Run daily at 00:00 IST (India Standard Time)
-    # IST is UTC+5:30, so 00:00 IST = 18:30 UTC (previous day)
+    # Run daily at 22:00 IST (India Standard Time)
+    # IST is UTC+5:30, so 22:00 IST = 16:30 UTC
     scheduler.add_job(
         scheduled_daily_roi_calculation,
-        CronTrigger(hour=18, minute=30),  # 12:00 AM IST = 6:30 PM UTC
+        CronTrigger(hour=16, minute=30),  # 10:00 PM IST = 4:30 PM UTC
         id="daily_roi_job",
         replace_existing=True
     )
     scheduler.start()
-    logging.info("Daily ROI scheduler started - will run at 00:00 IST (18:30 UTC) daily")
+    logging.info("Daily ROI scheduler started - will run at 22:00 IST (16:30 UTC) daily")
 
 @app.on_event("shutdown")
 async def shutdown_scheduler():
