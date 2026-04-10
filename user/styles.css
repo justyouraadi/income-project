@@ -2753,6 +2753,12 @@ body {
     font-size: 14px;
 }
 
+.transactions-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
 .btn-small {
     padding: 10px 16px;
     font-size: 13px;
@@ -3244,6 +3250,11 @@ body {
     }
 
     .transactions-hero .btn {
+        width: 100%;
+    }
+
+    .transactions-actions {
+        flex-direction: column;
         width: 100%;
     }
 

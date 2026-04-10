@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, Depends, HTTPException, status, Request, UploadFile, File
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, status, Request, UploadFile, File, Query
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
@@ -1473,12 +1473,70 @@ async def get_working_day_status():
 
 # ==================== TRANSACTION ROUTES ====================
 
-@api_router.get("/transactions", response_model=List[Transaction])
-async def get_transactions(current_user: dict = Depends(get_current_user)):
-    transactions = await db.transactions.find(
-        {"user_id": current_user["id"]}
-    ).sort("date", -1).limit(50).to_list(50)
-    return transactions
+@api_router.get("/transactions")
+async def get_transactions(
+    txn_type: Optional[str] = Query(default=None, alias="type"),
+    from_date: Optional[str] = Query(default=None),
+    to_date: Optional[str] = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=2000),
+    skip: int = Query(default=0, ge=0),
+    current_user: dict = Depends(get_current_user)
+):
+    query: Dict = {"user_id": current_user["id"]}
+
+    if txn_type:
+        # Support grouped filter values used by frontend controls.
+        type_groups = {
+            "investment": ["investment", "investment_pending", "investment_failed"],
+            "p2p_transfer": [
+                "p2p_transfer",
+                "p2p_transfer_in",
+                "p2p_transfer_out",
+                "referral_transfer_in",
+                "referral_transfer_out",
+                "admin_p2p_transfer_in",
+                "admin_p2p_transfer_out"
+            ]
+        }
+        if txn_type in type_groups:
+            query["type"] = {"$in": type_groups[txn_type]}
+        else:
+            query["type"] = txn_type
+
+    date_filter = {}
+    parsed_from = None
+    parsed_to = None
+
+    if from_date:
+        try:
+            parsed_from = datetime.strptime(from_date, "%Y-%m-%d")
+            date_filter["$gte"] = parsed_from
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid from_date format. Use YYYY-MM-DD")
+
+    if to_date:
+        try:
+            parsed_to = datetime.strptime(to_date, "%Y-%m-%d")
+            # Include full end date by using next-day exclusive boundary.
+            date_filter["$lt"] = parsed_to + timedelta(days=1)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid to_date format. Use YYYY-MM-DD")
+
+    if parsed_from and parsed_to and parsed_from > parsed_to:
+        raise HTTPException(status_code=400, detail="from_date must be earlier than or equal to to_date")
+
+    if date_filter:
+        query["date"] = date_filter
+
+    total = await db.transactions.count_documents(query)
+    transactions = await db.transactions.find(query).sort("date", -1).skip(skip).limit(limit).to_list(limit)
+
+    return {
+        "transactions": transactions,
+        "total": total,
+        "limit": limit,
+        "skip": skip
+    }
 
 
 @api_router.get("/investments/active")

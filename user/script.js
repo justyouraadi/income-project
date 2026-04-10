@@ -1779,7 +1779,7 @@ function closeVideoPlayer() {
 
 // ==================== TRANSACTIONS PAGE ====================
 let currentTxnPage = 1;
-const TXN_PER_PAGE = 20;
+const TXN_PER_PAGE = 1000;
 
 function formatDateForInput(date) {
     const year = date.getFullYear();
@@ -1900,9 +1900,15 @@ function getTransactionIcon(type, isCredit) {
         'royalty_income': '👑',
         'salary_income': '💼',
         'investment': '📈',
+        'investment_pending': '⏳',
+        'investment_failed': '⚠️',
         'withdrawal': '💸',
         'p2p_transfer': '🔄',
         'p2p_received': '🎁',
+        'p2p_transfer_in': '🎁',
+        'p2p_transfer_out': '📤',
+        'referral_transfer_in': '🎁',
+        'referral_transfer_out': '📤',
         'credit': '➕',
         'debit': '➖'
     };
@@ -1919,6 +1925,167 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
+function getTransactionFilterValues() {
+    return {
+        filterType: document.getElementById('txnFilterType')?.value || '',
+        filterFrom: document.getElementById('txnFilterFrom')?.value || '',
+        filterTo: document.getElementById('txnFilterTo')?.value || ''
+    };
+}
+
+function isValidTransactionDateRange(filterFrom, filterTo) {
+    if (!filterFrom || !filterTo) {
+        return true;
+    }
+    return new Date(filterFrom) <= new Date(filterTo);
+}
+
+function buildTransactionsApiUrl(limit, skip, filterType, filterFrom, filterTo) {
+    const params = new URLSearchParams();
+    params.set('limit', String(limit));
+    params.set('skip', String(skip));
+
+    if (filterType) {
+        params.set('type', filterType);
+    }
+    if (filterFrom) {
+        params.set('from_date', filterFrom);
+    }
+    if (filterTo) {
+        params.set('to_date', filterTo);
+    }
+
+    return `${API_URL}/api/transactions?${params.toString()}`;
+}
+
+function normalizeTransactionsResponse(data) {
+    const transactions = Array.isArray(data?.transactions)
+        ? data.transactions
+        : (Array.isArray(data) ? data : []);
+    const total = typeof data?.total === 'number' ? data.total : transactions.length;
+
+    return { transactions, total };
+}
+
+async function exportTransactionsToExcel() {
+    const exportBtn = document.getElementById('txnExportBtn');
+    const originalButtonText = exportBtn ? exportBtn.textContent : '';
+    const { filterType, filterFrom, filterTo } = getTransactionFilterValues();
+
+    if (!filterFrom || !filterTo) {
+        alert('Please select both From and To dates before exporting.');
+        return;
+    }
+
+    if (!isValidTransactionDateRange(filterFrom, filterTo)) {
+        alert('From date must be earlier than or equal to To date.');
+        return;
+    }
+
+    if (exportBtn) {
+        exportBtn.disabled = true;
+        exportBtn.textContent = 'Exporting...';
+    }
+
+    try {
+        const batchSize = 500;
+        let skip = 0;
+        let total = 0;
+        const allTransactions = [];
+
+        while (true) {
+            const url = buildTransactionsApiUrl(batchSize, skip, filterType, filterFrom, filterTo);
+            const response = await fetch(url, {
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Export request failed with status ${response.status}`);
+            }
+
+            const data = await response.json();
+            const { transactions, total: currentTotal } = normalizeTransactionsResponse(data);
+            total = currentTotal;
+            allTransactions.push(...transactions);
+
+            if (allTransactions.length >= total || transactions.length === 0) {
+                break;
+            }
+            skip += batchSize;
+        }
+
+        if (allTransactions.length === 0) {
+            alert('No transactions found for the selected date range.');
+            return;
+        }
+
+        const tableRows = allTransactions.map((txn, index) => {
+            const amount = parseFloat(txn.amount) || 0;
+            const credit = amount >= 0 ? amount.toFixed(2) : '';
+            const debit = amount < 0 ? Math.abs(amount).toFixed(2) : '';
+            const description = String(txn.description || 'Wallet transaction').trim();
+
+            return `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${escapeHtml(formatTransactionDate(txn.date))}</td>
+                    <td>${escapeHtml(formatTransactionType(txn.type))}</td>
+                    <td>${escapeHtml(description)}</td>
+                    <td style="text-align:right;">${credit}</td>
+                    <td style="text-align:right;">${debit}</td>
+                    <td style="text-align:right;">${amount.toFixed(2)}</td>
+                </tr>
+            `;
+        }).join('');
+
+        const htmlDocument = `
+            <html>
+                <head>
+                    <meta charset="UTF-8">
+                </head>
+                <body>
+                    <table border="1">
+                        <tr>
+                            <th colspan="7">Transaction Export (${escapeHtml(filterFrom)} to ${escapeHtml(filterTo)})</th>
+                        </tr>
+                        <tr>
+                            <th>#</th>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                            <th>Credit (USD)</th>
+                            <th>Debit (USD)</th>
+                            <th>Net (USD)</th>
+                        </tr>
+                        ${tableRows}
+                    </table>
+                </body>
+            </html>
+        `;
+
+        const blob = new Blob([`\ufeff${htmlDocument}`], {
+            type: 'application/vnd.ms-excel;charset=utf-8;'
+        });
+
+        const downloadUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = `transactions_${filterFrom}_to_${filterTo}.xls`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+        console.error('Error exporting transactions:', error);
+        alert('Failed to export transactions. Please try again.');
+    } finally {
+        if (exportBtn) {
+            exportBtn.disabled = false;
+            exportBtn.textContent = originalButtonText || 'Export Excel';
+        }
+    }
+}
+
 // Load all transactions with filters
 async function loadAllTransactions(page = 1) {
     const container = document.getElementById('allTransactionsList');
@@ -1933,18 +2100,27 @@ async function loadAllTransactions(page = 1) {
     container.innerHTML = '<div class="loading-spinner">Loading transactions...</div>';
 
     try {
-        const filterType = document.getElementById('txnFilterType')?.value || '';
-        const filterFrom = document.getElementById('txnFilterFrom')?.value || '';
-        const filterTo = document.getElementById('txnFilterTo')?.value || '';
+        const { filterType, filterFrom, filterTo } = getTransactionFilterValues();
 
         if (!filterFrom && !filterTo) {
             setActiveTransactionRange('all');
         }
 
-        let url = `${API_URL}/api/transactions?limit=${TXN_PER_PAGE}&skip=${(currentTxnPage - 1) * TXN_PER_PAGE}`;
-        if (filterType) url += `&type=${filterType}`;
-        if (filterFrom) url += `&from_date=${filterFrom}`;
-        if (filterTo) url += `&to_date=${filterTo}`;
+        if (!isValidTransactionDateRange(filterFrom, filterTo)) {
+            updateTransactionSummary([]);
+            container.innerHTML = '<p class="empty-state">From date must be earlier than or equal to To date.</p>';
+            if (pagination) pagination.style.display = 'none';
+            if (pageInfo) pageInfo.textContent = 'Invalid date range';
+            return;
+        }
+
+        const url = buildTransactionsApiUrl(
+            TXN_PER_PAGE,
+            (currentTxnPage - 1) * TXN_PER_PAGE,
+            filterType,
+            filterFrom,
+            filterTo
+        );
 
         const response = await fetch(url, {
             headers: { 'Authorization': `Bearer ${authToken}` }
@@ -1955,10 +2131,7 @@ async function loadAllTransactions(page = 1) {
         }
 
         const data = await response.json();
-        const transactions = Array.isArray(data?.transactions)
-            ? data.transactions
-            : (Array.isArray(data) ? data : []);
-        const total = typeof data?.total === 'number' ? data.total : transactions.length;
+        const { transactions, total } = normalizeTransactionsResponse(data);
 
         updateTransactionSummary(transactions);
 
@@ -2026,9 +2199,15 @@ function formatTransactionType(type) {
         'royalty_income': 'Royalty Income',
         'salary_income': 'Salary Income',
         'investment': 'Investment',
+        'investment_pending': 'Investment Pending',
+        'investment_failed': 'Investment Failed',
         'withdrawal': 'Withdrawal',
         'p2p_transfer': 'P2P Transfer',
         'p2p_received': 'P2P Received',
+        'p2p_transfer_in': 'P2P Received',
+        'p2p_transfer_out': 'P2P Sent',
+        'referral_transfer_in': 'Referral Transfer In',
+        'referral_transfer_out': 'Referral Transfer Out',
         'credit': 'Credit',
         'debit': 'Debit'
     };

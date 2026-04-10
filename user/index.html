@@ -404,7 +404,10 @@
                             <h2 class="page-subtitle">Transaction History</h2>
                             <p class="transactions-hero-subtitle">A cleaner view of credits, debits, and wallet movement.</p>
                         </div>
-                        <button class="btn btn-outline btn-small" type="button" onclick="resetTransactionFilters()">Reset Filters</button>
+                        <div class="transactions-actions">
+                            <button class="btn btn-outline btn-small" type="button" onclick="resetTransactionFilters()">Reset Filters</button>
+                            <button class="btn btn-primary btn-small" type="button" id="txnExportBtn" onclick="exportTransactionsToExcel()">Export Excel</button>
+                        </div>
                     </div>
 
                     <!-- Filter Section -->
