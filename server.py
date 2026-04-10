@@ -137,6 +137,34 @@ async def count_total_team_members(user_id: str) -> int:
         return 0
     return int(result[0].get("total_team", 0))
 
+
+async def is_user_in_downline(root_user_id: str, target_user_id: str) -> bool:
+    """Check whether target user belongs to root user's downline."""
+    if root_user_id == target_user_id:
+        return True
+
+    pipeline = [
+        {"$match": {"id": root_user_id}},
+        {
+            "$graphLookup": {
+                "from": "users",
+                "startWith": "$id",
+                "connectFromField": "id",
+                "connectToField": "referred_by",
+                "as": "downline",
+                "maxDepth": 50
+            }
+        },
+        {"$project": {"_id": 0, "downline_ids": "$downline.id"}}
+    ]
+
+    result = await db.users.aggregate(pipeline).to_list(1)
+    if not result:
+        return False
+
+    downline_ids = set(result[0].get("downline_ids", []))
+    return target_user_id in downline_ids
+
 # Security
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 SECRET_KEY = os.environ.get("SECRET_KEY", secrets.token_urlsafe(32))
@@ -1512,25 +1540,41 @@ async def get_active_investments(current_user: dict = Depends(get_current_user))
 # ==================== TEAM/REFERRAL ROUTES ====================
 
 @api_router.get("/team/members")
-async def get_team_members(current_user: dict = Depends(get_current_user)):
-    # Get direct referrals
-    referrals = await db.users.find({"referred_by": current_user["id"]}).to_list(100)
+async def get_team_members(
+    parent_id: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    node_user_id = parent_id or current_user["id"]
+
+    # Users can only traverse their own tree
+    if not await is_user_in_downline(current_user["id"], node_user_id):
+        raise HTTPException(status_code=403, detail="Access denied for this team node")
+
+    # Get direct referrals for requested node
+    referrals = await db.users.find({"referred_by": node_user_id}).to_list(100)
     
     team_members = []
     for referral in referrals:
         wallet = await db.wallets.find_one({"user_id": referral["id"]})
+        team_size = await db.users.count_documents({"referred_by": referral["id"]})
         team_members.append({
+            "id": referral["id"],
             "user_id": referral["id"],
             "referral_code": referral.get("referral_code", "N/A"),
             "full_name": referral["full_name"],
             "email": referral["email"],
             "joined_date": referral["created_at"].isoformat() if hasattr(referral["created_at"], 'isoformat') else str(referral["created_at"]),
             "total_investment": wallet.get("total_invested", 0) if wallet else 0,
+            "team_size": team_size,
             "level": 1
         })
 
-    direct_referrals_count = len(team_members)
-    total_team_count = await count_total_team_members(current_user["id"])
+    # Totals are for the logged-in user's whole team and direct referrals
+    total_team_count = 0
+    direct_referrals_count = 0
+    if node_user_id == current_user["id"]:
+        direct_referrals_count = len(team_members)
+        total_team_count = await count_total_team_members(current_user["id"])
     
     # Return wrapped response with totals
     return {

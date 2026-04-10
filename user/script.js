@@ -1873,7 +1873,7 @@ function setTeamView(mode) {
 
 // Load team with tree view support
 async function loadTeamTree(parentId = null, container = null, level = 0) {
-    if (level > 5) return; // Max 5 levels deep
+    if (level > 10) return; // Safety cap
     
     try {
         const url = parentId 
@@ -1886,26 +1886,40 @@ async function loadTeamTree(parentId = null, container = null, level = 0) {
         
         if (response.ok) {
             const data = await response.json();
-            const members = data.members || data;
+            const members = Array.isArray(data) ? data : (data.members || []);
+
+            if (level === 0 && !Array.isArray(data)) {
+                document.getElementById('totalTeamMembers').textContent = data.total_team || 0;
+                document.getElementById('directReferrals').textContent = data.direct_referrals || 0;
+            }
             
             if (!container) {
                 container = document.getElementById('teamList');
                 container.innerHTML = '';
             }
+
+            if (members.length === 0 && level === 0) {
+                container.innerHTML = '<p class="empty-state">No team members yet. Share your referral link!</p>';
+                return;
+            }
             
             members.forEach(member => {
+                const memberId = member.id || member.user_id;
+                const teamSize = Number(member.team_size || 0);
+                const toggleMarkup = teamSize > 0 ? `<span class="tree-toggle">▶ ${teamSize}</span>` : '';
+
                 const node = document.createElement('div');
                 node.className = 'tree-node';
                 node.innerHTML = `
-                    <div class="tree-node-content" onclick="toggleTreeNode(this, '${member.id}')">
+                    <div class="tree-node-content" ${memberId ? `onclick="toggleTreeNode(this, '${memberId}')"` : ''}>
                         <div class="tree-node-avatar">${(member.full_name || 'U')[0]}</div>
                         <div class="tree-node-info">
                             <h4>${member.full_name || 'User'}</h4>
-                            <span>#${member.referral_code || member.id.slice(0,6)} • $${(member.total_investment || 0).toFixed(2)}</span>
+                            <span>#${member.referral_code || (memberId ? memberId.slice(0, 6) : 'N/A')} • $${(member.total_investment || 0).toFixed(2)}</span>
                         </div>
-                        ${member.team_size > 0 ? `<span class="tree-toggle">▶ ${member.team_size}</span>` : ''}
+                        ${toggleMarkup}
                     </div>
-                    <div class="tree-children" data-user-id="${member.id}"></div>
+                    <div class="tree-children" data-user-id="${memberId || ''}" data-level="${level + 1}"></div>
                 `;
                 container.appendChild(node);
             });
@@ -1916,21 +1930,30 @@ async function loadTeamTree(parentId = null, container = null, level = 0) {
 }
 
 async function toggleTreeNode(element, userId) {
+    if (!userId) return;
+
     const childrenContainer = element.nextElementSibling;
     const toggle = element.querySelector('.tree-toggle');
     
     if (childrenContainer.classList.contains('show')) {
         childrenContainer.classList.remove('show');
         element.classList.remove('expanded');
-        if (toggle) toggle.textContent = '▶ ' + toggle.textContent.split(' ')[1];
+        if (toggle) {
+            const count = toggle.textContent.split(' ').slice(1).join(' ') || '';
+            toggle.textContent = `▶ ${count}`.trim();
+        }
     } else {
         childrenContainer.classList.add('show');
         element.classList.add('expanded');
-        if (toggle) toggle.textContent = '▼ ' + toggle.textContent.split(' ')[1];
+        if (toggle) {
+            const count = toggle.textContent.split(' ').slice(1).join(' ') || '';
+            toggle.textContent = `▼ ${count}`.trim();
+        }
         
         // Load children if not already loaded
         if (childrenContainer.children.length === 0) {
-            await loadTeamTree(userId, childrenContainer, 1);
+            const nextLevel = parseInt(childrenContainer.dataset.level || '1', 10);
+            await loadTeamTree(userId, childrenContainer, nextLevel);
         }
     }
 }
