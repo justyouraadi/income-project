@@ -1452,6 +1452,16 @@ async function creditSalaryIncome() {
 // Store all investments for filtering
 let allInvestmentsData = [];
 
+function getUserReferralCode(record) {
+    return (
+        record?.referral_code ||
+        record?.user_referral_code ||
+        record?.user_code ||
+        record?.user?.referral_code ||
+        'N/A'
+    );
+}
+
 async function loadInvestments() {
     const tbody = document.getElementById('investmentsTableBody');
     tbody.innerHTML = '<tr><td colspan="7" class="loading">Loading investments...</td></tr>';
@@ -1537,9 +1547,10 @@ function renderInvestmentsTable(investments) {
     tbody.innerHTML = '';
     investments.forEach(investment => {
         const slabRate = getSlabRate(investment.amount);
+        const referralCode = getUserReferralCode(investment);
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td><strong>#${investment.referral_code || 'N/A'}</strong></td>
+            <td><strong>#${referralCode}</strong></td>
             <td>${investment.user_name || 'Unknown'}</td>
             <td>${investment.user_email || 'N/A'}</td>
             <td><strong>$${(investment.amount || 0).toFixed(2)}</strong></td>
@@ -1595,7 +1606,7 @@ async function doExportInvestments(startDate, endDate) {
         }
         
         const exportData = investments.map(inv => ({
-            'Referral Code': inv.referral_code || 'N/A',
+            'ID': getUserReferralCode(inv),
             'Name': inv.user_name || 'Unknown',
             'Email': inv.user_email || 'N/A',
             'Amount': inv.amount,
@@ -1632,7 +1643,7 @@ let allTransactionsData = [];
 
 async function loadTransactions() {
     const tbody = document.getElementById('transactionsTableBody');
-    tbody.innerHTML = '<tr><td colspan="5" class="loading">Loading transactions...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="loading">Loading transactions...</td></tr>';
     
     try {
         const response = await fetch(`${API_URL}/api/admin/transactions?limit=1000`, {
@@ -1650,7 +1661,7 @@ async function loadTransactions() {
         }
     } catch (error) {
         console.error('Error:', error);
-        tbody.innerHTML = '<tr><td colspan="5" class="loading">Error loading transactions</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="loading">Error loading transactions</td></tr>';
     }
 }
 
@@ -1709,7 +1720,7 @@ function renderTransactions(transactions) {
     }
     
     if (!transactions || transactions.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="loading">No transactions found for selected period</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="loading">No transactions found for selected period</td></tr>';
         return;
     }
     
@@ -1725,8 +1736,10 @@ function renderTransactions(transactions) {
     
     tbody.innerHTML = '';
     transactions.forEach(transaction => {
+        const referralCode = getUserReferralCode(transaction);
         const row = document.createElement('tr');
         row.innerHTML = `
+            <td><strong>#${referralCode}</strong></td>
             <td>${transaction.user_name || 'Unknown'}</td>
             <td><span class="type-badge" style="background: ${typeColors[transaction.type] || '#999'}">${transaction.type.replace(/_/g, ' ')}</span></td>
             <td style="color: ${transaction.amount < 0 ? '#e74c3c' : '#27ae60'}">$${Math.abs(transaction.amount || 0).toFixed(2)}</td>
@@ -1790,6 +1803,7 @@ async function doExportTransactions(startDate, endDate) {
         }
         
         const exportData = transactions.map(t => ({
+            'ID': getUserReferralCode(t),
             'User': t.user_name || 'Unknown',
             'Type': t.type?.replace(/_/g, ' ') || 'N/A',
             'Amount': t.amount,
