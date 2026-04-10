@@ -114,6 +114,29 @@ async def calculate_team_total_investment(user_id: str) -> float:
     
     return total
 
+
+async def count_total_team_members(user_id: str) -> int:
+    """Count all downline members (direct + indirect) for a user."""
+    pipeline = [
+        {"$match": {"id": user_id}},
+        {
+            "$graphLookup": {
+                "from": "users",
+                "startWith": "$id",
+                "connectFromField": "id",
+                "connectToField": "referred_by",
+                "as": "downline",
+                "maxDepth": 50
+            }
+        },
+        {"$project": {"_id": 0, "total_team": {"$size": "$downline"}}}
+    ]
+
+    result = await db.users.aggregate(pipeline).to_list(1)
+    if not result:
+        return 0
+    return int(result[0].get("total_team", 0))
+
 # Security
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 SECRET_KEY = os.environ.get("SECRET_KEY", secrets.token_urlsafe(32))
@@ -1505,11 +1528,14 @@ async def get_team_members(current_user: dict = Depends(get_current_user)):
             "total_investment": wallet.get("total_invested", 0) if wallet else 0,
             "level": 1
         })
+
+    direct_referrals_count = len(team_members)
+    total_team_count = await count_total_team_members(current_user["id"])
     
     # Return wrapped response with totals
     return {
-        "total_team": len(team_members),
-        "direct_referrals": len(team_members),
+        "total_team": total_team_count,
+        "direct_referrals": direct_referrals_count,
         "members": team_members
     }
 
