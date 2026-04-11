@@ -3311,33 +3311,62 @@ body {
 
     .team-list.tree-layout {
         padding: 16px 10px 12px;
+        overflow-x: hidden;
     }
 
     .tree-node {
-        margin: 0 10px 22px;
+        margin: 0 0 20px;
     }
 
     .tree-node-content {
-        width: 188px;
-        min-height: 128px;
-        padding: 16px 12px 14px;
+        width: min(100%, 176px);
+        min-height: 116px;
+        padding: 14px 10px 12px;
     }
 
     .tree-node-avatar {
-        width: 58px;
-        height: 58px;
-        font-size: 28px;
+        width: 52px;
+        height: 52px;
+        font-size: 24px;
     }
 
     .tree-node-info h4 {
-        font-size: 16px;
+        font-size: 15px;
     }
 
     .tree-node-info span {
-        font-size: 11px;
+        font-size: 10px;
     }
 
     .tree-children {
-        gap: 22px 12px;
+        width: 100%;
+        min-width: 0;
+        margin-top: 22px;
+        padding-top: 20px;
+        gap: 18px;
+    }
+
+    .tree-children.show {
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+    }
+
+    .tree-children.show::before {
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+        width: 2px;
+        height: 20px;
+    }
+
+    .tree-children.show > .tree-node::before {
+        top: -20px;
+        height: 20px;
+    }
+
+    .tree-node-content.has-children::after {
+        bottom: -20px;
+        height: 20px;
     }
 }
