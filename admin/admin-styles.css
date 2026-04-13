@@ -605,7 +605,7 @@ body {
 @media (max-width: 768px) {
     .users-tree-container.tree-layout {
         padding: 16px 10px 12px;
-        overflow-x: hidden;
+        overflow-x: auto;
     }
 
     .tree-node {
@@ -633,35 +633,11 @@ body {
     }
 
     .tree-children {
-        width: 100%;
-        min-width: 0;
-        margin-top: 22px;
-        padding-top: 20px;
-        gap: 18px;
-    }
-
-    .tree-children.show {
-        flex-direction: column;
-        align-items: center;
-        justify-content: flex-start;
-    }
-
-    .tree-children.show::before {
-        left: 50%;
-        right: auto;
-        transform: translateX(-50%);
-        width: 2px;
-        height: 20px;
-    }
-
-    .tree-children.show > .tree-node::before {
-        top: -20px;
-        height: 20px;
-    }
-
-    .tree-node-content.has-children::after {
-        bottom: -20px;
-        height: 20px;
+        width: fit-content;
+        min-width: min(100%, 220px);
+        margin-top: 24px;
+        padding-top: 22px;
+        gap: 20px 12px;
     }
 }
 
