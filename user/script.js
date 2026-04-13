@@ -422,9 +422,27 @@ async function loadDashboard() {
         
         if (userRes.ok) {
             const user = await userRes.json();
+            const fallbackTeamSize = Number(user.team_size || 0);
             document.getElementById('totalInvestment').textContent = `$${(user.total_investment || 0).toFixed(2)}`;
-            document.getElementById('teamSize').textContent = user.team_size || 0;
+            document.getElementById('teamSize').textContent = fallbackTeamSize;
             document.getElementById('totalWithdrawn').textContent = `$${(user.total_withdrawn || 0).toFixed(2)}`;
+
+            // Dashboard team size should include both direct + indirect members.
+            try {
+                const teamRes = await fetch(`${API_URL}/api/team/members`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (teamRes.ok) {
+                    const teamData = await teamRes.json();
+                    const totalTeamCount = Number(teamData?.total_team);
+                    document.getElementById('teamSize').textContent = Number.isFinite(totalTeamCount)
+                        ? totalTeamCount
+                        : fallbackTeamSize;
+                }
+            } catch (teamError) {
+                console.error('Error loading total team count:', teamError);
+            }
             
             // Set referral link
             const referralLink = `${window.location.origin}/api/user/#signup?ref=${user.referral_code}`;
