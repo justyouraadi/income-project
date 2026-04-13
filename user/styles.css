@@ -1661,6 +1661,15 @@ body {
     .team-stats {
         flex-direction: column;
     }
+
+    .team-level-filter {
+        align-items: flex-start;
+    }
+
+    .team-level-filter select {
+        width: 100%;
+        min-width: 0;
+    }
     
     .team-stat {
         padding: 16px;
@@ -3127,6 +3136,34 @@ body {
     background: var(--primary);
     border-color: var(--primary);
     color: #0b1220;
+}
+
+.team-level-filter {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.team-level-filter label {
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.team-level-filter select {
+    min-width: 220px;
+    padding: 10px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 14px;
+}
+
+.team-level-filter select:focus {
+    outline: none;
+    border-color: var(--primary);
 }
 
 .team-list.tree-layout {

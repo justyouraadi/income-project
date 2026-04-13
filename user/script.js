@@ -1050,8 +1050,55 @@ function formatTeamJoinedDate(value) {
     return Number.isNaN(dateObj.getTime()) ? 'N/A' : dateObj.toLocaleDateString();
 }
 
+function getTeamLevelFilterValue() {
+    const select = document.getElementById('teamLevelFilter');
+    return select ? select.value : 'all';
+}
+
+function memberMatchesTeamLevelFilter(level, filterValue) {
+    switch (filterValue) {
+        case 'below-1':
+            return level === 0;
+        case 'level-1':
+            return level === 1;
+        case 'level-2':
+            return level === 2;
+        case 'level-3':
+            return level === 3;
+        case 'level-4':
+            return level === 4;
+        case 'level-5':
+            return level === 5;
+        case 'level-6':
+            return level === 6;
+        case 'level-8':
+            return level === 8;
+        case 'level-9-20':
+            return level >= 9;
+        default:
+            return true;
+    }
+}
+
+function updateTeamLevelFilterVisibility() {
+    const filterWrap = document.getElementById('teamLevelFilterWrap');
+    if (!filterWrap) {
+        return;
+    }
+    filterWrap.style.display = teamViewMode === 'list' ? 'flex' : 'none';
+}
+
+function onTeamLevelFilterChange() {
+    if (teamViewMode !== 'list') {
+        return;
+    }
+    loadTeam();
+}
+
 // Load Team
 async function loadTeam() {
+    updateTeamLevelFilterVisibility();
+
     // Check if tree view is selected
     if (teamViewMode === 'tree') {
         const treeContainer = document.getElementById('teamList');
@@ -1092,11 +1139,17 @@ async function loadTeam() {
             document.getElementById('directReferrals').textContent = directReferrals;
             
             const container = document.getElementById('teamList');
+            const selectedLevelFilter = getTeamLevelFilterValue();
+            const visibleMembers = members.filter(member => {
+                const slab = getTeamSlabForInvestment(member.total_investment);
+                const level = slab ? slab.level : 0;
+                return memberMatchesTeamLevelFilter(level, selectedLevelFilter);
+            });
             
-            if (members.length > 0) {
+            if (visibleMembers.length > 0) {
                 const groupedByLevel = {};
 
-                members.forEach(member => {
+                visibleMembers.forEach(member => {
                     const slab = getTeamSlabForInvestment(member.total_investment);
                     const level = slab ? slab.level : 0;
                     if (!groupedByLevel[level]) {
@@ -1143,7 +1196,7 @@ async function loadTeam() {
                     `;
                 }).join('');
             } else {
-                container.innerHTML = '<p class="empty-state">No team members yet. Share your referral link!</p>';
+                container.innerHTML = '<p class="empty-state">No members found for the selected level.</p>';
             }
         }
     } catch (error) {
@@ -2287,6 +2340,7 @@ function setTeamView(mode) {
     document.querySelectorAll('.team-view-toggle button').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.view === mode);
     });
+    updateTeamLevelFilterVisibility();
     loadTeam();
 }
 

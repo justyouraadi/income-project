@@ -547,6 +547,22 @@
                         <button class="active" data-view="list" onclick="setTeamView('list')">📋 List View</button>
                         <button data-view="tree" onclick="setTeamView('tree')">🌳 Tree View</button>
                     </div>
+
+                    <div class="team-level-filter" id="teamLevelFilterWrap">
+                        <label for="teamLevelFilter">View Members By Level</label>
+                        <select id="teamLevelFilter" onchange="onTeamLevelFilterChange()">
+                            <option value="all">All Level</option>
+                            <option value="below-1">Below level 1</option>
+                            <option value="level-1">Level 1</option>
+                            <option value="level-2">Level 2</option>
+                            <option value="level-3">Level 3</option>
+                            <option value="level-4">Level 4</option>
+                            <option value="level-5">Level 5</option>
+                            <option value="level-6">Level 6</option>
+                            <option value="level-8">Level 8</option>
+                            <option value="level-9-20">Level 9 - Level 20</option>
+                        </select>
+                    </div>
                     
                     <div class="section-card">
                         <h3>Team Members</h3>
