@@ -279,21 +279,6 @@ function filterNonAdminUsers(users) {
     return (users || []).filter(user => !user.is_admin);
 }
 
-function getUserLevelFromInvestment(amount) {
-    const invested = Number(amount || 0);
-    const slabRate = getSlabRate(invested);
-
-    if (slabRate <= 0) {
-        return { level: 0, rate: 0, label: 'Below Level 1' };
-    }
-
-    return {
-        level: Math.round(slabRate / 5),
-        rate: slabRate,
-        label: `Level ${Math.round(slabRate / 5)}`
-    };
-}
-
 function escapeTreeHtml(value) {
     return String(value || '')
         .replace(/&/g, '&amp;')
@@ -419,13 +404,11 @@ function getFilteredUsersForDisplay() {
         const fullName = (user.full_name || '').toLowerCase();
         const email = (user.email || '').toLowerCase();
         const status = (user.status || '').toLowerCase();
-        const levelLabel = getUserLevelFromInvestment(user.wallet?.total_invested || 0).label.toLowerCase();
 
         return referralCode.includes(searchTerm) ||
             fullName.includes(searchTerm) ||
             email.includes(searchTerm) ||
-            status.includes(searchTerm) ||
-            levelLabel.includes(searchTerm);
+            status.includes(searchTerm);
     });
 }
 
@@ -441,7 +424,7 @@ function refreshUsersTreeView() {
 
 async function loadUsers() {
     const tbody = document.getElementById('usersTableBody');
-    tbody.innerHTML = '<tr><td colspan="9" class="loading">Loading users...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="loading">Loading users...</td></tr>';
     
     // Reset selection
     selectedUserIds = [];
@@ -461,7 +444,7 @@ async function loadUsers() {
         }
     } catch (error) {
         console.error('Error loading users:', error);
-        tbody.innerHTML = '<tr><td colspan="9" class="loading">Error loading users</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="loading">Error loading users</td></tr>';
     }
 }
 
@@ -510,7 +493,7 @@ function renderUsersTable(users) {
     const tbody = document.getElementById('usersTableBody');
     
     if (!users || users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="loading">No users found for selected period</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="loading">No users found for selected period</td></tr>';
         return;
     }
     
@@ -518,7 +501,6 @@ function renderUsersTable(users) {
     users.forEach(user => {
         const wallet = user.wallet || {};
         const investedAmount = Number(wallet.total_invested || 0);
-        const levelInfo = getUserLevelFromInvestment(investedAmount);
         const totalIncome = (wallet.daily_roi || 0) + (wallet.direct_income || 0) + 
                            (wallet.slab_income || 0) + (wallet.royalty_income || 0) + 
                            (wallet.salary_income || 0);
@@ -533,7 +515,6 @@ function renderUsersTable(users) {
             <td>${user.email}</td>
             <td><span class="status-badge ${statusClass}">${statusText}</span></td>
             <td>$${investedAmount.toFixed(2)}</td>
-            <td><span class="slab-badge ${levelInfo.level === 0 ? 'below-level-badge' : ''}">${levelInfo.label}</span></td>
             <td>$${totalIncome.toFixed(2)}</td>
             <td>${new Date(user.created_at).toLocaleDateString()}</td>
             <td class="action-buttons">
@@ -2766,7 +2747,6 @@ async function doExportUsers(startDate, endDate) {
                 'Email': u.email,
                 'Status': u.status || 'active',
                 'Total Invested': u.wallet?.total_invested || 0,
-                'Level': getUserLevelFromInvestment(u.wallet?.total_invested || 0).label,
                 'Total Income': (u.wallet?.daily_roi || 0) + (u.wallet?.direct_income || 0) + (u.wallet?.slab_income || 0) + (u.wallet?.royalty_income || 0) + (u.wallet?.salary_income || 0),
                 'Joined': new Date(u.created_at).toLocaleDateString()
             }));
