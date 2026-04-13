@@ -1039,7 +1039,7 @@ async function loadTeam() {
     if (listContainer) listContainer.classList.remove('tree-layout');
     
     try {
-        const response = await fetch(`${API_URL}/api/team/members`, {
+        const response = await fetch(`${API_URL}/api/team/members?include_all=true`, {
             headers: { 'Authorization': `Bearer ${authToken}` }
         });
         
@@ -1072,10 +1072,11 @@ async function loadTeam() {
                 container.innerHTML = members.map(m => `
                     <div class="team-member">
                         <div class="team-member-info">
-                            <span class="team-member-name">${m.full_name}</span>
+                            <span class="team-member-name">${escapeHtml(m.full_name || 'User')}</span>
                             <span class="team-member-date">Joined: ${new Date(m.joined_date).toLocaleDateString()}</span>
+                            <span class="team-member-date">Level ${Number(m.level || 1)}${Number(m.level || 1) === 1 ? ' (Direct)' : ' (Indirect)'}</span>
                         </div>
-                        <span>${m.referral_code ? '#' + m.referral_code : ''}</span>
+                        <span>${m.referral_code ? '#' + escapeHtml(m.referral_code) : ''}</span>
                     </div>
                 `).join('');
             } else {

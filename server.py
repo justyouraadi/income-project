@@ -1615,6 +1615,7 @@ async def get_active_investments(current_user: dict = Depends(get_current_user))
 @api_router.get("/team/members")
 async def get_team_members(
     parent_id: Optional[str] = None,
+    include_all: bool = False,
     current_user: dict = Depends(get_current_user)
 ):
     node_user_id = parent_id or current_user["id"]
@@ -1623,31 +1624,109 @@ async def get_team_members(
     if not await is_user_in_downline(current_user["id"], node_user_id):
         raise HTTPException(status_code=403, detail="Access denied for this team node")
 
-    # Get direct referrals for requested node
-    referrals = await db.users.find({"referred_by": node_user_id}).to_list(100)
-    
     team_members = []
-    for referral in referrals:
-        wallet = await db.wallets.find_one({"user_id": referral["id"]})
-        team_size = await db.users.count_documents({"referred_by": referral["id"]})
-        team_members.append({
-            "id": referral["id"],
-            "user_id": referral["id"],
-            "referral_code": referral.get("referral_code", "N/A"),
-            "full_name": referral["full_name"],
-            "email": referral["email"],
-            "joined_date": referral["created_at"].isoformat() if hasattr(referral["created_at"], 'isoformat') else str(referral["created_at"]),
-            "total_investment": wallet.get("total_invested", 0) if wallet else 0,
-            "team_size": team_size,
-            "level": 1
-        })
+    if include_all:
+        # Flatten full downline for list view (direct + indirect members).
+        pipeline = [
+            {"$match": {"id": node_user_id}},
+            {
+                "$graphLookup": {
+                    "from": "users",
+                    "startWith": "$id",
+                    "connectFromField": "id",
+                    "connectToField": "referred_by",
+                    "as": "downline",
+                    "depthField": "depth",
+                    "maxDepth": 50
+                }
+            },
+            {"$unwind": "$downline"},
+            {
+                "$project": {
+                    "_id": 0,
+                    "id": "$downline.id",
+                    "referral_code": "$downline.referral_code",
+                    "full_name": "$downline.full_name",
+                    "email": "$downline.email",
+                    "created_at": "$downline.created_at",
+                    "level": {"$add": ["$downline.depth", 1]}
+                }
+            },
+            {"$sort": {"level": 1, "created_at": 1}}
+        ]
+
+        all_members = await db.users.aggregate(pipeline).to_list(10000)
+        member_ids = [member.get("id") for member in all_members if member.get("id")]
+
+        investment_map: Dict[str, float] = {}
+        team_size_map: Dict[str, int] = {}
+
+        if member_ids:
+            wallets = await db.wallets.find(
+                {"user_id": {"$in": member_ids}},
+                {"user_id": 1, "total_invested": 1, "_id": 0}
+            ).to_list(len(member_ids))
+            investment_map = {
+                wallet.get("user_id"): wallet.get("total_invested", 0)
+                for wallet in wallets
+                if wallet.get("user_id")
+            }
+
+            child_counts = await db.users.aggregate([
+                {"$match": {"referred_by": {"$in": member_ids}}},
+                {"$group": {"_id": "$referred_by", "count": {"$sum": 1}}}
+            ]).to_list(len(member_ids))
+            team_size_map = {
+                row.get("_id"): int(row.get("count", 0))
+                for row in child_counts
+                if row.get("_id")
+            }
+
+        for member in all_members:
+            member_id = member.get("id")
+            if not member_id:
+                continue
+            created_at = member.get("created_at")
+            team_members.append({
+                "id": member_id,
+                "user_id": member_id,
+                "referral_code": member.get("referral_code", "N/A"),
+                "full_name": member.get("full_name", "User"),
+                "email": member.get("email", ""),
+                "joined_date": created_at.isoformat() if hasattr(created_at, 'isoformat') else str(created_at),
+                "total_investment": investment_map.get(member_id, 0),
+                "team_size": team_size_map.get(member_id, 0),
+                "level": int(member.get("level", 1))
+            })
+    else:
+        # Existing behavior for tree traversal: return only direct children of node_user_id.
+        referrals = await db.users.find({"referred_by": node_user_id}).to_list(100)
+
+        for referral in referrals:
+            wallet = await db.wallets.find_one({"user_id": referral["id"]})
+            team_size = await db.users.count_documents({"referred_by": referral["id"]})
+            team_members.append({
+                "id": referral["id"],
+                "user_id": referral["id"],
+                "referral_code": referral.get("referral_code", "N/A"),
+                "full_name": referral["full_name"],
+                "email": referral["email"],
+                "joined_date": referral["created_at"].isoformat() if hasattr(referral["created_at"], 'isoformat') else str(referral["created_at"]),
+                "total_investment": wallet.get("total_invested", 0) if wallet else 0,
+                "team_size": team_size,
+                "level": 1
+            })
 
     # Totals are for the logged-in user's whole team and direct referrals
     total_team_count = 0
     direct_referrals_count = 0
     if node_user_id == current_user["id"]:
-        direct_referrals_count = len(team_members)
-        total_team_count = await count_total_team_members(current_user["id"])
+        direct_referrals_count = (
+            sum(1 for member in team_members if int(member.get("level", 1)) == 1)
+            if include_all
+            else len(team_members)
+        )
+        total_team_count = len(team_members) if include_all else await count_total_team_members(current_user["id"])
     
     # Return wrapped response with totals
     return {
