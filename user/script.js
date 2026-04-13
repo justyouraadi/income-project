@@ -1037,17 +1037,12 @@ const TEAM_LEVEL_SLABS = [
     { level: 9, min: 1000000, max: null, percent: 45, label: '$10 lakh+' }
 ];
 
-function getTeamSlabForLevel(level) {
-    const numericLevel = Number(level) || 1;
-    if (numericLevel >= 9) {
-        return TEAM_LEVEL_SLABS[TEAM_LEVEL_SLABS.length - 1];
+function getTeamSlabForInvestment(investmentAmount) {
+    const amount = Number(investmentAmount || 0);
+    if (amount < 1000) {
+        return null;
     }
-    return TEAM_LEVEL_SLABS.find(slab => slab.level === numericLevel) || TEAM_LEVEL_SLABS[TEAM_LEVEL_SLABS.length - 1];
-}
-
-function formatTeamCurrency(value) {
-    const amount = Number(value || 0);
-    return `$${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return TEAM_LEVEL_SLABS.find(slab => amount >= slab.min && (slab.max === null || amount < slab.max)) || TEAM_LEVEL_SLABS[TEAM_LEVEL_SLABS.length - 1];
 }
 
 function formatTeamJoinedDate(value) {
@@ -1102,27 +1097,35 @@ async function loadTeam() {
                 const groupedByLevel = {};
 
                 members.forEach(member => {
-                    const level = Math.max(1, Number(member.level || 1));
+                    const slab = getTeamSlabForInvestment(member.total_investment);
+                    const level = slab ? slab.level : 0;
                     if (!groupedByLevel[level]) {
                         groupedByLevel[level] = [];
                     }
-                    groupedByLevel[level].push(member);
+                    groupedByLevel[level].push({ ...member, slab });
                 });
 
                 const orderedLevels = Object.keys(groupedByLevel)
                     .map(Number)
-                    .sort((a, b) => a - b);
+                    .sort((a, b) => {
+                        if (a === 0) return 1;
+                        if (b === 0) return -1;
+                        return a - b;
+                    });
 
                 container.innerHTML = orderedLevels.map(level => {
-                    const slab = getTeamSlabForLevel(level);
                     const levelMembers = groupedByLevel[level] || [];
-                    const slabText = `Team investment ${slab.label} -> ${slab.percent}%`;
+                    const slab = levelMembers[0]?.slab || null;
+                    const levelTitle = level === 0 ? 'Below Level 1' : `Level ${level}`;
+                    const slabText = slab
+                        ? `Team investment ${slab.label} -> ${slab.percent}%`
+                        : 'Team investment below $1,000';
 
                     return `
                         <div class="team-level-group">
                             <div class="team-level-header">
                                 <div>
-                                    <span class="team-level-title">Level ${level}</span>
+                                    <span class="team-level-title">${levelTitle}</span>
                                     <span class="team-level-meta">${levelMembers.length} member${levelMembers.length === 1 ? '' : 's'}</span>
                                 </div>
                                 <span class="team-level-slab">${escapeHtml(slabText)}</span>
@@ -1132,7 +1135,6 @@ async function loadTeam() {
                                     <div class="team-member-info">
                                         <span class="team-member-name">${escapeHtml(m.full_name || 'User')}</span>
                                         <span class="team-member-date">Joined: ${formatTeamJoinedDate(m.joined_date)}</span>
-                                        <span class="team-member-date">Investment: ${formatTeamCurrency(m.total_investment)}</span>
                                     </div>
                                     <span class="team-member-code">${m.referral_code ? '#' + escapeHtml(m.referral_code) : ''}</span>
                                 </div>
