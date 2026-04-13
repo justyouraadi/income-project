@@ -665,6 +665,47 @@ body {
     gap: 12px;
 }
 
+.team-level-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: rgba(148, 163, 184, 0.08);
+}
+
+.team-level-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.team-level-title {
+    display: block;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.team-level-meta {
+    display: block;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.team-level-slab {
+    font-size: 12px;
+    color: var(--primary);
+    background: rgba(59, 130, 246, 0.14);
+    border: 1px solid rgba(59, 130, 246, 0.24);
+    border-radius: 999px;
+    padding: 6px 10px;
+    line-height: 1.2;
+}
+
 .team-member {
     display: flex;
     justify-content: space-between;
@@ -686,6 +727,12 @@ body {
 
 .team-member-date {
     font-size: 12px;
+    color: var(--text-muted);
+}
+
+.team-member-code {
+    font-size: 13px;
+    font-weight: 600;
     color: var(--text-muted);
 }
 

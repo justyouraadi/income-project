@@ -1025,6 +1025,36 @@ async function loadP2PHistory() {
     }
 }
 
+const TEAM_LEVEL_SLABS = [
+    { level: 1, min: 1000, max: 5000, percent: 5, label: '$1,000 - $5,000' },
+    { level: 2, min: 5000, max: 10000, percent: 10, label: '$5,000 - $10,000' },
+    { level: 3, min: 10000, max: 25000, percent: 15, label: '$10,000 - $25,000' },
+    { level: 4, min: 25000, max: 50000, percent: 20, label: '$25,000 - $50,000' },
+    { level: 5, min: 50000, max: 100000, percent: 25, label: '$50,000 - $1 lakh' },
+    { level: 6, min: 100000, max: 200000, percent: 30, label: '$1 lakh - $2 lakh' },
+    { level: 7, min: 200000, max: 500000, percent: 35, label: '$2 lakh - $5 lakh' },
+    { level: 8, min: 500000, max: 1000000, percent: 40, label: '$5 lakh - $10 lakh' },
+    { level: 9, min: 1000000, max: null, percent: 45, label: '$10 lakh+' }
+];
+
+function getTeamSlabForLevel(level) {
+    const numericLevel = Number(level) || 1;
+    if (numericLevel >= 9) {
+        return TEAM_LEVEL_SLABS[TEAM_LEVEL_SLABS.length - 1];
+    }
+    return TEAM_LEVEL_SLABS.find(slab => slab.level === numericLevel) || TEAM_LEVEL_SLABS[TEAM_LEVEL_SLABS.length - 1];
+}
+
+function formatTeamCurrency(value) {
+    const amount = Number(value || 0);
+    return `$${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function formatTeamJoinedDate(value) {
+    const dateObj = new Date(value);
+    return Number.isNaN(dateObj.getTime()) ? 'N/A' : dateObj.toLocaleDateString();
+}
+
 // Load Team
 async function loadTeam() {
     // Check if tree view is selected
@@ -1069,16 +1099,47 @@ async function loadTeam() {
             const container = document.getElementById('teamList');
             
             if (members.length > 0) {
-                container.innerHTML = members.map(m => `
-                    <div class="team-member">
-                        <div class="team-member-info">
-                            <span class="team-member-name">${escapeHtml(m.full_name || 'User')}</span>
-                            <span class="team-member-date">Joined: ${new Date(m.joined_date).toLocaleDateString()}</span>
-                            <span class="team-member-date">Level ${Number(m.level || 1)}${Number(m.level || 1) === 1 ? ' (Direct)' : ' (Indirect)'}</span>
+                const groupedByLevel = {};
+
+                members.forEach(member => {
+                    const level = Math.max(1, Number(member.level || 1));
+                    if (!groupedByLevel[level]) {
+                        groupedByLevel[level] = [];
+                    }
+                    groupedByLevel[level].push(member);
+                });
+
+                const orderedLevels = Object.keys(groupedByLevel)
+                    .map(Number)
+                    .sort((a, b) => a - b);
+
+                container.innerHTML = orderedLevels.map(level => {
+                    const slab = getTeamSlabForLevel(level);
+                    const levelMembers = groupedByLevel[level] || [];
+                    const slabText = `Team investment ${slab.label} -> ${slab.percent}%`;
+
+                    return `
+                        <div class="team-level-group">
+                            <div class="team-level-header">
+                                <div>
+                                    <span class="team-level-title">Level ${level}</span>
+                                    <span class="team-level-meta">${levelMembers.length} member${levelMembers.length === 1 ? '' : 's'}</span>
+                                </div>
+                                <span class="team-level-slab">${escapeHtml(slabText)}</span>
+                            </div>
+                            ${levelMembers.map(m => `
+                                <div class="team-member">
+                                    <div class="team-member-info">
+                                        <span class="team-member-name">${escapeHtml(m.full_name || 'User')}</span>
+                                        <span class="team-member-date">Joined: ${formatTeamJoinedDate(m.joined_date)}</span>
+                                        <span class="team-member-date">Investment: ${formatTeamCurrency(m.total_investment)}</span>
+                                    </div>
+                                    <span class="team-member-code">${m.referral_code ? '#' + escapeHtml(m.referral_code) : ''}</span>
+                                </div>
+                            `).join('')}
                         </div>
-                        <span>${m.referral_code ? '#' + escapeHtml(m.referral_code) : ''}</span>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
             } else {
                 container.innerHTML = '<p class="empty-state">No team members yet. Share your referral link!</p>';
             }
