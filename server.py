@@ -77,20 +77,27 @@ LEVEL_INCOME_SLABS = [
     {"min": 1000000, "max": float('inf'), "percent": 45},  # Level 9+: Team investment $10 lakh+ → 45%
 ]
 
+def get_level_income_slab(team_total_investment: float) -> Dict[str, float]:
+    """
+    Resolve slab level and percentage from TEAM total investment.
+    Returns level 0 / 0% when below minimum threshold.
+    """
+    if team_total_investment < 1000:
+        return {"level": 0, "percent": 0}
+
+    for slab_level, slab in enumerate(LEVEL_INCOME_SLABS, start=1):
+        if slab["min"] <= team_total_investment < slab["max"]:
+            return {"level": slab_level, "percent": slab["percent"]}
+
+    # Fallback to highest slab (shouldn't happen due to infinity max).
+    return {"level": 9, "percent": LEVEL_INCOME_SLABS[-1]["percent"]}
+
 def get_level_income_percent(team_total_investment: float) -> float:
     """
     Get the level income percentage based on user's TEAM total investment amount.
     Returns 0 if team investment is below minimum threshold ($1,000).
     """
-    if team_total_investment < 1000:
-        return 0
-    
-    for slab in LEVEL_INCOME_SLABS:
-        if slab["min"] <= team_total_investment < slab["max"]:
-            return slab["percent"]
-    
-    # If above all slabs (shouldn't happen due to infinity), return max
-    return 45
+    return get_level_income_slab(team_total_investment)["percent"]
 
 
 async def calculate_team_total_investment(user_id: str) -> float:
@@ -926,8 +933,10 @@ async def distribute_level_income_from_roi(user_id: str, roi_amount: float, sour
         # Calculate upline's TEAM total investment (sum of all downline investments)
         team_total_investment = await calculate_team_total_investment(current_upline_id)
         
-        # Get level income percentage based on upline's TEAM investment slab
-        level_percent = get_level_income_percent(team_total_investment)
+        # Get slab level + percentage based on upline's TEAM investment slab
+        slab_info = get_level_income_slab(team_total_investment)
+        slab_level = int(slab_info["level"])
+        level_percent = slab_info["percent"]
         
         if level_percent > 0:
             # Calculate level income amount (percentage of team member's ROI)
@@ -950,10 +959,11 @@ async def distribute_level_income_from_roi(user_id: str, roi_amount: float, sour
                 "user_id": current_upline_id,
                 "type": "level_income",
                 "amount": income_amount,
-                "description": f"Level {level} income ({level_percent}%) from {source_user_name}'s ROI",
+                "description": f"Level {slab_level} income ({level_percent}%) from {source_user_name}'s ROI (Depth {level})",
                 "date": datetime.utcnow(),
                 "source_user_id": user_id,
-                "level": level,
+                "level": slab_level,
+                "depth_level": level,
                 "roi_amount": roi_amount,
                 "percentage": level_percent,
                 "team_total_investment": team_total_investment
@@ -961,7 +971,8 @@ async def distribute_level_income_from_roi(user_id: str, roi_amount: float, sour
             await db.transactions.insert_one(level_transaction)
             
             distributions.append({
-                "level": level,
+                "level": slab_level,
+                "depth_level": level,
                 "user_id": current_upline_id,
                 "user_name": upline_user.get("full_name", "Unknown"),
                 "amount": income_amount,
@@ -969,7 +980,7 @@ async def distribute_level_income_from_roi(user_id: str, roi_amount: float, sour
                 "team_total_investment": team_total_investment
             })
             
-            logging.info(f"Level {level} income: ${income_amount:.4f} ({level_percent}%) credited to {upline_user['full_name']} (team investment ${team_total_investment})")
+            logging.info(f"Level {slab_level} income (depth {level}): ${income_amount:.4f} ({level_percent}%) credited to {upline_user['full_name']} (team investment ${team_total_investment})")
         
         # Move to next level
         current_upline_id = upline_user.get("referred_by")
