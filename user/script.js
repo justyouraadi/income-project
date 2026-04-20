@@ -1166,7 +1166,8 @@ async function loadTeam() {
             const container = document.getElementById('teamList');
             const selectedLevelFilter = getTeamLevelFilterValue();
             const visibleMembers = members.filter(member => {
-                const slab = getTeamSlabForInvestment(member.total_investment);
+                const slabBaseAmount = Number(member.team_total_investment ?? member.total_investment ?? 0);
+                const slab = getTeamSlabForInvestment(slabBaseAmount);
                 const level = slab ? slab.level : 0;
                 return memberMatchesTeamLevelFilter(level, selectedLevelFilter);
             });
@@ -1175,7 +1176,8 @@ async function loadTeam() {
                 const groupedByLevel = {};
 
                 visibleMembers.forEach(member => {
-                    const slab = getTeamSlabForInvestment(member.total_investment);
+                    const slabBaseAmount = Number(member.team_total_investment ?? member.total_investment ?? 0);
+                    const slab = getTeamSlabForInvestment(slabBaseAmount);
                     const level = slab ? slab.level : 0;
                     if (!groupedByLevel[level]) {
                         groupedByLevel[level] = [];

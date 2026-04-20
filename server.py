@@ -1657,6 +1657,8 @@ async def get_team_members(
                     "full_name": "$downline.full_name",
                     "email": "$downline.email",
                     "created_at": "$downline.created_at",
+                    "referred_by": "$downline.referred_by",
+                    "depth": "$downline.depth",
                     "level": {"$add": ["$downline.depth", 1]}
                 }
             },
@@ -1668,6 +1670,7 @@ async def get_team_members(
 
         investment_map: Dict[str, float] = {}
         team_size_map: Dict[str, int] = {}
+        children_map: Dict[str, List[str]] = {}
 
         if member_ids:
             wallets = await db.wallets.find(
@@ -1692,9 +1695,33 @@ async def get_team_members(
 
         for member in all_members:
             member_id = member.get("id")
+            referred_by = member.get("referred_by")
+            if member_id and referred_by:
+                children_map.setdefault(referred_by, []).append(member_id)
+
+        downline_investment_cache: Dict[str, float] = {}
+
+        def calculate_downline_investment(member_id: str) -> float:
+            cached_value = downline_investment_cache.get(member_id)
+            if cached_value is not None:
+                return cached_value
+
+            total = 0.0
+            for child_id in children_map.get(member_id, []):
+                total += float(investment_map.get(child_id, 0) or 0)
+                total += calculate_downline_investment(child_id)
+
+            downline_investment_cache[member_id] = total
+            return total
+
+        for member in all_members:
+            member_id = member.get("id")
             if not member_id:
                 continue
             created_at = member.get("created_at")
+            team_total_investment = calculate_downline_investment(member_id)
+            slab_info = get_level_income_slab(team_total_investment)
+            depth_level = int(member.get("depth", 0)) + 1
             team_members.append({
                 "id": member_id,
                 "user_id": member_id,
@@ -1703,8 +1730,12 @@ async def get_team_members(
                 "email": member.get("email", ""),
                 "joined_date": created_at.isoformat() if hasattr(created_at, 'isoformat') else str(created_at),
                 "total_investment": investment_map.get(member_id, 0),
+                "team_total_investment": team_total_investment,
+                "level_income_slab_level": int(slab_info.get("level", 0)),
+                "level_income_percent": float(slab_info.get("percent", 0)),
                 "team_size": team_size_map.get(member_id, 0),
-                "level": int(member.get("level", 1))
+                "level": depth_level,
+                "depth_level": depth_level
             })
     else:
         # Existing behavior for tree traversal: return only direct children of node_user_id.
@@ -1713,6 +1744,8 @@ async def get_team_members(
         for referral in referrals:
             wallet = await db.wallets.find_one({"user_id": referral["id"]})
             team_size = await db.users.count_documents({"referred_by": referral["id"]})
+            team_total_investment = await calculate_team_total_investment(referral["id"])
+            slab_info = get_level_income_slab(team_total_investment)
             team_members.append({
                 "id": referral["id"],
                 "user_id": referral["id"],
@@ -1721,8 +1754,12 @@ async def get_team_members(
                 "email": referral["email"],
                 "joined_date": referral["created_at"].isoformat() if hasattr(referral["created_at"], 'isoformat') else str(referral["created_at"]),
                 "total_investment": wallet.get("total_invested", 0) if wallet else 0,
+                "team_total_investment": team_total_investment,
+                "level_income_slab_level": int(slab_info.get("level", 0)),
+                "level_income_percent": float(slab_info.get("percent", 0)),
                 "team_size": team_size,
-                "level": 1
+                "level": 1,
+                "depth_level": 1
             })
 
     # Totals are for the logged-in user's whole team and direct referrals
