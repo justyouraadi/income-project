@@ -132,8 +132,7 @@ async def count_total_team_members(user_id: str) -> int:
                 "startWith": "$id",
                 "connectFromField": "id",
                 "connectToField": "referred_by",
-                "as": "downline",
-                "maxDepth": 50
+                "as": "downline"
             }
         },
         {"$project": {"_id": 0, "total_team": {"$size": "$downline"}}}
@@ -158,8 +157,7 @@ async def is_user_in_downline(root_user_id: str, target_user_id: str) -> bool:
                 "startWith": "$id",
                 "connectFromField": "id",
                 "connectToField": "referred_by",
-                "as": "downline",
-                "maxDepth": 50
+                "as": "downline"
             }
         },
         {"$project": {"_id": 0, "downline_ids": "$downline.id"}}
@@ -1647,8 +1645,7 @@ async def get_team_members(
                     "connectFromField": "id",
                     "connectToField": "referred_by",
                     "as": "downline",
-                    "depthField": "depth",
-                    "maxDepth": 50
+                    "depthField": "depth"
                 }
             },
             {"$unwind": "$downline"},
@@ -1666,7 +1663,7 @@ async def get_team_members(
             {"$sort": {"level": 1, "created_at": 1}}
         ]
 
-        all_members = await db.users.aggregate(pipeline).to_list(10000)
+        all_members = await db.users.aggregate(pipeline).to_list(None)
         member_ids = [member.get("id") for member in all_members if member.get("id")]
 
         investment_map: Dict[str, float] = {}
@@ -1711,7 +1708,7 @@ async def get_team_members(
             })
     else:
         # Existing behavior for tree traversal: return only direct children of node_user_id.
-        referrals = await db.users.find({"referred_by": node_user_id}).to_list(100)
+        referrals = await db.users.find({"referred_by": node_user_id}).to_list(None)
 
         for referral in referrals:
             wallet = await db.wallets.find_one({"user_id": referral["id"]})

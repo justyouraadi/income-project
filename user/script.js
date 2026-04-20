@@ -2351,6 +2351,7 @@ function formatTransactionType(type) {
 
 // ==================== TEAM TREE VIEW ====================
 let teamViewMode = 'list'; // 'list' or 'tree'
+const TEAM_TREE_MAX_DEPTH = null;
 
 // Toggle between list and tree view
 function setTeamView(mode) {
@@ -2364,7 +2365,7 @@ function setTeamView(mode) {
 
 // Load team with tree view support
 async function loadTeamTree(parentId = null, container = null, level = 0) {
-    if (level > 10) return; // Safety cap
+    if (Number.isFinite(TEAM_TREE_MAX_DEPTH) && level > TEAM_TREE_MAX_DEPTH) return;
     
     try {
         const url = parentId 
