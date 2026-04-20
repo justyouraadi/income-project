@@ -1,5 +1,5 @@
 // Service Worker for SS Money Resource PWA
-const CACHE_NAME = 'ss-money-v2';
+const CACHE_NAME = 'ss-money-v3';
 const urlsToCache = [
   '/api/user/',
   '/api/user/styles.css',
@@ -43,6 +43,24 @@ self.addEventListener('activate', event => {
 
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', event => {
+  // Always fetch latest app script so business logic updates are not stuck in cache.
+  if (event.request.url.includes('/api/user/script.js')) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response && response.status === 200) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(event.request, responseClone);
+            });
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request).then(cached => cached || caches.match('/api/user/')))
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then(response => {

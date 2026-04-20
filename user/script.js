@@ -12,7 +12,11 @@ let deferredPrompt = null;
 // Register Service Worker for PWA
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/api/user/sw.js')
-        .then(reg => console.log('Service Worker registered'))
+        .then(reg => {
+            console.log('Service Worker registered');
+            // Ask browser to check for updated SW so latest script logic activates quickly.
+            reg.update();
+        })
         .catch(err => console.log('Service Worker registration failed:', err));
 }
 
@@ -1071,6 +1075,27 @@ function getMemberTeamInvestment(member) {
     return Number.isFinite(parsedAmount) ? parsedAmount : 0;
 }
 
+function getMemberTeamLevel(member) {
+    const backendLevel = Number(member?.team_level);
+    if (Number.isFinite(backendLevel) && backendLevel >= 0) {
+        return backendLevel;
+    }
+
+    const slab = getTeamSlabForInvestment(getMemberTeamInvestment(member));
+    return slab ? slab.level : 0;
+}
+
+function getMemberTeamPercent(member, slab = null) {
+    const backendPercent = Number(member?.team_level_percent);
+    if (Number.isFinite(backendPercent) && backendPercent >= 0) {
+        return backendPercent;
+    }
+    if (slab && Number.isFinite(Number(slab.percent))) {
+        return Number(slab.percent);
+    }
+    return 0;
+}
+
 function formatTeamJoinedDate(value) {
     const dateObj = new Date(value);
     return Number.isNaN(dateObj.getTime()) ? 'N/A' : dateObj.toLocaleDateString();
@@ -1170,8 +1195,7 @@ async function loadTeam() {
             
             const selectedLevelFilter = getTeamLevelFilterValue();
             const visibleMembers = members.filter(member => {
-                const slab = getTeamSlabForInvestment(getMemberTeamInvestment(member));
-                const level = slab ? slab.level : 0;
+                const level = getMemberTeamLevel(member);
                 return memberMatchesTeamLevelFilter(level, selectedLevelFilter);
             });
             
@@ -1179,12 +1203,14 @@ async function loadTeam() {
                 const groupedByLevel = {};
 
                 visibleMembers.forEach(member => {
-                    const slab = getTeamSlabForInvestment(getMemberTeamInvestment(member));
-                    const level = slab ? slab.level : 0;
+                    const level = getMemberTeamLevel(member);
+                    const slab = TEAM_LEVEL_SLABS.find(item => item.level === level)
+                        || getTeamSlabForInvestment(getMemberTeamInvestment(member));
+                    const teamPercent = getMemberTeamPercent(member, slab);
                     if (!groupedByLevel[level]) {
                         groupedByLevel[level] = [];
                     }
-                    groupedByLevel[level].push({ ...member, slab });
+                    groupedByLevel[level].push({ ...member, slab, teamPercent });
                 });
 
                 const orderedLevels = Object.keys(groupedByLevel)
@@ -1198,9 +1224,10 @@ async function loadTeam() {
                 container.innerHTML = orderedLevels.map(level => {
                     const levelMembers = groupedByLevel[level] || [];
                     const slab = levelMembers[0]?.slab || null;
+                    const teamPercent = levelMembers[0]?.teamPercent ?? (slab ? Number(slab.percent) : 0);
                     const levelTitle = level === 0 ? 'Below Level 1' : `Level ${level}`;
                     const slabText = slab
-                        ? `Team investment ${slab.label} -> ${slab.percent}%`
+                        ? `Team investment ${slab.label} -> ${teamPercent}%`
                         : 'Team investment below $1,000';
 
                     return `
