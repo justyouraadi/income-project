@@ -1089,6 +1089,8 @@ function memberMatchesTeamLevelFilter(level, filterValue) {
             return level === 5;
         case 'level-6':
             return level === 6;
+        case 'level-7':
+            return level === 7;
         case 'level-8':
             return level === 8;
         case 'level-9-20':
@@ -1132,6 +1134,8 @@ async function loadTeam() {
         const response = await fetch(`${API_URL}/api/team/members?include_all=true`, {
             headers: { 'Authorization': `Bearer ${authToken}` }
         });
+
+        const container = document.getElementById('teamList');
         
         if (response.ok) {
             const data = await response.json();
@@ -1156,7 +1160,6 @@ async function loadTeam() {
             document.getElementById('totalTeamMembers').textContent = totalTeam;
             document.getElementById('directReferrals').textContent = directReferrals;
             
-            const container = document.getElementById('teamList');
             const selectedLevelFilter = getTeamLevelFilterValue();
             const visibleMembers = members.filter(member => {
                 const slab = getTeamSlabForInvestment(member.total_investment);
@@ -1216,9 +1219,21 @@ async function loadTeam() {
             } else {
                 container.innerHTML = '<p class="empty-state">No members found for the selected level.</p>';
             }
+        } else {
+            document.getElementById('totalTeamMembers').textContent = '0';
+            document.getElementById('directReferrals').textContent = '0';
+            if (container) {
+                container.innerHTML = '<p class="empty-state">Unable to load team members right now.</p>';
+            }
         }
     } catch (error) {
         console.error('Error loading team:', error);
+        document.getElementById('totalTeamMembers').textContent = '0';
+        document.getElementById('directReferrals').textContent = '0';
+        const container = document.getElementById('teamList');
+        if (container) {
+            container.innerHTML = '<p class="empty-state">Error loading team members. Please try again.</p>';
+        }
     }
 }
 
