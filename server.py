@@ -1656,6 +1656,7 @@ async def get_team_members(
                 "$project": {
                     "_id": 0,
                     "id": "$downline.id",
+                    "referred_by": "$downline.referred_by",
                     "referral_code": "$downline.referral_code",
                     "full_name": "$downline.full_name",
                     "email": "$downline.email",
@@ -1693,11 +1694,36 @@ async def get_team_members(
                 if row.get("_id")
             }
 
+        # Build a local tree to compute each member's TEAM total investment
+        # (sum of all descendant members' investments, excluding own investment).
+        children_map: Dict[str, List[str]] = {}
+        for member in all_members:
+            member_id = member.get("id")
+            parent_id = member.get("referred_by")
+            if member_id and parent_id:
+                children_map.setdefault(parent_id, []).append(member_id)
+
+        team_total_cache: Dict[str, float] = {}
+
+        def compute_team_total_for_member(member_id: str) -> float:
+            if member_id in team_total_cache:
+                return team_total_cache[member_id]
+
+            total = 0.0
+            for child_id in children_map.get(member_id, []):
+                total += float(investment_map.get(child_id, 0) or 0)
+                total += compute_team_total_for_member(child_id)
+
+            team_total_cache[member_id] = total
+            return total
+
         for member in all_members:
             member_id = member.get("id")
             if not member_id:
                 continue
             created_at = member.get("created_at")
+            team_total_investment = compute_team_total_for_member(member_id)
+            slab_info = get_level_income_slab(team_total_investment)
             team_members.append({
                 "id": member_id,
                 "user_id": member_id,
@@ -1706,6 +1732,9 @@ async def get_team_members(
                 "email": member.get("email", ""),
                 "joined_date": created_at.isoformat() if hasattr(created_at, 'isoformat') else str(created_at),
                 "total_investment": investment_map.get(member_id, 0),
+                "team_total_investment": team_total_investment,
+                "team_level": int(slab_info["level"]),
+                "team_level_percent": slab_info["percent"],
                 "team_size": team_size_map.get(member_id, 0),
                 "level": int(member.get("level", 1))
             })

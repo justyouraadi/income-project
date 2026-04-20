@@ -1063,6 +1063,14 @@ function getTeamSlabForInvestment(investmentAmount) {
     return TEAM_LEVEL_SLABS.find(slab => amount >= slab.min && (slab.max === null || amount < slab.max)) || TEAM_LEVEL_SLABS[TEAM_LEVEL_SLABS.length - 1];
 }
 
+function getMemberTeamInvestment(member) {
+    const rawAmount = member && member.team_total_investment !== undefined && member.team_total_investment !== null
+        ? member.team_total_investment
+        : member?.total_investment;
+    const parsedAmount = Number(rawAmount || 0);
+    return Number.isFinite(parsedAmount) ? parsedAmount : 0;
+}
+
 function formatTeamJoinedDate(value) {
     const dateObj = new Date(value);
     return Number.isNaN(dateObj.getTime()) ? 'N/A' : dateObj.toLocaleDateString();
@@ -1162,7 +1170,7 @@ async function loadTeam() {
             
             const selectedLevelFilter = getTeamLevelFilterValue();
             const visibleMembers = members.filter(member => {
-                const slab = getTeamSlabForInvestment(member.total_investment);
+                const slab = getTeamSlabForInvestment(getMemberTeamInvestment(member));
                 const level = slab ? slab.level : 0;
                 return memberMatchesTeamLevelFilter(level, selectedLevelFilter);
             });
@@ -1171,7 +1179,7 @@ async function loadTeam() {
                 const groupedByLevel = {};
 
                 visibleMembers.forEach(member => {
-                    const slab = getTeamSlabForInvestment(member.total_investment);
+                    const slab = getTeamSlabForInvestment(getMemberTeamInvestment(member));
                     const level = slab ? slab.level : 0;
                     if (!groupedByLevel[level]) {
                         groupedByLevel[level] = [];
