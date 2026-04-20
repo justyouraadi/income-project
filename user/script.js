@@ -12,11 +12,7 @@ let deferredPrompt = null;
 // Register Service Worker for PWA
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/api/user/sw.js')
-        .then(reg => {
-            console.log('Service Worker registered');
-            // Ask browser to check for updated SW so latest script logic activates quickly.
-            reg.update();
-        })
+        .then(reg => console.log('Service Worker registered'))
         .catch(err => console.log('Service Worker registration failed:', err));
 }
 
@@ -1064,47 +1060,7 @@ function getTeamSlabForInvestment(investmentAmount) {
     if (amount < 1000) {
         return null;
     }
-    return TEAM_LEVEL_SLABS.find(slab => amount >= slab.min && (slab.max === null || amount <= slab.max)) || TEAM_LEVEL_SLABS[TEAM_LEVEL_SLABS.length - 1];
-}
-
-function getMemberTeamInvestment(member) {
-    const rawAmount = member && member.team_total_investment !== undefined && member.team_total_investment !== null
-        ? member.team_total_investment
-        : member?.total_investment;
-    const parsedAmount = Number(rawAmount || 0);
-    return Number.isFinite(parsedAmount) ? parsedAmount : 0;
-}
-
-function getMemberTeamLevel(member) {
-    const backendLevel = Number(member?.team_level);
-    if (Number.isFinite(backendLevel) && backendLevel >= 0) {
-        return backendLevel;
-    }
-
-    const investmentLevel = Number(member?.investment_level);
-    if (Number.isFinite(investmentLevel) && investmentLevel >= 0) {
-        return investmentLevel;
-    }
-
-    const slab = getTeamSlabForInvestment(getMemberTeamInvestment(member));
-    return slab ? slab.level : 0;
-}
-
-function getMemberTeamPercent(member, slab = null) {
-    const backendPercent = Number(member?.team_level_percent);
-    if (Number.isFinite(backendPercent) && backendPercent >= 0) {
-        return backendPercent;
-    }
-
-    const investmentPercent = Number(member?.investment_level_percent);
-    if (Number.isFinite(investmentPercent) && investmentPercent >= 0) {
-        return investmentPercent;
-    }
-
-    if (slab && Number.isFinite(Number(slab.percent))) {
-        return Number(slab.percent);
-    }
-    return 0;
+    return TEAM_LEVEL_SLABS.find(slab => amount >= slab.min && (slab.max === null || amount < slab.max)) || TEAM_LEVEL_SLABS[TEAM_LEVEL_SLABS.length - 1];
 }
 
 function formatTeamJoinedDate(value) {
@@ -1133,8 +1089,6 @@ function memberMatchesTeamLevelFilter(level, filterValue) {
             return level === 5;
         case 'level-6':
             return level === 6;
-        case 'level-7':
-            return level === 7;
         case 'level-8':
             return level === 8;
         case 'level-9-20':
@@ -1178,8 +1132,6 @@ async function loadTeam() {
         const response = await fetch(`${API_URL}/api/team/members?include_all=true`, {
             headers: { 'Authorization': `Bearer ${authToken}` }
         });
-
-        const container = document.getElementById('teamList');
         
         if (response.ok) {
             const data = await response.json();
@@ -1204,9 +1156,11 @@ async function loadTeam() {
             document.getElementById('totalTeamMembers').textContent = totalTeam;
             document.getElementById('directReferrals').textContent = directReferrals;
             
+            const container = document.getElementById('teamList');
             const selectedLevelFilter = getTeamLevelFilterValue();
             const visibleMembers = members.filter(member => {
-                const level = getMemberTeamLevel(member);
+                const slab = getTeamSlabForInvestment(member.total_investment);
+                const level = slab ? slab.level : 0;
                 return memberMatchesTeamLevelFilter(level, selectedLevelFilter);
             });
             
@@ -1214,14 +1168,12 @@ async function loadTeam() {
                 const groupedByLevel = {};
 
                 visibleMembers.forEach(member => {
-                    const level = getMemberTeamLevel(member);
-                    const slab = TEAM_LEVEL_SLABS.find(item => item.level === level)
-                        || getTeamSlabForInvestment(getMemberTeamInvestment(member));
-                    const teamPercent = getMemberTeamPercent(member, slab);
+                    const slab = getTeamSlabForInvestment(member.total_investment);
+                    const level = slab ? slab.level : 0;
                     if (!groupedByLevel[level]) {
                         groupedByLevel[level] = [];
                     }
-                    groupedByLevel[level].push({ ...member, slab, teamPercent });
+                    groupedByLevel[level].push({ ...member, slab });
                 });
 
                 const orderedLevels = Object.keys(groupedByLevel)
@@ -1235,10 +1187,9 @@ async function loadTeam() {
                 container.innerHTML = orderedLevels.map(level => {
                     const levelMembers = groupedByLevel[level] || [];
                     const slab = levelMembers[0]?.slab || null;
-                    const teamPercent = levelMembers[0]?.teamPercent ?? (slab ? Number(slab.percent) : 0);
                     const levelTitle = level === 0 ? 'Below Level 1' : `Level ${level}`;
                     const slabText = slab
-                        ? `Team investment ${slab.label} -> ${teamPercent}%`
+                        ? `Team investment ${slab.label} -> ${slab.percent}%`
                         : 'Team investment below $1,000';
 
                     return `
@@ -1265,21 +1216,9 @@ async function loadTeam() {
             } else {
                 container.innerHTML = '<p class="empty-state">No members found for the selected level.</p>';
             }
-        } else {
-            document.getElementById('totalTeamMembers').textContent = '0';
-            document.getElementById('directReferrals').textContent = '0';
-            if (container) {
-                container.innerHTML = '<p class="empty-state">Unable to load team members right now.</p>';
-            }
         }
     } catch (error) {
         console.error('Error loading team:', error);
-        document.getElementById('totalTeamMembers').textContent = '0';
-        document.getElementById('directReferrals').textContent = '0';
-        const container = document.getElementById('teamList');
-        if (container) {
-            container.innerHTML = '<p class="empty-state">Error loading team members. Please try again.</p>';
-        }
     }
 }
 
