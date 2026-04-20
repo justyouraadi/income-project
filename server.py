@@ -1728,6 +1728,7 @@ async def get_team_members(
     # Totals are for the logged-in user's whole team and direct referrals
     total_team_count = 0
     direct_referrals_count = 0
+    total_business_amount = 0.0
     if node_user_id == current_user["id"]:
         direct_referrals_count = (
             sum(1 for member in team_members if int(member.get("level", 1)) == 1)
@@ -1735,11 +1736,17 @@ async def get_team_members(
             else len(team_members)
         )
         total_team_count = len(team_members) if include_all else await count_total_team_members(current_user["id"])
+        total_business_amount = (
+            float(sum(float(member.get("total_investment", 0) or 0) for member in team_members))
+            if include_all
+            else float(await calculate_team_total_investment(current_user["id"]))
+        )
     
     # Return wrapped response with totals
     return {
         "total_team": total_team_count,
         "direct_referrals": direct_referrals_count,
+        "total_business": total_business_amount,
         "members": team_members
     }
 

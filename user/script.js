@@ -1140,21 +1140,28 @@ async function loadTeam() {
             let members = [];
             let totalTeam = 0;
             let directReferrals = 0;
+            let totalBusiness = 0;
             
             if (Array.isArray(data)) {
                 // Old API format: returns array directly
                 members = data;
                 totalTeam = data.length;
                 directReferrals = data.length;
+                totalBusiness = data.reduce((sum, member) => sum + Number(member.total_investment || 0), 0);
             } else {
                 // New API format: returns object with members array
                 members = data.members || [];
                 totalTeam = data.total_team || 0;
                 directReferrals = data.direct_referrals || 0;
+                const apiBusiness = Number(data.total_business);
+                totalBusiness = Number.isFinite(apiBusiness)
+                    ? apiBusiness
+                    : members.reduce((sum, member) => sum + Number(member.total_investment || 0), 0);
             }
             
             document.getElementById('totalTeamMembers').textContent = totalTeam;
             document.getElementById('directReferrals').textContent = directReferrals;
+            document.getElementById('totalTeamBusiness').textContent = `$${totalBusiness.toFixed(2)}`;
             
             const container = document.getElementById('teamList');
             const selectedLevelFilter = getTeamLevelFilterValue();
@@ -2383,6 +2390,11 @@ async function loadTeamTree(parentId = null, container = null, level = 0) {
             if (level === 0 && !Array.isArray(data)) {
                 document.getElementById('totalTeamMembers').textContent = data.total_team || 0;
                 document.getElementById('directReferrals').textContent = data.direct_referrals || 0;
+                const totalBusiness = Number(data.total_business || 0);
+                document.getElementById('totalTeamBusiness').textContent = `$${totalBusiness.toFixed(2)}`;
+            } else if (level === 0 && Array.isArray(data)) {
+                const totalBusiness = members.reduce((sum, member) => sum + Number(member.total_investment || 0), 0);
+                document.getElementById('totalTeamBusiness').textContent = `$${totalBusiness.toFixed(2)}`;
             }
             
             if (!container) {

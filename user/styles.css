@@ -652,6 +652,7 @@ body {
     display: flex;
     gap: 20px;
     margin-bottom: 24px;
+    flex-wrap: wrap;
 }
 
 .team-stat {
@@ -660,6 +661,7 @@ body {
     padding: 20px 30px;
     text-align: center;
     border: 1px solid var(--border);
+    flex: 1 1 180px;
 }
 
 .team-stat-value {
