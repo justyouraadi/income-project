@@ -82,15 +82,23 @@ def get_level_income_slab(team_total_investment: float) -> Dict[str, float]:
     Resolve slab level and percentage from TEAM total investment.
     Returns level 0 / 0% when below minimum threshold.
     """
-    if team_total_investment < 1000:
+    if team_total_investment < LEVEL_INCOME_SLABS[0]["min"]:
         return {"level": 0, "percent": 0}
 
     for slab_level, slab in enumerate(LEVEL_INCOME_SLABS, start=1):
-        if slab["min"] <= team_total_investment < slab["max"]:
-            return {"level": slab_level, "percent": slab["percent"]}
+        slab_min = float(slab["min"])
+        slab_max = slab["max"]
+
+        # Treat upper bounds as inclusive so values like 5000 stay in Level 1.
+        if slab_max == float("inf"):
+            if team_total_investment >= slab_min:
+                return {"level": slab_level, "percent": slab["percent"]}
+        else:
+            if slab_min <= team_total_investment <= float(slab_max):
+                return {"level": slab_level, "percent": slab["percent"]}
 
     # Fallback to highest slab (shouldn't happen due to infinity max).
-    return {"level": 9, "percent": LEVEL_INCOME_SLABS[-1]["percent"]}
+    return {"level": len(LEVEL_INCOME_SLABS), "percent": LEVEL_INCOME_SLABS[-1]["percent"]}
 
 def get_level_income_percent(team_total_investment: float) -> float:
     """
@@ -1722,8 +1730,10 @@ async def get_team_members(
             if not member_id:
                 continue
             created_at = member.get("created_at")
+            total_investment = float(investment_map.get(member_id, 0) or 0)
+            investment_slab_info = get_level_income_slab(total_investment)
             team_total_investment = compute_team_total_for_member(member_id)
-            slab_info = get_level_income_slab(team_total_investment)
+            team_slab_info = get_level_income_slab(team_total_investment)
             team_members.append({
                 "id": member_id,
                 "user_id": member_id,
@@ -1731,10 +1741,12 @@ async def get_team_members(
                 "full_name": member.get("full_name", "User"),
                 "email": member.get("email", ""),
                 "joined_date": created_at.isoformat() if hasattr(created_at, 'isoformat') else str(created_at),
-                "total_investment": investment_map.get(member_id, 0),
+                "total_investment": total_investment,
+                "investment_level": int(investment_slab_info["level"]),
+                "investment_level_percent": investment_slab_info["percent"],
                 "team_total_investment": team_total_investment,
-                "team_level": int(slab_info["level"]),
-                "team_level_percent": slab_info["percent"],
+                "team_level": int(team_slab_info["level"]),
+                "team_level_percent": team_slab_info["percent"],
                 "team_size": team_size_map.get(member_id, 0),
                 "level": int(member.get("level", 1))
             })
@@ -1745,6 +1757,8 @@ async def get_team_members(
         for referral in referrals:
             wallet = await db.wallets.find_one({"user_id": referral["id"]})
             team_size = await db.users.count_documents({"referred_by": referral["id"]})
+            total_investment = float(wallet.get("total_invested", 0) if wallet else 0)
+            investment_slab_info = get_level_income_slab(total_investment)
             team_members.append({
                 "id": referral["id"],
                 "user_id": referral["id"],
@@ -1752,7 +1766,9 @@ async def get_team_members(
                 "full_name": referral["full_name"],
                 "email": referral["email"],
                 "joined_date": referral["created_at"].isoformat() if hasattr(referral["created_at"], 'isoformat') else str(referral["created_at"]),
-                "total_investment": wallet.get("total_invested", 0) if wallet else 0,
+                "total_investment": total_investment,
+                "investment_level": int(investment_slab_info["level"]),
+                "investment_level_percent": investment_slab_info["percent"],
                 "team_size": team_size,
                 "level": 1
             })

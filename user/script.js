@@ -1064,7 +1064,7 @@ function getTeamSlabForInvestment(investmentAmount) {
     if (amount < 1000) {
         return null;
     }
-    return TEAM_LEVEL_SLABS.find(slab => amount >= slab.min && (slab.max === null || amount < slab.max)) || TEAM_LEVEL_SLABS[TEAM_LEVEL_SLABS.length - 1];
+    return TEAM_LEVEL_SLABS.find(slab => amount >= slab.min && (slab.max === null || amount <= slab.max)) || TEAM_LEVEL_SLABS[TEAM_LEVEL_SLABS.length - 1];
 }
 
 function getMemberTeamInvestment(member) {
@@ -1081,6 +1081,11 @@ function getMemberTeamLevel(member) {
         return backendLevel;
     }
 
+    const investmentLevel = Number(member?.investment_level);
+    if (Number.isFinite(investmentLevel) && investmentLevel >= 0) {
+        return investmentLevel;
+    }
+
     const slab = getTeamSlabForInvestment(getMemberTeamInvestment(member));
     return slab ? slab.level : 0;
 }
@@ -1090,6 +1095,12 @@ function getMemberTeamPercent(member, slab = null) {
     if (Number.isFinite(backendPercent) && backendPercent >= 0) {
         return backendPercent;
     }
+
+    const investmentPercent = Number(member?.investment_level_percent);
+    if (Number.isFinite(investmentPercent) && investmentPercent >= 0) {
+        return investmentPercent;
+    }
+
     if (slab && Number.isFinite(Number(slab.percent))) {
         return Number(slab.percent);
     }
