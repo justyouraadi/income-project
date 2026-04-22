@@ -570,6 +570,15 @@
                             <option value="level-9-20">Level 9 - Level 20</option>
                         </select>
                     </div>
+
+                    <div class="team-level-filter" id="teamStatusFilterWrap">
+                        <label for="teamStatusFilter">View Members By Status</label>
+                        <select id="teamStatusFilter" onchange="onTeamStatusFilterChange()">
+                            <option value="all">All Members</option>
+                            <option value="active">Active Members</option>
+                            <option value="inactive">Inactive Members</option>
+                        </select>
+                    </div>
                     
                     <div class="section-card">
                         <h3>Team Members</h3>

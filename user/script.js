@@ -1089,6 +1089,21 @@ function getTeamLevelFilterValue() {
     return select ? select.value : 'all';
 }
 
+function getTeamStatusFilterValue() {
+    const select = document.getElementById('teamStatusFilter');
+    return select ? select.value : 'all';
+}
+
+function getNormalizedTeamMemberStatus(member) {
+    const rawStatus = String(member?.status || '').trim().toLowerCase();
+    if (rawStatus === 'active' || rawStatus === 'inactive') {
+        return rawStatus;
+    }
+
+    const investedAmount = Number(member?.total_investment || 0);
+    return investedAmount > 0 ? 'active' : 'inactive';
+}
+
 function memberMatchesTeamLevelFilter(level, filterValue) {
     switch (filterValue) {
         case 'below-1':
@@ -1114,15 +1129,41 @@ function memberMatchesTeamLevelFilter(level, filterValue) {
     }
 }
 
+function memberMatchesTeamStatusFilter(member, filterValue) {
+    const normalizedStatus = getNormalizedTeamMemberStatus(member);
+
+    switch (filterValue) {
+        case 'active':
+            return normalizedStatus === 'active';
+        case 'inactive':
+            return normalizedStatus === 'inactive';
+        default:
+            return true;
+    }
+}
+
 function updateTeamLevelFilterVisibility() {
     const filterWrap = document.getElementById('teamLevelFilterWrap');
-    if (!filterWrap) {
-        return;
+    const statusFilterWrap = document.getElementById('teamStatusFilterWrap');
+    const displayValue = teamViewMode === 'list' ? 'flex' : 'none';
+
+    if (filterWrap) {
+        filterWrap.style.display = displayValue;
     }
-    filterWrap.style.display = teamViewMode === 'list' ? 'flex' : 'none';
+
+    if (statusFilterWrap) {
+        statusFilterWrap.style.display = displayValue;
+    }
 }
 
 function onTeamLevelFilterChange() {
+    if (teamViewMode !== 'list') {
+        return;
+    }
+    loadTeam();
+}
+
+function onTeamStatusFilterChange() {
     if (teamViewMode !== 'list') {
         return;
     }
@@ -1181,11 +1222,13 @@ async function loadTeam() {
             
             const container = document.getElementById('teamList');
             const selectedLevelFilter = getTeamLevelFilterValue();
+            const selectedStatusFilter = getTeamStatusFilterValue();
             const visibleMembers = members.filter(member => {
                 const slabBaseAmount = Number(member.team_total_investment ?? member.total_investment ?? 0);
                 const slab = getTeamSlabForInvestment(slabBaseAmount);
                 const level = slab ? slab.level : 0;
-                return memberMatchesTeamLevelFilter(level, selectedLevelFilter);
+                return memberMatchesTeamLevelFilter(level, selectedLevelFilter)
+                    && memberMatchesTeamStatusFilter(member, selectedStatusFilter);
             });
             
             if (visibleMembers.length > 0) {
@@ -1239,7 +1282,7 @@ async function loadTeam() {
                     `;
                 }).join('');
             } else {
-                container.innerHTML = '<p class="empty-state">No members found for the selected level.</p>';
+                container.innerHTML = '<p class="empty-state">No members found for the selected filters.</p>';
             }
         }
     } catch (error) {
