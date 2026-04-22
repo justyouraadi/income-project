@@ -376,6 +376,22 @@ function loadPageData(page) {
     }
 }
 
+function openWalletTransactions(filterType = '') {
+    const typeInput = document.getElementById('txnFilterType');
+    const fromInput = document.getElementById('txnFilterFrom');
+    const toInput = document.getElementById('txnFilterTo');
+
+    if (typeInput) {
+        const hasMatchingType = Array.from(typeInput.options).some(option => option.value === filterType);
+        typeInput.value = hasMatchingType ? filterType : '';
+    }
+
+    if (fromInput) fromInput.value = '';
+    if (toInput) toInput.value = '';
+    setActiveTransactionRange('all');
+    navigateTo('transactions');
+}
+
 // Load Investment Plans dynamically
 async function loadInvestmentPlans() {
     try {

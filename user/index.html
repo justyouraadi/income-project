@@ -265,49 +265,49 @@
                 <div id="walletPage" class="page-content" style="display: none;">
                     <h2 class="page-subtitle">Your Wallets</h2>
                     <div class="wallet-grid">
-                        <div class="wallet-card">
+                        <div class="wallet-card wallet-card-link" role="button" tabindex="0" onclick="openWalletTransactions('daily_roi')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openWalletTransactions('daily_roi'); }">
                             <div class="wallet-icon">📅</div>
                             <div class="wallet-info">
                                 <span class="wallet-name">Daily ROI</span>
                                 <span class="wallet-balance" id="dailyRoiBalance">$0.00</span>
                             </div>
                         </div>
-                        <div class="wallet-card">
+                        <div class="wallet-card wallet-card-link" role="button" tabindex="0" onclick="openWalletTransactions('direct_income')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openWalletTransactions('direct_income'); }">
                             <div class="wallet-icon">👤</div>
                             <div class="wallet-info">
                                 <span class="wallet-name">Direct Income</span>
                                 <span class="wallet-balance" id="directIncomeBalance">$0.00</span>
                             </div>
                         </div>
-                        <div class="wallet-card">
+                        <div class="wallet-card wallet-card-link" role="button" tabindex="0" onclick="openWalletTransactions('level_income')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openWalletTransactions('level_income'); }">
                             <div class="wallet-icon">📊</div>
                             <div class="wallet-info">
                                 <span class="wallet-name">Level Income (1-20)</span>
                                 <span class="wallet-balance" id="levelIncomeBalance">$0.00</span>
                             </div>
                         </div>
-                        <div class="wallet-card">
+                        <div class="wallet-card wallet-card-link" role="button" tabindex="0" onclick="openWalletTransactions('slab_income')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openWalletTransactions('slab_income'); }">
                             <div class="wallet-icon">🎯</div>
                             <div class="wallet-info">
                                 <span class="wallet-name">Slab Income</span>
                                 <span class="wallet-balance" id="slabIncomeBalance">$0.00</span>
                             </div>
                         </div>
-                        <div class="wallet-card">
+                        <div class="wallet-card wallet-card-link" role="button" tabindex="0" onclick="openWalletTransactions('royalty_income')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openWalletTransactions('royalty_income'); }">
                             <div class="wallet-icon">👑</div>
                             <div class="wallet-info">
                                 <span class="wallet-name">Royalty Income</span>
                                 <span class="wallet-balance" id="royaltyIncomeBalance">$0.00</span>
                             </div>
                         </div>
-                        <div class="wallet-card">
+                        <div class="wallet-card wallet-card-link" role="button" tabindex="0" onclick="openWalletTransactions('salary_income')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openWalletTransactions('salary_income'); }">
                             <div class="wallet-icon">💼</div>
                             <div class="wallet-info">
                                 <span class="wallet-name">Salary Income</span>
                                 <span class="wallet-balance" id="salaryIncomeBalance">$0.00</span>
                             </div>
                         </div>
-                        <div class="wallet-card wallet-main">
+                        <div class="wallet-card wallet-main wallet-card-link" role="button" tabindex="0" onclick="openWalletTransactions('')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openWalletTransactions(''); }">
                             <div class="wallet-icon">🏦</div>
                             <div class="wallet-info">
                                 <span class="wallet-name">Main Wallet (Total)</span>
@@ -419,6 +419,9 @@
                                 <option value="daily_roi">Daily ROI</option>
                                 <option value="direct_income">Direct Income</option>
                                 <option value="level_income">Level Income</option>
+                                <option value="slab_income">Slab Income</option>
+                                <option value="royalty_income">Royalty Income</option>
+                                <option value="salary_income">Salary Income</option>
                                 <option value="investment">Investment</option>
                                 <option value="withdrawal">Withdrawal</option>
                                 <option value="p2p_transfer">P2P Transfer</option>
