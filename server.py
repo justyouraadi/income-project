@@ -57,6 +57,14 @@ NOWPAYMENTS_API_KEY = os.environ.get("NOWPAYMENTS_API_KEY", "")
 NOWPAYMENTS_IPN_SECRET = os.environ.get("NOWPAYMENTS_IPN_SECRET", "")
 NOWPAYMENTS_API_BASE_URL = "https://api.nowpayments.io/v1"
 
+# Withdrawal policy configuration
+WITHDRAWAL_MIN_AMOUNT = float(os.environ.get("WITHDRAWAL_MIN_AMOUNT", "10"))
+WITHDRAWAL_ADMIN_COMMISSION_RATE = float(os.environ.get("WITHDRAWAL_ADMIN_COMMISSION_RATE", "0.10"))
+WITHDRAWAL_WINDOW_START_HOUR = int(os.environ.get("WITHDRAWAL_WINDOW_START_HOUR", "10"))
+WITHDRAWAL_WINDOW_END_HOUR = int(os.environ.get("WITHDRAWAL_WINDOW_END_HOUR", "23"))
+WITHDRAWAL_DEFAULT_CURRENCY = os.environ.get("NOWPAYMENTS_WITHDRAWAL_CURRENCY", "usdtbsc").lower()
+PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "https://ssmoneyresource.tech")
+
 # In-memory OTP storage (for production, use Redis or DB)
 otp_storage: Dict[str, dict] = {}
 
@@ -1333,6 +1341,106 @@ def is_working_day(date_to_check=None):
         return False
     
     return True
+
+
+def is_withdrawal_window_open(date_to_check=None) -> bool:
+    """Allow withdrawals only between configured start and end hours (server local time)."""
+    if date_to_check is None:
+        date_to_check = datetime.now()
+
+    return WITHDRAWAL_WINDOW_START_HOUR <= date_to_check.hour <= WITHDRAWAL_WINDOW_END_HOUR
+
+
+def get_total_withdrawable_balance(wallet: dict) -> float:
+    return (
+        wallet.get("daily_roi", 0) +
+        wallet.get("direct_income", 0) +
+        wallet.get("slab_income", 0) +
+        wallet.get("royalty_income", 0) +
+        wallet.get("salary_income", 0)
+    )
+
+
+def build_withdrawal_deductions(wallet: dict, amount: float) -> Dict[str, float]:
+    """Deduct withdrawal amount from income wallets in deterministic order."""
+    remaining = amount
+    deductions: Dict[str, float] = {}
+
+    for income_type in ["daily_roi", "direct_income", "slab_income", "royalty_income", "salary_income"]:
+        if remaining <= 0:
+            break
+        available = float(wallet.get(income_type, 0) or 0)
+        deduct = min(available, remaining)
+        if deduct > 0:
+            deductions[income_type] = -deduct
+            remaining -= deduct
+
+    if remaining > 0:
+        return {}
+    return deductions
+
+
+async def create_nowpayments_withdrawal_payout(
+    withdrawal_id: str,
+    user_id: str,
+    wallet_address: str,
+    payout_currency: str,
+    payout_amount: float
+) -> dict:
+    """Create an automated crypto payout request via NOWPayments Payout API."""
+    if not NOWPAYMENTS_API_KEY:
+        raise HTTPException(status_code=500, detail="NOWPayments payout gateway is not configured")
+
+    callback_url = f"{PUBLIC_BASE_URL}/api/webhooks/nowpayments"
+    payload = {
+        "ipn_callback_url": callback_url,
+        "withdrawals": [
+            {
+                "id": withdrawal_id,
+                "address": wallet_address,
+                "currency": payout_currency,
+                "amount": payout_amount,
+                "ipn_callback_url": callback_url,
+                "user_id": user_id
+            }
+        ]
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as http_client:
+            response = await http_client.post(
+                f"{NOWPAYMENTS_API_BASE_URL}/payout",
+                json=payload,
+                headers={"x-api-key": NOWPAYMENTS_API_KEY}
+            )
+
+        if response.status_code not in (200, 201):
+            logging.error(f"NOWPayments payout error: status={response.status_code}, body={response.text}")
+            raise HTTPException(status_code=502, detail="Unable to process crypto payout right now")
+
+        return response.json()
+    except httpx.HTTPError as exc:
+        logging.error(f"NOWPayments payout HTTP error: {str(exc)}")
+        raise HTTPException(status_code=502, detail="Unable to reach payout gateway")
+
+
+def extract_nowpayments_payout_id(payout_response: dict) -> Optional[str]:
+    """Try to extract a payout identifier from NOWPayments payout response."""
+    candidate_keys = ["id", "payout_id", "batch_withdrawal_id", "batch_id", "withdrawal_id"]
+    for key in candidate_keys:
+        value = payout_response.get(key)
+        if value:
+            return str(value)
+
+    withdrawals = payout_response.get("withdrawals")
+    if isinstance(withdrawals, list) and withdrawals:
+        first_item = withdrawals[0] if isinstance(withdrawals[0], dict) else {}
+        for key in candidate_keys:
+            value = first_item.get(key)
+            if value:
+                return str(value)
+
+    return None
 
 
 def get_next_working_day(from_date=None):
@@ -3064,7 +3172,11 @@ async def toggle_user_status(user_id: str, admin_user: dict = Depends(get_admin_
 
 class WithdrawalRequest(BaseModel):
     amount: float
+    payment_method: str = "crypto_wallet"
+    payment_info: Optional[str] = None
+    payout_currency: Optional[str] = WITHDRAWAL_DEFAULT_CURRENCY
     wallet_type: str = "earning"  # which wallet to withdraw from
+    # Legacy fields kept for backward compatibility with old clients.
     bank_details: Optional[str] = None
     upi_id: Optional[str] = None
 
@@ -3073,42 +3185,117 @@ async def create_withdrawal_request(
     request: WithdrawalRequest,
     current_user: dict = Depends(get_current_user)
 ):
-    """User creates a withdrawal request"""
+    """User creates an automated crypto withdrawal request via NOWPayments payout API."""
+    if not is_withdrawal_window_open():
+        raise HTTPException(
+            status_code=400,
+            detail=f"Withdrawals are allowed only between {WITHDRAWAL_WINDOW_START_HOUR}:00 and {WITHDRAWAL_WINDOW_END_HOUR}:00 (server local time)"
+        )
+
+    if request.amount < WITHDRAWAL_MIN_AMOUNT:
+        raise HTTPException(status_code=400, detail=f"Minimum withdrawal is ${WITHDRAWAL_MIN_AMOUNT:.0f}")
+
     wallet = await db.wallets.find_one({"user_id": current_user["id"]})
     if not wallet:
         raise HTTPException(status_code=400, detail="Wallet not found")
-    
-    # Calculate total available balance
-    total_available = (
-        wallet.get("daily_roi", 0) +
-        wallet.get("direct_income", 0) +
-        wallet.get("slab_income", 0) +
-        wallet.get("royalty_income", 0) +
-        wallet.get("salary_income", 0)
-    )
-    
+
+    total_available = get_total_withdrawable_balance(wallet)
+
     if request.amount > total_available:
         raise HTTPException(status_code=400, detail="Insufficient balance")
-    
-    if request.amount <= 0:
-        raise HTTPException(status_code=400, detail="Invalid amount")
-    
+
+    payment_method = (request.payment_method or "").strip().lower()
+    if payment_method in ("crypto", "crypto_wallet"):
+        payment_method = "crypto_wallet"
+    else:
+        raise HTTPException(status_code=400, detail="Only crypto wallet withdrawals are supported")
+
+    wallet_address = (request.payment_info or request.bank_details or request.upi_id or "").strip()
+    if not wallet_address:
+        raise HTTPException(status_code=400, detail="Crypto wallet address is required")
+
+    payout_currency = (request.payout_currency or WITHDRAWAL_DEFAULT_CURRENCY).strip().lower()
+    commission_amount = round(request.amount * WITHDRAWAL_ADMIN_COMMISSION_RATE, 2)
+    payout_amount = round(request.amount - commission_amount, 2)
+
+    if payout_amount <= 0:
+        raise HTTPException(status_code=400, detail="Invalid withdrawal amount after commission")
+
+    deductions = build_withdrawal_deductions(wallet, request.amount)
+    if not deductions:
+        raise HTTPException(status_code=400, detail="Insufficient balance")
+
+    withdrawal_id = str(uuid.uuid4())
+
+    # Trigger automated payout via NOWPayments.
+    payout_response = await create_nowpayments_withdrawal_payout(
+        withdrawal_id=withdrawal_id,
+        user_id=current_user["id"],
+        wallet_address=wallet_address,
+        payout_currency=payout_currency,
+        payout_amount=payout_amount
+    )
+    nowpayments_payout_id = extract_nowpayments_payout_id(payout_response)
+
+    processed_time = datetime.utcnow()
+
+    await db.wallets.update_one(
+        {"user_id": current_user["id"]},
+        {
+            "$inc": {
+                **deductions,
+                "total_withdrawn": request.amount,
+                "withdrawal_balance": payout_amount
+            }
+        }
+    )
+
     withdrawal = {
-        "id": str(uuid.uuid4()),
+        "id": withdrawal_id,
         "user_id": current_user["id"],
         "amount": request.amount,
+        "commission_amount": commission_amount,
+        "payout_amount": payout_amount,
         "wallet_type": request.wallet_type,
-        "bank_details": request.bank_details,
-        "upi_id": request.upi_id,
-        "status": "pending",  # pending, approved, cancelled
-        "created_at": datetime.utcnow(),
-        "processed_at": None,
-        "processed_by": None
+        "payment_method": payment_method,
+        "payment_info": wallet_address,
+        "wallet_address": wallet_address,
+        "payout_currency": payout_currency,
+        "bank_details": None,
+        "upi_id": None,
+        "status": "approved",  # pending, approved, cancelled
+        "created_at": processed_time,
+        "processed_at": processed_time,
+        "processed_by": "nowpayments_auto",
+        "nowpayments_payout_id": nowpayments_payout_id,
+        "nowpayments_response": payout_response
     }
-    
+
     await db.withdrawals.insert_one(withdrawal)
-    
-    return {"message": "Withdrawal request submitted", "request_id": withdrawal["id"]}
+
+    transaction = {
+        "id": str(uuid.uuid4()),
+        "user_id": current_user["id"],
+        "type": "withdrawal",
+        "amount": -request.amount,
+        "description": (
+            f"Crypto withdrawal via NOWPayments ({payout_currency.upper()}) - "
+            f"requested ${request.amount:.2f}, fee ${commission_amount:.2f}, payout ${payout_amount:.2f}"
+        ),
+        "date": processed_time
+    }
+    await db.transactions.insert_one(transaction)
+
+    return {
+        "message": "Withdrawal submitted and processed via NOWPayments",
+        "request_id": withdrawal_id,
+        "status": "approved",
+        "amount": request.amount,
+        "commission_amount": commission_amount,
+        "payout_amount": payout_amount,
+        "payout_currency": payout_currency,
+        "nowpayments_payout_id": nowpayments_payout_id
+    }
 
 @api_router.get("/user/withdrawals")
 async def get_user_withdrawals(current_user: dict = Depends(get_current_user)):
@@ -3122,9 +3309,14 @@ async def get_user_withdrawals(current_user: dict = Depends(get_current_user)):
         result.append({
             "id": w["id"],
             "amount": w["amount"],
+            "commission_amount": w.get("commission_amount", round(float(w.get("amount", 0) or 0) * WITHDRAWAL_ADMIN_COMMISSION_RATE, 2)),
+            "payout_amount": w.get("payout_amount", round(float(w.get("amount", 0) or 0) * (1 - WITHDRAWAL_ADMIN_COMMISSION_RATE), 2)),
+            "payment_method": w.get("payment_method", "crypto_wallet"),
+            "wallet_address": w.get("wallet_address") or w.get("payment_info") or w.get("upi_id") or w.get("bank_details"),
+            "payout_currency": w.get("payout_currency", WITHDRAWAL_DEFAULT_CURRENCY),
             "status": w["status"],
             "request_timestamp": w["created_at"].isoformat() if hasattr(w["created_at"], 'isoformat') else str(w["created_at"]),
-            "processed_at": w.get("processed_at")
+            "processed_at": w["processed_at"].isoformat() if w.get("processed_at") and hasattr(w["processed_at"], 'isoformat') else None
         })
     
     return {"withdrawals": result}
@@ -3178,9 +3370,16 @@ async def get_all_withdrawals(
             "user_email": user["email"] if user else "N/A",
             "referral_code": user.get("referral_code", "N/A") if user else "N/A",
             "amount": w["amount"],
+            "commission_amount": w.get("commission_amount", round(float(w.get("amount", 0) or 0) * WITHDRAWAL_ADMIN_COMMISSION_RATE, 2)),
+            "payout_amount": w.get("payout_amount", round(float(w.get("amount", 0) or 0) * (1 - WITHDRAWAL_ADMIN_COMMISSION_RATE), 2)),
             "wallet_type": w.get("wallet_type", "earning"),
+            "payment_method": w.get("payment_method", "crypto_wallet"),
+            "payment_info": w.get("payment_info") or w.get("wallet_address") or w.get("upi_id") or w.get("bank_details"),
+            "wallet_address": w.get("wallet_address") or w.get("payment_info") or w.get("upi_id") or w.get("bank_details"),
+            "payout_currency": w.get("payout_currency", WITHDRAWAL_DEFAULT_CURRENCY),
             "bank_details": w.get("bank_details"),
             "upi_id": w.get("upi_id"),
+            "nowpayments_payout_id": w.get("nowpayments_payout_id"),
             "status": w["status"],
             "created_at": w["created_at"].isoformat() if hasattr(w["created_at"], 'isoformat') else str(w["created_at"]),
             "processed_at": w["processed_at"].isoformat() if w.get("processed_at") and hasattr(w["processed_at"], 'isoformat') else None
@@ -3213,33 +3412,48 @@ async def approve_withdrawal(withdrawal_id: str, admin_user: dict = Depends(get_
     wallet = await db.wallets.find_one({"user_id": withdrawal["user_id"]})
     if not wallet:
         raise HTTPException(status_code=400, detail="User wallet not found")
-    
-    amount = withdrawal["amount"]
-    
-    # Deduct proportionally
-    total_income = (
-        wallet.get("daily_roi", 0) +
-        wallet.get("direct_income", 0) +
-        wallet.get("slab_income", 0) +
-        wallet.get("royalty_income", 0) +
-        wallet.get("salary_income", 0)
-    )
-    
+
+    amount = float(withdrawal.get("amount", 0) or 0)
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Invalid withdrawal amount")
+
+    total_income = get_total_withdrawable_balance(wallet)
+
     if total_income < amount:
         raise HTTPException(status_code=400, detail="Insufficient balance")
-    
-    # Simple deduction - deduct from available balances
-    remaining = amount
-    deductions = {}
-    
-    for income_type in ["daily_roi", "direct_income", "slab_income", "royalty_income", "salary_income"]:
-        if remaining <= 0:
-            break
-        available = wallet.get(income_type, 0)
-        deduct = min(available, remaining)
-        if deduct > 0:
-            deductions[income_type] = -deduct
-            remaining -= deduct
+
+    commission_amount = float(withdrawal.get("commission_amount", round(amount * WITHDRAWAL_ADMIN_COMMISSION_RATE, 2)))
+    payout_amount = float(withdrawal.get("payout_amount", round(amount - commission_amount, 2)))
+    if payout_amount <= 0:
+        raise HTTPException(status_code=400, detail="Invalid payout amount")
+
+    payment_method = str(withdrawal.get("payment_method", "crypto_wallet") or "").lower()
+    if payment_method not in ["crypto_wallet", "crypto"]:
+        raise HTTPException(status_code=400, detail="Only crypto wallet withdrawals can be approved")
+
+    wallet_address = str(
+        withdrawal.get("wallet_address") or
+        withdrawal.get("payment_info") or
+        withdrawal.get("upi_id") or
+        withdrawal.get("bank_details") or
+        ""
+    ).strip()
+    if not wallet_address:
+        raise HTTPException(status_code=400, detail="Missing crypto wallet address")
+
+    payout_currency = str(withdrawal.get("payout_currency") or WITHDRAWAL_DEFAULT_CURRENCY).strip().lower()
+    deductions = build_withdrawal_deductions(wallet, amount)
+    if not deductions:
+        raise HTTPException(status_code=400, detail="Insufficient balance")
+
+    payout_response = await create_nowpayments_withdrawal_payout(
+        withdrawal_id=withdrawal_id,
+        user_id=withdrawal["user_id"],
+        wallet_address=wallet_address,
+        payout_currency=payout_currency,
+        payout_amount=payout_amount
+    )
+    nowpayments_payout_id = extract_nowpayments_payout_id(payout_response)
     
     # Update wallet
     await db.wallets.update_one(
@@ -3248,7 +3462,7 @@ async def approve_withdrawal(withdrawal_id: str, admin_user: dict = Depends(get_
             "$inc": {
                 **deductions,
                 "total_withdrawn": amount,
-                "withdrawal_balance": amount
+                "withdrawal_balance": payout_amount
             }
         }
     )
@@ -3260,7 +3474,15 @@ async def approve_withdrawal(withdrawal_id: str, admin_user: dict = Depends(get_
             "$set": {
                 "status": "approved",
                 "processed_at": datetime.utcnow(),
-                "processed_by": admin_user["id"]
+                "processed_by": admin_user["id"],
+                "payment_method": "crypto_wallet",
+                "payment_info": wallet_address,
+                "wallet_address": wallet_address,
+                "payout_currency": payout_currency,
+                "commission_amount": commission_amount,
+                "payout_amount": payout_amount,
+                "nowpayments_payout_id": nowpayments_payout_id,
+                "nowpayments_response": payout_response
             }
         }
     )
@@ -3271,12 +3493,20 @@ async def approve_withdrawal(withdrawal_id: str, admin_user: dict = Depends(get_
         "user_id": withdrawal["user_id"],
         "type": "withdrawal",
         "amount": -amount,
-        "description": "Withdrawal approved",
+        "description": (
+            f"Withdrawal approved via NOWPayments ({payout_currency.upper()}) - "
+            f"requested ${amount:.2f}, fee ${commission_amount:.2f}, payout ${payout_amount:.2f}"
+        ),
         "date": datetime.utcnow()
     }
     await db.transactions.insert_one(transaction)
-    
-    return {"message": "Withdrawal approved successfully"}
+
+    return {
+        "message": "Withdrawal approved and paid via NOWPayments",
+        "commission_amount": commission_amount,
+        "payout_amount": payout_amount,
+        "nowpayments_payout_id": nowpayments_payout_id
+    }
 
 @api_router.post("/admin/withdrawals/{withdrawal_id}/cancel")
 async def cancel_withdrawal(withdrawal_id: str, admin_user: dict = Depends(get_admin_user)):

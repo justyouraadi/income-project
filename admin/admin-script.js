@@ -953,18 +953,25 @@ function renderWithdrawalsTable(withdrawals) {
         const statusColors = {
             'pending': '#f39c12',
             'approved': '#27ae60',
-            'cancelled': '#e74c3c'
+            'cancelled': '#e74c3c',
+            'failed': '#8e44ad'
         };
-        
-        const paymentDetails = w.upi_id ? `UPI: ${w.upi_id}` : (w.bank_details || 'N/A');
+
+        const amount = Number(w.amount || 0);
+        const commissionAmount = Number(w.commission_amount ?? (amount * 0.10));
+        const payoutAmount = Number(w.payout_amount ?? (amount - commissionAmount));
+        const payoutCurrency = String(w.payout_currency || 'usdtbsc').toUpperCase();
+        const walletAddress = w.wallet_address || w.payment_info || w.upi_id || w.bank_details || 'N/A';
+        const paymentDetails = `${payoutCurrency}: ${walletAddress}<br><small>Fee: $${commissionAmount.toFixed(2)} | Net: $${payoutAmount.toFixed(2)}</small>`;
+        const statusColor = statusColors[w.status] || '#7f8c8d';
         
         const row = document.createElement('tr');
         row.innerHTML = `
             <td><strong>#${w.referral_code || 'N/A'}</strong></td>
             <td>${w.user_name}<br><small>${w.user_email}</small></td>
-            <td><strong>$${w.amount.toFixed(2)}</strong></td>
+            <td><strong>$${amount.toFixed(2)}</strong><br><small>Net: $${payoutAmount.toFixed(2)}</small></td>
             <td>${paymentDetails}</td>
-            <td><span class="type-badge" style="background: ${statusColors[w.status]}">${w.status}</span></td>
+            <td><span class="type-badge" style="background: ${statusColor}">${w.status}</span></td>
             <td>${new Date(w.created_at).toLocaleString()}</td>
             <td>
                 ${w.status === 'pending' ? `
@@ -978,7 +985,7 @@ function renderWithdrawalsTable(withdrawals) {
 }
 
 async function approveWithdrawal(withdrawalId) {
-    if (!confirm('Are you sure you want to approve this withdrawal? This will deduct from user wallet.')) {
+    if (!confirm('Are you sure you want to approve this withdrawal? This will send an automated NOWPayments crypto payout and deduct from user wallet.')) {
         return;
     }
     

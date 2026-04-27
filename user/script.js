@@ -1294,17 +1294,34 @@ async function loadTeam() {
 async function requestWithdrawal() {
     const amount = parseFloat(document.getElementById('withdrawAmount').value);
     const method = document.getElementById('withdrawMethod').value;
+    const currency = document.getElementById('withdrawCurrency')?.value || 'usdtbsc';
     const details = document.getElementById('withdrawDetails').value;
     const messageDiv = document.getElementById('withdrawMessage');
+    const now = new Date();
+    const hour = now.getHours();
+    const commissionAmount = amount ? amount * 0.10 : 0;
+    const payoutAmount = amount ? amount - commissionAmount : 0;
     
     if (!amount || amount < 10) {
         messageDiv.textContent = 'Minimum withdrawal is $10';
         messageDiv.className = 'message error';
         return;
     }
+
+    if (hour < 10 || hour > 23) {
+        messageDiv.textContent = 'Withdrawals are allowed only between 10:00 AM and 11:00 PM';
+        messageDiv.className = 'message error';
+        return;
+    }
+
+    if (method !== 'crypto_wallet') {
+        messageDiv.textContent = 'Only crypto wallet withdrawals are supported';
+        messageDiv.className = 'message error';
+        return;
+    }
     
     if (!details) {
-        messageDiv.textContent = 'Please enter payment details';
+        messageDiv.textContent = 'Please enter your crypto wallet address';
         messageDiv.className = 'message error';
         return;
     }
@@ -1319,14 +1336,17 @@ async function requestWithdrawal() {
             body: JSON.stringify({
                 amount: amount,
                 payment_method: method,
-                payment_info: details
+                payment_info: details,
+                payout_currency: currency
             })
         });
         
         const data = await response.json();
         
         if (response.ok) {
-            messageDiv.textContent = 'Withdrawal request submitted successfully!';
+            const netAmount = Number(data.payout_amount ?? payoutAmount);
+            const feeAmount = Number(data.commission_amount ?? commissionAmount);
+            messageDiv.textContent = `Withdrawal submitted. Fee: $${feeAmount.toFixed(2)} | Net payout: $${netAmount.toFixed(2)}`;
             messageDiv.className = 'message success';
             document.getElementById('withdrawAmount').value = '';
             document.getElementById('withdrawDetails').value = '';
@@ -1358,10 +1378,12 @@ async function loadWithdrawals() {
                 container.innerHTML = data.withdrawals.map(w => `
                     <div class="withdrawal-item">
                         <div class="withdrawal-info">
-                            <span class="withdrawal-amount">$${w.amount.toFixed(2)}</span>
+                            <span class="withdrawal-amount">Requested: $${Number(w.amount || 0).toFixed(2)}</span>
+                            <span class="withdrawal-date">Fee (10%): $${Number(w.commission_amount || 0).toFixed(2)} | Net: $${Number(w.payout_amount || 0).toFixed(2)}</span>
+                            <span class="withdrawal-date">${(w.payout_currency || '').toUpperCase()} -> ${w.wallet_address || 'N/A'}</span>
                             <span class="withdrawal-date">${new Date(w.request_timestamp).toLocaleString()}</span>
                         </div>
-                        <span class="withdrawal-status ${w.status}">${w.status}</span>
+                        <span class="withdrawal-status ${(w.status || '').toLowerCase()}">${w.status}</span>
                     </div>
                 `).join('');
             } else {

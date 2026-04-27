@@ -604,15 +604,25 @@
                             <div class="form-group">
                                 <label>Payment Method</label>
                                 <select id="withdrawMethod">
-                                    <option value="bank">Bank Transfer</option>
-                                    <option value="upi">UPI</option>
-                                    <option value="crypto">Crypto Wallet</option>
+                                    <option value="crypto_wallet">Crypto Wallet (NOWPayments)</option>
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label>Payment Details</label>
-                                <input type="text" id="withdrawDetails" placeholder="Enter account/wallet details">
+                                <label>Payout Currency</label>
+                                <select id="withdrawCurrency">
+                                    <option value="usdtbsc">USDT (BEP20)</option>
+                                    <option value="usdttrc20">USDT (TRC20)</option>
+                                    <option value="btc">Bitcoin (BTC)</option>
+                                    <option value="eth">Ethereum (ETH)</option>
+                                </select>
                             </div>
+                            <div class="form-group">
+                                <label>Crypto Wallet Address</label>
+                                <input type="text" id="withdrawDetails" placeholder="Enter destination crypto wallet address">
+                            </div>
+                            <small>Withdrawals are available from 10:00 AM to 11:00 PM only (server local time).</small><br>
+                            <small>A 10% admin commission is deducted from every withdrawal request.</small><br>
+                            <small>Payouts are processed through NOWPayments automation.</small>
                             <button class="btn btn-primary btn-full" onclick="requestWithdrawal()">Request Withdrawal</button>
                             <div id="withdrawMessage" class="message"></div>
                         </div>
@@ -887,7 +897,7 @@
                                     <span class="faq-toggle">+</span>
                                 </div>
                                 <div class="faq-answer">
-                                    <p>Go to the Withdraw section, enter the amount you wish to withdraw, and provide your UPI ID or bank details. Minimum withdrawal is $10. Withdrawals are processed within 24-48 hours after admin approval.</p>
+                                    <p>Go to the Withdraw section, enter the amount, choose your crypto payout currency, and provide your crypto wallet address. Minimum withdrawal is $10. Withdrawals are allowed only from 10:00 AM to 11:00 PM and include a 10% admin commission deduction.</p>
                                 </div>
                             </div>
                             
@@ -907,7 +917,7 @@
                                     <span class="faq-toggle">+</span>
                                 </div>
                                 <div class="faq-answer">
-                                    <p>All withdrawals go through an admin review process for security. Typical approval time is 24-48 hours. If your withdrawal is pending for longer, please contact support with your withdrawal request details.</p>
+                                    <p>Withdrawals are submitted to NOWPayments for automated crypto payout. Depending on network conditions, confirmation can take additional time. If it remains pending, contact support with your withdrawal request details.</p>
                                 </div>
                             </div>
                         </div>
