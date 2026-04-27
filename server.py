@@ -3327,44 +3327,27 @@ async def create_withdrawal_request(
 
     withdrawal_id = str(uuid.uuid4())
     processed_time = datetime.utcnow()
-    payout_response = None
-    nowpayments_payout_id = None
-    payout_error_reason = None
-    withdrawal_status = "pending"
-    processed_at = None
-    processed_by = None
 
-    # Trigger automated payout via NOWPayments. If payout API is temporarily unavailable,
-    # keep the request as pending for admin retry/approval instead of failing the user request.
-    try:
-        payout_response = await create_nowpayments_withdrawal_payout(
-            withdrawal_id=withdrawal_id,
-            user_id=current_user["id"],
-            wallet_address=wallet_address,
-            payout_currency=payout_currency,
-            payout_amount=payout_amount
-        )
-        nowpayments_payout_id = extract_nowpayments_payout_id(payout_response)
-        withdrawal_status = "approved"
-        processed_at = processed_time
-        processed_by = "nowpayments_auto"
+    # Fully automatic payout flow: no admin approval fallback.
+    payout_response = await create_nowpayments_withdrawal_payout(
+        withdrawal_id=withdrawal_id,
+        user_id=current_user["id"],
+        wallet_address=wallet_address,
+        payout_currency=payout_currency,
+        payout_amount=payout_amount
+    )
+    nowpayments_payout_id = extract_nowpayments_payout_id(payout_response)
 
-        await db.wallets.update_one(
-            {"user_id": current_user["id"]},
-            {
-                "$inc": {
-                    **deductions,
-                    "total_withdrawn": request.amount,
-                    "withdrawal_balance": payout_amount
-                }
+    await db.wallets.update_one(
+        {"user_id": current_user["id"]},
+        {
+            "$inc": {
+                **deductions,
+                "total_withdrawn": request.amount,
+                "withdrawal_balance": payout_amount
             }
-        )
-    except HTTPException as payout_exc:
-        payout_error_reason = str(payout_exc.detail)
-        logging.error(
-            f"Auto payout failed for withdrawal {withdrawal_id}. "
-            f"Request saved as pending. Reason: {payout_error_reason}"
-        )
+        }
+    )
 
     withdrawal = {
         "id": withdrawal_id,
@@ -3379,58 +3362,41 @@ async def create_withdrawal_request(
         "payout_currency": payout_currency,
         "bank_details": None,
         "upi_id": None,
-        "status": withdrawal_status,  # pending, approved, cancelled
+        "status": "approved",  # pending, approved, cancelled
         "created_at": processed_time,
-        "processed_at": processed_at,
-        "processed_by": processed_by,
+        "processed_at": processed_time,
+        "processed_by": "nowpayments_auto",
         "nowpayments_payout_id": nowpayments_payout_id,
         "nowpayments_response": payout_response,
-        "payout_error_reason": payout_error_reason
+        "payout_error_reason": None
     }
 
     await db.withdrawals.insert_one(withdrawal)
 
-    transaction_type = "withdrawal" if withdrawal_status == "approved" else "withdrawal_request"
-    transaction_amount = -request.amount if withdrawal_status == "approved" else request.amount
     transaction_description = (
         f"Crypto withdrawal via NOWPayments ({payout_currency.upper()}) - "
         f"requested ${request.amount:.2f}, fee ${commission_amount:.2f}, payout ${payout_amount:.2f}"
     )
-    if withdrawal_status != "approved":
-        transaction_description += " (pending admin retry)"
 
     transaction = {
         "id": str(uuid.uuid4()),
         "user_id": current_user["id"],
-        "type": transaction_type,
-        "amount": transaction_amount,
+        "type": "withdrawal",
+        "amount": -request.amount,
         "description": transaction_description,
         "date": processed_time
     }
     await db.transactions.insert_one(transaction)
 
-    if withdrawal_status == "approved":
-        return {
-            "message": "Withdrawal submitted and processed via NOWPayments",
-            "request_id": withdrawal_id,
-            "status": "approved",
-            "amount": request.amount,
-            "commission_amount": commission_amount,
-            "payout_amount": payout_amount,
-            "payout_currency": payout_currency,
-            "nowpayments_payout_id": nowpayments_payout_id
-        }
-
     return {
-        "message": "Withdrawal request submitted. Auto payout is temporarily unavailable and the request is pending admin processing.",
+        "message": "Withdrawal submitted and processed via NOWPayments",
         "request_id": withdrawal_id,
-        "status": "pending",
+        "status": "approved",
         "amount": request.amount,
         "commission_amount": commission_amount,
         "payout_amount": payout_amount,
         "payout_currency": payout_currency,
-        "nowpayments_payout_id": None,
-        "payout_error_reason": payout_error_reason
+        "nowpayments_payout_id": nowpayments_payout_id
     }
 
 @api_router.get("/user/withdrawals")
