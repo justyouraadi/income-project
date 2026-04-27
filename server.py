@@ -57,6 +57,12 @@ if RESEND_API_KEY:
 NOWPAYMENTS_API_KEY = os.environ.get("NOWPAYMENTS_API_KEY", "")
 NOWPAYMENTS_IPN_SECRET = os.environ.get("NOWPAYMENTS_IPN_SECRET", "")
 NOWPAYMENTS_API_BASE_URL = "https://api.nowpayments.io/v1"
+NOWPAYMENTS_PAYOUT_EMAIL = os.environ.get("NOWPAYMENTS_PAYOUT_EMAIL", "")
+NOWPAYMENTS_PAYOUT_PASSWORD = os.environ.get("NOWPAYMENTS_PAYOUT_PASSWORD", "")
+
+# Payout token cache for NOWPayments Payout API authentication flow.
+_nowpayments_payout_token: Optional[str] = None
+_nowpayments_payout_token_expiry: Optional[datetime] = None
 
 # Withdrawal policy configuration
 WITHDRAWAL_MIN_AMOUNT = float(os.environ.get("WITHDRAWAL_MIN_AMOUNT", "10"))
@@ -1407,6 +1413,63 @@ async def create_nowpayments_withdrawal_payout(
     if not NOWPAYMENTS_API_KEY:
         raise HTTPException(status_code=500, detail="NOWPayments payout gateway is not configured")
 
+    def _extract_nowpayments_error_detail(response: httpx.Response) -> str:
+        try:
+            data = response.json()
+            if isinstance(data, dict):
+                for key in ["message", "error", "detail", "msg"]:
+                    value = data.get(key)
+                    if value:
+                        return str(value)
+            return str(data)
+        except Exception:
+            return response.text or f"HTTP {response.status_code}"
+
+    async def _get_nowpayments_payout_auth_token(http_client: httpx.AsyncClient, force_refresh: bool = False) -> Optional[str]:
+        global _nowpayments_payout_token, _nowpayments_payout_token_expiry
+
+        now_utc = datetime.utcnow()
+        if (
+            not force_refresh
+            and _nowpayments_payout_token
+            and _nowpayments_payout_token_expiry
+            and now_utc < _nowpayments_payout_token_expiry
+        ):
+            return _nowpayments_payout_token
+
+        if not NOWPAYMENTS_PAYOUT_EMAIL or not NOWPAYMENTS_PAYOUT_PASSWORD:
+            return None
+
+        auth_response = await http_client.post(
+            f"{NOWPAYMENTS_API_BASE_URL}/auth",
+            json={
+                "email": NOWPAYMENTS_PAYOUT_EMAIL,
+                "password": NOWPAYMENTS_PAYOUT_PASSWORD
+            },
+            headers={
+                "x-api-key": NOWPAYMENTS_API_KEY,
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        )
+
+        if auth_response.status_code not in (200, 201):
+            logging.error(
+                "NOWPayments payout auth failed: "
+                f"status={auth_response.status_code}, body={auth_response.text}"
+            )
+            return None
+
+        auth_json = auth_response.json() if auth_response.content else {}
+        token = auth_json.get("token") or auth_json.get("auth_token")
+        if not token:
+            return None
+
+        expires_in_seconds = int(auth_json.get("expires_in") or 900)
+        _nowpayments_payout_token = token
+        _nowpayments_payout_token_expiry = now_utc + timedelta(seconds=max(60, expires_in_seconds - 30))
+        return _nowpayments_payout_token
+
     callback_url = f"{PUBLIC_BASE_URL}/api/webhooks/nowpayments"
     payload = {
         "ipn_callback_url": callback_url,
@@ -1415,26 +1478,47 @@ async def create_nowpayments_withdrawal_payout(
                 "id": withdrawal_id,
                 "address": wallet_address,
                 "currency": payout_currency,
-                "amount": payout_amount,
-                "ipn_callback_url": callback_url,
-                "user_id": user_id
+                "amount": round(float(payout_amount), 8),
+                "ipn_callback_url": callback_url
             }
         ]
     }
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as http_client:
+            request_headers = {
+                "x-api-key": NOWPAYMENTS_API_KEY,
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+
             response = await http_client.post(
                 f"{NOWPAYMENTS_API_BASE_URL}/payout",
                 json=payload,
-                headers={"x-api-key": NOWPAYMENTS_API_KEY}
+                headers=request_headers
             )
 
-        if response.status_code not in (200, 201):
-            logging.error(f"NOWPayments payout error: status={response.status_code}, body={response.text}")
-            raise HTTPException(status_code=502, detail="Unable to process crypto payout right now")
+            if response.status_code in (401, 403):
+                token = await _get_nowpayments_payout_auth_token(http_client=http_client)
+                if token:
+                    authed_headers = {
+                        **request_headers,
+                        "Authorization": f"Bearer {token}"
+                    }
+                    response = await http_client.post(
+                        f"{NOWPAYMENTS_API_BASE_URL}/payout",
+                        json=payload,
+                        headers=authed_headers
+                    )
 
-        return response.json()
+        if response.status_code not in (200, 201, 202):
+            upstream_error = _extract_nowpayments_error_detail(response)
+            logging.error(f"NOWPayments payout error: status={response.status_code}, body={response.text}")
+            raise HTTPException(status_code=502, detail=f"Unable to process crypto payout right now: {upstream_error}")
+
+        return response.json() if response.content else {"status": "accepted", "withdrawal_id": withdrawal_id, "user_id": user_id}
+    except HTTPException:
+        raise
     except httpx.HTTPError as exc:
         logging.error(f"NOWPayments payout HTTP error: {str(exc)}")
         raise HTTPException(status_code=502, detail="Unable to reach payout gateway")
@@ -3242,29 +3326,45 @@ async def create_withdrawal_request(
         raise HTTPException(status_code=400, detail="Insufficient balance")
 
     withdrawal_id = str(uuid.uuid4())
-
-    # Trigger automated payout via NOWPayments.
-    payout_response = await create_nowpayments_withdrawal_payout(
-        withdrawal_id=withdrawal_id,
-        user_id=current_user["id"],
-        wallet_address=wallet_address,
-        payout_currency=payout_currency,
-        payout_amount=payout_amount
-    )
-    nowpayments_payout_id = extract_nowpayments_payout_id(payout_response)
-
     processed_time = datetime.utcnow()
+    payout_response = None
+    nowpayments_payout_id = None
+    payout_error_reason = None
+    withdrawal_status = "pending"
+    processed_at = None
+    processed_by = None
 
-    await db.wallets.update_one(
-        {"user_id": current_user["id"]},
-        {
-            "$inc": {
-                **deductions,
-                "total_withdrawn": request.amount,
-                "withdrawal_balance": payout_amount
+    # Trigger automated payout via NOWPayments. If payout API is temporarily unavailable,
+    # keep the request as pending for admin retry/approval instead of failing the user request.
+    try:
+        payout_response = await create_nowpayments_withdrawal_payout(
+            withdrawal_id=withdrawal_id,
+            user_id=current_user["id"],
+            wallet_address=wallet_address,
+            payout_currency=payout_currency,
+            payout_amount=payout_amount
+        )
+        nowpayments_payout_id = extract_nowpayments_payout_id(payout_response)
+        withdrawal_status = "approved"
+        processed_at = processed_time
+        processed_by = "nowpayments_auto"
+
+        await db.wallets.update_one(
+            {"user_id": current_user["id"]},
+            {
+                "$inc": {
+                    **deductions,
+                    "total_withdrawn": request.amount,
+                    "withdrawal_balance": payout_amount
+                }
             }
-        }
-    )
+        )
+    except HTTPException as payout_exc:
+        payout_error_reason = str(payout_exc.detail)
+        logging.error(
+            f"Auto payout failed for withdrawal {withdrawal_id}. "
+            f"Request saved as pending. Reason: {payout_error_reason}"
+        )
 
     withdrawal = {
         "id": withdrawal_id,
@@ -3279,38 +3379,58 @@ async def create_withdrawal_request(
         "payout_currency": payout_currency,
         "bank_details": None,
         "upi_id": None,
-        "status": "approved",  # pending, approved, cancelled
+        "status": withdrawal_status,  # pending, approved, cancelled
         "created_at": processed_time,
-        "processed_at": processed_time,
-        "processed_by": "nowpayments_auto",
+        "processed_at": processed_at,
+        "processed_by": processed_by,
         "nowpayments_payout_id": nowpayments_payout_id,
-        "nowpayments_response": payout_response
+        "nowpayments_response": payout_response,
+        "payout_error_reason": payout_error_reason
     }
 
     await db.withdrawals.insert_one(withdrawal)
 
+    transaction_type = "withdrawal" if withdrawal_status == "approved" else "withdrawal_request"
+    transaction_amount = -request.amount if withdrawal_status == "approved" else request.amount
+    transaction_description = (
+        f"Crypto withdrawal via NOWPayments ({payout_currency.upper()}) - "
+        f"requested ${request.amount:.2f}, fee ${commission_amount:.2f}, payout ${payout_amount:.2f}"
+    )
+    if withdrawal_status != "approved":
+        transaction_description += " (pending admin retry)"
+
     transaction = {
         "id": str(uuid.uuid4()),
         "user_id": current_user["id"],
-        "type": "withdrawal",
-        "amount": -request.amount,
-        "description": (
-            f"Crypto withdrawal via NOWPayments ({payout_currency.upper()}) - "
-            f"requested ${request.amount:.2f}, fee ${commission_amount:.2f}, payout ${payout_amount:.2f}"
-        ),
+        "type": transaction_type,
+        "amount": transaction_amount,
+        "description": transaction_description,
         "date": processed_time
     }
     await db.transactions.insert_one(transaction)
 
+    if withdrawal_status == "approved":
+        return {
+            "message": "Withdrawal submitted and processed via NOWPayments",
+            "request_id": withdrawal_id,
+            "status": "approved",
+            "amount": request.amount,
+            "commission_amount": commission_amount,
+            "payout_amount": payout_amount,
+            "payout_currency": payout_currency,
+            "nowpayments_payout_id": nowpayments_payout_id
+        }
+
     return {
-        "message": "Withdrawal submitted and processed via NOWPayments",
+        "message": "Withdrawal request submitted. Auto payout is temporarily unavailable and the request is pending admin processing.",
         "request_id": withdrawal_id,
-        "status": "approved",
+        "status": "pending",
         "amount": request.amount,
         "commission_amount": commission_amount,
         "payout_amount": payout_amount,
         "payout_currency": payout_currency,
-        "nowpayments_payout_id": nowpayments_payout_id
+        "nowpayments_payout_id": None,
+        "payout_error_reason": payout_error_reason
     }
 
 @api_router.get("/user/withdrawals")
@@ -3330,6 +3450,7 @@ async def get_user_withdrawals(current_user: dict = Depends(get_current_user)):
             "payment_method": w.get("payment_method", "crypto_wallet"),
             "wallet_address": w.get("wallet_address") or w.get("payment_info") or w.get("upi_id") or w.get("bank_details"),
             "payout_currency": w.get("payout_currency", WITHDRAWAL_DEFAULT_CURRENCY),
+            "payout_error_reason": w.get("payout_error_reason"),
             "status": w["status"],
             "request_timestamp": w["created_at"].isoformat() if hasattr(w["created_at"], 'isoformat') else str(w["created_at"]),
             "processed_at": w["processed_at"].isoformat() if w.get("processed_at") and hasattr(w["processed_at"], 'isoformat') else None
@@ -3396,6 +3517,7 @@ async def get_all_withdrawals(
             "bank_details": w.get("bank_details"),
             "upi_id": w.get("upi_id"),
             "nowpayments_payout_id": w.get("nowpayments_payout_id"),
+            "payout_error_reason": w.get("payout_error_reason"),
             "status": w["status"],
             "created_at": w["created_at"].isoformat() if hasattr(w["created_at"], 'isoformat') else str(w["created_at"]),
             "processed_at": w["processed_at"].isoformat() if w.get("processed_at") and hasattr(w["processed_at"], 'isoformat') else None

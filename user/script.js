@@ -1350,7 +1350,8 @@ async function requestWithdrawal() {
         if (response.ok) {
             const netAmount = Number(data.payout_amount ?? payoutAmount);
             const feeAmount = Number(data.commission_amount ?? commissionAmount);
-            messageDiv.textContent = `Withdrawal submitted. Fee: $${feeAmount.toFixed(2)} | Net payout: $${netAmount.toFixed(2)}`;
+            const backendMessage = data.message ? `${data.message} ` : '';
+            messageDiv.textContent = `${backendMessage}Fee: $${feeAmount.toFixed(2)} | Net payout: $${netAmount.toFixed(2)}`;
             messageDiv.className = 'message success';
             document.getElementById('withdrawAmount').value = '';
             document.getElementById('withdrawDetails').value = '';
