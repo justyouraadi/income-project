@@ -1298,7 +1298,11 @@ async function requestWithdrawal() {
     const details = document.getElementById('withdrawDetails').value;
     const messageDiv = document.getElementById('withdrawMessage');
     const now = new Date();
-    const hour = now.getHours();
+    const istHour = Number(now.toLocaleString('en-US', {
+        timeZone: 'Asia/Kolkata',
+        hour12: false,
+        hour: '2-digit'
+    }));
     const commissionAmount = amount ? amount * 0.10 : 0;
     const payoutAmount = amount ? amount - commissionAmount : 0;
     
@@ -1308,8 +1312,8 @@ async function requestWithdrawal() {
         return;
     }
 
-    if (hour < 10 || hour > 23) {
-        messageDiv.textContent = 'Withdrawals are allowed only between 10:00 AM and 11:00 PM';
+    if (istHour < 10 || istHour > 23) {
+        messageDiv.textContent = 'Withdrawals are allowed only between 10:00 AM and 11:00 PM (IST)';
         messageDiv.className = 'message error';
         return;
     }

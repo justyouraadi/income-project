@@ -14,7 +14,8 @@ from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional, Dict
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 import secrets
@@ -64,6 +65,15 @@ WITHDRAWAL_WINDOW_START_HOUR = int(os.environ.get("WITHDRAWAL_WINDOW_START_HOUR"
 WITHDRAWAL_WINDOW_END_HOUR = int(os.environ.get("WITHDRAWAL_WINDOW_END_HOUR", "23"))
 WITHDRAWAL_DEFAULT_CURRENCY = os.environ.get("NOWPAYMENTS_WITHDRAWAL_CURRENCY", "usdtbsc").lower()
 PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "https://ssmoneyresource.tech")
+WITHDRAWAL_TIMEZONE_LABEL = os.environ.get("WITHDRAWAL_TIMEZONE_LABEL", "IST")
+_withdrawal_timezone_name = os.environ.get("WITHDRAWAL_TIMEZONE", "Asia/Kolkata")
+try:
+    WITHDRAWAL_TIMEZONE = ZoneInfo(_withdrawal_timezone_name)
+except ZoneInfoNotFoundError:
+    logging.warning(
+        f"Timezone '{_withdrawal_timezone_name}' not found. Falling back to fixed IST offset (+05:30)."
+    )
+    WITHDRAWAL_TIMEZONE = timezone(timedelta(hours=5, minutes=30))
 
 # In-memory OTP storage (for production, use Redis or DB)
 otp_storage: Dict[str, dict] = {}
@@ -1344,9 +1354,15 @@ def is_working_day(date_to_check=None):
 
 
 def is_withdrawal_window_open(date_to_check=None) -> bool:
-    """Allow withdrawals only between configured start and end hours (server local time)."""
+    """Allow withdrawals only between configured start and end hours in IST."""
     if date_to_check is None:
-        date_to_check = datetime.now()
+        date_to_check = datetime.utcnow().replace(tzinfo=timezone.utc)
+
+    if date_to_check.tzinfo is None:
+        # Treat naive datetimes as UTC to avoid server locale dependence.
+        date_to_check = date_to_check.replace(tzinfo=timezone.utc)
+
+    date_to_check = date_to_check.astimezone(WITHDRAWAL_TIMEZONE)
 
     return WITHDRAWAL_WINDOW_START_HOUR <= date_to_check.hour <= WITHDRAWAL_WINDOW_END_HOUR
 
@@ -3189,7 +3205,7 @@ async def create_withdrawal_request(
     if not is_withdrawal_window_open():
         raise HTTPException(
             status_code=400,
-            detail=f"Withdrawals are allowed only between {WITHDRAWAL_WINDOW_START_HOUR}:00 and {WITHDRAWAL_WINDOW_END_HOUR}:00 (server local time)"
+            detail=f"Withdrawals are allowed only between {WITHDRAWAL_WINDOW_START_HOUR}:00 and {WITHDRAWAL_WINDOW_END_HOUR}:00 ({WITHDRAWAL_TIMEZONE_LABEL})"
         )
 
     if request.amount < WITHDRAWAL_MIN_AMOUNT:
