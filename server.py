@@ -1413,6 +1413,9 @@ async def create_nowpayments_withdrawal_payout(
     if not NOWPAYMENTS_API_KEY:
         raise HTTPException(status_code=500, detail="NOWPayments payout gateway is not configured")
 
+    if not NOWPAYMENTS_PAYOUT_EMAIL or not NOWPAYMENTS_PAYOUT_PASSWORD:
+        raise HTTPException(status_code=500, detail="NOWPayments payout credentials are not configured")
+
     def _extract_nowpayments_error_detail(response: httpx.Response) -> str:
         try:
             data = response.json()
@@ -1492,19 +1495,25 @@ async def create_nowpayments_withdrawal_payout(
                 "Accept": "application/json"
             }
 
+            token = await _get_nowpayments_payout_auth_token(http_client=http_client)
+            if not token:
+                raise HTTPException(status_code=502, detail="Unable to authenticate with payout gateway")
+
+            authed_headers = {
+                **request_headers,
+                "Authorization": f"Bearer {token}"
+            }
+
             response = await http_client.post(
                 f"{NOWPAYMENTS_API_BASE_URL}/payout",
                 json=payload,
-                headers=request_headers
+                headers=authed_headers
             )
 
             if response.status_code in (401, 403):
-                token = await _get_nowpayments_payout_auth_token(http_client=http_client)
+                token = await _get_nowpayments_payout_auth_token(http_client=http_client, force_refresh=True)
                 if token:
-                    authed_headers = {
-                        **request_headers,
-                        "Authorization": f"Bearer {token}"
-                    }
+                    authed_headers["Authorization"] = f"Bearer {token}"
                     response = await http_client.post(
                         f"{NOWPAYMENTS_API_BASE_URL}/payout",
                         json=payload,
