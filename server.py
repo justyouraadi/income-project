@@ -1478,7 +1478,7 @@ async def create_nowpayments_withdrawal_payout(
         "ipn_callback_url": callback_url,
         "withdrawals": [
             {
-                "id": withdrawal_id,
+                # "id": withdrawal_id,
                 "address": wallet_address,
                 "currency": payout_currency,
                 "amount": round(float(payout_amount), 8),
