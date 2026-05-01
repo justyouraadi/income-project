@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,7 +8,8 @@
     <link rel="stylesheet" href="/api/user/styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
     <!-- PWA Manifest -->
     <link rel="manifest" href="/api/user/manifest.json">
     <meta name="theme-color" content="#f39c12">
@@ -23,13 +25,14 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/api/user/icons/icon-96x96.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/api/user/icons/icon-72x72.png">
 </head>
+
 <body>
     <!-- PWA Install Popup -->
     <div id="installPopup" class="install-popup" style="display: none;">
         <div class="install-popup-content">
             <div class="install-popup-icon">
                 <svg viewBox="0 0 100 100" width="60" height="60">
-                    <rect fill="#f39c12" width="100" height="100" rx="20"/>
+                    <rect fill="#f39c12" width="100" height="100" rx="20" />
                     <text x="50" y="65" font-size="40" text-anchor="middle" fill="#000" font-weight="bold">SS</text>
                 </svg>
             </div>
@@ -86,7 +89,8 @@
                     </div>
                     <div class="form-group">
                         <label>Password</label>
-                        <input type="password" id="signupPassword" placeholder="Create a password" required minlength="6">
+                        <input type="password" id="signupPassword" placeholder="Create a password" required
+                            minlength="6">
                     </div>
                     <div class="form-group">
                         <label>Referral Code (Optional)</label>
@@ -127,7 +131,7 @@
     <div id="mainApp" class="main-app" style="display: none;">
         <!-- Mobile Overlay -->
         <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
-        
+
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
@@ -218,14 +222,17 @@
                                 <span class="stat-label">Total Investment</span>
                             </div>
                         </div>
-                        <div class="stat-card stat-card-link" role="button" tabindex="0" onclick="navigateTo('team')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); navigateTo('team'); }">
+                        <div class="stat-card stat-card-link" role="button" tabindex="0" onclick="navigateTo('team')"
+                            onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); navigateTo('team'); }">
                             <div class="stat-icon">👥</div>
                             <div class="stat-info">
                                 <span class="stat-value" id="teamSize">0</span>
                                 <span class="stat-label">Team Size</span>
                             </div>
                         </div>
-                        <div class="stat-card stat-card-link" role="button" tabindex="0" onclick="navigateTo('withdraw')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); navigateTo('withdraw'); }">
+                        <div class="stat-card stat-card-link" role="button" tabindex="0"
+                            onclick="navigateTo('withdraw')"
+                            onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); navigateTo('withdraw'); }">
                             <div class="stat-icon">💸</div>
                             <div class="stat-info">
                                 <span class="stat-value" id="totalWithdrawn">$0.00</span>
@@ -265,49 +272,63 @@
                 <div id="walletPage" class="page-content" style="display: none;">
                     <h2 class="page-subtitle">Your Wallets</h2>
                     <div class="wallet-grid">
-                        <div class="wallet-card wallet-card-link" role="button" tabindex="0" onclick="openWalletTransactions('daily_roi')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openWalletTransactions('daily_roi'); }">
+                        <div class="wallet-card wallet-card-link" role="button" tabindex="0"
+                            onclick="openWalletTransactions('daily_roi')"
+                            onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openWalletTransactions('daily_roi'); }">
                             <div class="wallet-icon">📅</div>
                             <div class="wallet-info">
                                 <span class="wallet-name">Daily ROI</span>
                                 <span class="wallet-balance" id="dailyRoiBalance">$0.00</span>
                             </div>
                         </div>
-                        <div class="wallet-card wallet-card-link" role="button" tabindex="0" onclick="openWalletTransactions('direct_income')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openWalletTransactions('direct_income'); }">
+                        <div class="wallet-card wallet-card-link" role="button" tabindex="0"
+                            onclick="openWalletTransactions('direct_income')"
+                            onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openWalletTransactions('direct_income'); }">
                             <div class="wallet-icon">👤</div>
                             <div class="wallet-info">
                                 <span class="wallet-name">Direct Income</span>
                                 <span class="wallet-balance" id="directIncomeBalance">$0.00</span>
                             </div>
                         </div>
-                        <div class="wallet-card wallet-card-link" role="button" tabindex="0" onclick="openWalletTransactions('level_income')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openWalletTransactions('level_income'); }">
+                        <div class="wallet-card wallet-card-link" role="button" tabindex="0"
+                            onclick="openWalletTransactions('level_income')"
+                            onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openWalletTransactions('level_income'); }">
                             <div class="wallet-icon">📊</div>
                             <div class="wallet-info">
                                 <span class="wallet-name">Level Income (1-20)</span>
                                 <span class="wallet-balance" id="levelIncomeBalance">$0.00</span>
                             </div>
                         </div>
-                        <div class="wallet-card wallet-card-link" role="button" tabindex="0" onclick="openWalletTransactions('slab_income')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openWalletTransactions('slab_income'); }">
+                        <div class="wallet-card wallet-card-link" role="button" tabindex="0"
+                            onclick="openWalletTransactions('slab_income')"
+                            onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openWalletTransactions('slab_income'); }">
                             <div class="wallet-icon">🎯</div>
                             <div class="wallet-info">
                                 <span class="wallet-name">Slab Income</span>
                                 <span class="wallet-balance" id="slabIncomeBalance">$0.00</span>
                             </div>
                         </div>
-                        <div class="wallet-card wallet-card-link" role="button" tabindex="0" onclick="openWalletTransactions('royalty_income')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openWalletTransactions('royalty_income'); }">
+                        <div class="wallet-card wallet-card-link" role="button" tabindex="0"
+                            onclick="openWalletTransactions('royalty_income')"
+                            onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openWalletTransactions('royalty_income'); }">
                             <div class="wallet-icon">👑</div>
                             <div class="wallet-info">
                                 <span class="wallet-name">Royalty Income</span>
                                 <span class="wallet-balance" id="royaltyIncomeBalance">$0.00</span>
                             </div>
                         </div>
-                        <div class="wallet-card wallet-card-link" role="button" tabindex="0" onclick="openWalletTransactions('salary_income')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openWalletTransactions('salary_income'); }">
+                        <div class="wallet-card wallet-card-link" role="button" tabindex="0"
+                            onclick="openWalletTransactions('salary_income')"
+                            onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openWalletTransactions('salary_income'); }">
                             <div class="wallet-icon">💼</div>
                             <div class="wallet-info">
                                 <span class="wallet-name">Salary Income</span>
                                 <span class="wallet-balance" id="salaryIncomeBalance">$0.00</span>
                             </div>
                         </div>
-                        <div class="wallet-card wallet-main wallet-card-link" role="button" tabindex="0" onclick="openWalletTransactions('')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openWalletTransactions(''); }">
+                        <div class="wallet-card wallet-main wallet-card-link" role="button" tabindex="0"
+                            onclick="openWalletTransactions('')"
+                            onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openWalletTransactions(''); }">
                             <div class="wallet-icon">🏦</div>
                             <div class="wallet-info">
                                 <span class="wallet-name">Main Wallet (Total)</span>
@@ -328,7 +349,8 @@
                                     <h4><i class="fas fa-crown"></i> Gold Plan</h4>
                                     <ul class="invest-benefits">
                                         <li><i class="fas fa-check"></i> 0.5% Daily ROI</li>
-                                        <li><i class="fas fa-check"></i> Principal withdrawal anytime after validity</li>
+                                        <li><i class="fas fa-check"></i> Principal withdrawal anytime after validity
+                                        </li>
                                         <li><i class="fas fa-check"></i> You will get till 2x</li>
                                     </ul>
                                 </div>
@@ -347,13 +369,15 @@
                             </div>
                             <div class="working-days-info">
                                 <h4><i class="fas fa-calendar-check"></i> ROI Working Days</h4>
-                                <p>Daily ROI is credited on working days only. <strong>Excludes:</strong> Saturday, Sunday & December 25</p>
+                                <p>Daily ROI is credited on working days only. <strong>Excludes:</strong> Saturday,
+                                    Sunday & December 25</p>
                             </div>
                         </div>
                         <div class="invest-form">
                             <div class="form-group">
                                 <label>Investment Amount (USD)</label>
-                                <input type="number" id="investAmount" placeholder="Enter amount (min $20)" min="20" data-testid="invest-amount-input" oninput="calculateEstimate()">
+                                <input type="number" id="investAmount" placeholder="Enter amount (min $20)" min="20"
+                                    data-testid="invest-amount-input" oninput="calculateEstimate()">
                             </div>
                             <div class="form-group">
                                 <label>Select Plan</label>
@@ -368,7 +392,7 @@
                                     <option value="usdtbsc" selected>USDT (BEP20)</option>
                                 </select>
                             </div>
-                            
+
                             <!-- Fee Estimation Box -->
                             <div id="feeEstimateBox" class="fee-estimate-box" style="display: none;">
                                 <div class="fee-row">
@@ -383,10 +407,12 @@
                                     <span>Total to Pay:</span>
                                     <span id="feeTotalAmount">0.00 USDT</span>
                                 </div>
-                                <p class="fee-note"><i class="fas fa-info-circle"></i> Final amount may vary slightly based on network conditions</p>
+                                <p class="fee-note"><i class="fas fa-info-circle"></i> Final amount may vary slightly
+                                    based on network conditions</p>
                             </div>
-                            
-                            <button id="investBtn" class="btn btn-primary btn-full" onclick="makeInvestment()" data-testid="invest-submit-btn">
+
+                            <button id="investBtn" class="btn btn-primary btn-full" onclick="makeInvestment()"
+                                data-testid="invest-submit-btn">
                                 <i class="fas fa-coins"></i> Invest Now
                             </button>
                             <div id="investMessage" class="message" data-testid="invest-message"></div>
@@ -402,11 +428,14 @@
                     <div class="transactions-hero">
                         <div>
                             <h2 class="page-subtitle">Transaction History</h2>
-                            <p class="transactions-hero-subtitle">A cleaner view of credits, debits, and wallet movement.</p>
+                            <p class="transactions-hero-subtitle">A cleaner view of credits, debits, and wallet
+                                movement.</p>
                         </div>
                         <div class="transactions-actions">
-                            <button class="btn btn-outline btn-small" type="button" onclick="resetTransactionFilters()">Reset Filters</button>
-                            <button class="btn btn-primary btn-small" type="button" id="txnExportBtn" onclick="exportTransactionsToExcel()">Export Excel</button>
+                            <button class="btn btn-outline btn-small" type="button"
+                                onclick="resetTransactionFilters()">Reset Filters</button>
+                            <button class="btn btn-primary btn-small" type="button" id="txnExportBtn"
+                                onclick="exportTransactionsToExcel()">Export Excel</button>
                         </div>
                     </div>
 
@@ -438,10 +467,14 @@
                         <div class="quick-range-group">
                             <span class="quick-range-label">Quick Range</span>
                             <div class="quick-range-actions">
-                                <button type="button" class="quick-range-btn" data-range="7d" onclick="setTransactionDateRange('7d')">7D</button>
-                                <button type="button" class="quick-range-btn" data-range="30d" onclick="setTransactionDateRange('30d')">30D</button>
-                                <button type="button" class="quick-range-btn" data-range="90d" onclick="setTransactionDateRange('90d')">90D</button>
-                                <button type="button" class="quick-range-btn" data-range="all" onclick="setTransactionDateRange('all')">All</button>
+                                <button type="button" class="quick-range-btn" data-range="7d"
+                                    onclick="setTransactionDateRange('7d')">7D</button>
+                                <button type="button" class="quick-range-btn" data-range="30d"
+                                    onclick="setTransactionDateRange('30d')">30D</button>
+                                <button type="button" class="quick-range-btn" data-range="90d"
+                                    onclick="setTransactionDateRange('90d')">90D</button>
+                                <button type="button" class="quick-range-btn" data-range="all"
+                                    onclick="setTransactionDateRange('all')">All</button>
                             </div>
                         </div>
                     </div>
@@ -473,9 +506,11 @@
 
                         <!-- Pagination -->
                         <div class="pagination" id="txnPagination">
-                            <button class="btn btn-outline btn-small" onclick="loadAllTransactions(currentTxnPage - 1)" id="txnPrevBtn" disabled>Previous</button>
+                            <button class="btn btn-outline btn-small" onclick="loadAllTransactions(currentTxnPage - 1)"
+                                id="txnPrevBtn" disabled>Previous</button>
                             <span id="txnPageInfo">Page 1</span>
-                            <button class="btn btn-outline btn-small" onclick="loadAllTransactions(currentTxnPage + 1)" id="txnNextBtn">Next</button>
+                            <button class="btn btn-outline btn-small" onclick="loadAllTransactions(currentTxnPage + 1)"
+                                id="txnNextBtn">Next</button>
                         </div>
                     </div>
                 </div>
@@ -501,7 +536,8 @@
                                 <label>Amount ($)</label>
                                 <input type="number" id="p2pAmountInput" placeholder="Enter amount" min="1" step="0.01">
                             </div>
-                            <button class="btn btn-primary btn-full" onclick="initiateP2PTransfer()">Send OTP & Transfer</button>
+                            <button class="btn btn-primary btn-full" onclick="initiateP2PTransfer()">Send OTP &
+                                Transfer</button>
                             <div id="p2pMessage" class="message"></div>
                         </div>
                     </div>
@@ -548,7 +584,7 @@
                             <span class="team-stat-label">Total Business</span>
                         </div>
                     </div>
-                    
+
                     <!-- View Toggle -->
                     <div class="team-view-toggle">
                         <button class="active" data-view="list" onclick="setTeamView('list')">📋 List View</button>
@@ -579,7 +615,7 @@
                             <option value="inactive">Inactive Members</option>
                         </select>
                     </div>
-                    
+
                     <div class="section-card">
                         <h3>Team Members</h3>
                         <div class="team-list" id="teamList">
@@ -604,30 +640,31 @@
                             <div class="form-group">
                                 <label>Payment Method</label>
                                 <select id="withdrawMethod">
-                                    <option value="crypto_wallet">Crypto Wallet (NOWPayments)</option>
+                                    <option value="crypto_wallet">Crypto Wallet</option>
                                 </select>
                             </div>
                             <div class="form-group">
                                 <label>Payout Currency</label>
                                 <select id="withdrawCurrency">
                                     <option value="usdtbsc">USDT (BEP20)</option>
-                                    <option value="usdttrc20">USDT (TRC20)</option>
+                                    <!-- <option value="usdttrc20">USDT (TRC20)</option>
                                     <option value="btc">Bitcoin (BTC)</option>
-                                    <option value="eth">Ethereum (ETH)</option>
+                                    <option value="eth">Ethereum (ETH)</option> -->
                                 </select>
                             </div>
                             <div class="form-group">
                                 <label>Crypto Wallet Address</label>
-                                <input type="text" id="withdrawDetails" placeholder="Enter destination crypto wallet address">
+                                <input type="text" id="withdrawDetails"
+                                    placeholder="Enter destination crypto wallet address">
                             </div>
                             <small>Withdrawals are available from 10:00 AM to 11:00 PM only (IST).</small><br>
                             <small>A 10% admin commission is deducted from every withdrawal request.</small><br>
-                            <small>Payouts are processed through NOWPayments automation.</small>
-                            <button class="btn btn-primary btn-full" onclick="requestWithdrawal()">Request Withdrawal</button>
+                            <button class="btn btn-primary btn-full" onclick="requestWithdrawal()">Request
+                                Withdrawal</button>
                             <div id="withdrawMessage" class="message"></div>
                         </div>
                     </div>
-                    
+
                     <!-- Withdrawal History -->
                     <div class="section-card" style="margin-top: 30px;">
                         <h3>Withdrawal History</h3>
@@ -640,28 +677,34 @@
                 <!-- Learn Page -->
                 <div id="learnPage" class="page-content" style="display: none;">
                     <h2 class="page-subtitle">Learning Center</h2>
-                    
+
                     <!-- Category Filter -->
                     <div class="learn-filters">
-                        <button class="filter-btn active" onclick="filterVideos('all')" data-category="all">All Videos</button>
-                        <button class="filter-btn" onclick="filterVideos('getting_started')" data-category="getting_started">Getting Started</button>
-                        <button class="filter-btn" onclick="filterVideos('investment')" data-category="investment">Investment</button>
-                        <button class="filter-btn" onclick="filterVideos('referral')" data-category="referral">Referral</button>
-                        <button class="filter-btn" onclick="filterVideos('income')" data-category="income">Income Types</button>
+                        <button class="filter-btn active" onclick="filterVideos('all')" data-category="all">All
+                            Videos</button>
+                        <button class="filter-btn" onclick="filterVideos('getting_started')"
+                            data-category="getting_started">Getting Started</button>
+                        <button class="filter-btn" onclick="filterVideos('investment')"
+                            data-category="investment">Investment</button>
+                        <button class="filter-btn" onclick="filterVideos('referral')"
+                            data-category="referral">Referral</button>
+                        <button class="filter-btn" onclick="filterVideos('income')" data-category="income">Income
+                            Types</button>
                         <button class="filter-btn" onclick="filterVideos('tips')" data-category="tips">Tips</button>
                     </div>
-                    
+
                     <!-- Videos Grid -->
                     <div class="videos-grid" id="userVideosGrid">
                         <div class="loading-videos">Loading videos...</div>
                     </div>
-                    
+
                     <!-- Video Player Modal -->
                     <div id="videoPlayerModal" class="video-modal" style="display: none;">
                         <div class="video-modal-content">
                             <span class="video-close" onclick="closeVideoPlayer()">&times;</span>
                             <div class="video-wrapper">
-                                <iframe id="youtubePlayer" src="" frameborder="0" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
+                                <iframe id="youtubePlayer" src="" frameborder="0" allowfullscreen
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
                             </div>
                             <div class="video-details">
                                 <h3 id="videoPlayerTitle">Video Title</h3>
@@ -684,12 +727,13 @@
                                 <label for="profilePicInput" class="edit-avatar-btn">
                                     <i class="fas fa-camera"></i>
                                 </label>
-                                <input type="file" id="profilePicInput" accept="image/*" style="display: none;" onchange="uploadProfilePic(this)">
+                                <input type="file" id="profilePicInput" accept="image/*" style="display: none;"
+                                    onchange="uploadProfilePic(this)">
                             </div>
                             <div class="profile-name" id="profileName">User Name</div>
                             <div class="profile-id" id="profileId">#000000</div>
                         </div>
-                        
+
                         <!-- Profile Info (Read Only) -->
                         <div class="profile-details" id="profileViewMode">
                             <div class="profile-item">
@@ -716,7 +760,7 @@
                                 <i class="fas fa-edit"></i> Edit Profile
                             </button>
                         </div>
-                        
+
                         <!-- Profile Edit Form -->
                         <div class="profile-edit-form" id="profileEditMode" style="display: none;">
                             <div class="form-group">
@@ -733,7 +777,8 @@
                             </div>
                             <div class="form-group">
                                 <label>Confirm New Password</label>
-                                <input type="password" id="editProfileConfirmPassword" placeholder="Confirm new password">
+                                <input type="password" id="editProfileConfirmPassword"
+                                    placeholder="Confirm new password">
                             </div>
                             <div id="profileEditMessage" class="message"></div>
                             <div class="btn-group">
@@ -749,13 +794,14 @@
                 <!-- Help & Support Page -->
                 <div id="helpPage" class="page-content" style="display: none;">
                     <h2 class="page-subtitle">Help & Support</h2>
-                    
+
                     <!-- Raise Ticket Card -->
                     <div class="ticket-section">
                         <div class="ticket-form-card">
                             <h3>🎫 Raise a Support Ticket</h3>
-                            <p class="ticket-desc">Have an issue? Submit a ticket and our team will get back to you shortly.</p>
-                            
+                            <p class="ticket-desc">Have an issue? Submit a ticket and our team will get back to you
+                                shortly.</p>
+
                             <form id="ticketForm" onsubmit="submitTicket(event)">
                                 <div class="form-row">
                                     <div class="form-group">
@@ -781,18 +827,20 @@
                                 </div>
                                 <div class="form-group">
                                     <label>Subject</label>
-                                    <input type="text" id="ticketSubject" placeholder="Brief description of your issue" required>
+                                    <input type="text" id="ticketSubject" placeholder="Brief description of your issue"
+                                        required>
                                 </div>
                                 <div class="form-group">
                                     <label>Message</label>
-                                    <textarea id="ticketMessage" rows="4" placeholder="Describe your issue in detail..." required></textarea>
+                                    <textarea id="ticketMessage" rows="4" placeholder="Describe your issue in detail..."
+                                        required></textarea>
                                 </div>
                                 <button type="submit" class="btn btn-primary btn-full">
                                     🎫 Submit Ticket
                                 </button>
                             </form>
                         </div>
-                        
+
                         <!-- My Tickets -->
                         <div class="my-tickets-card">
                             <div class="tickets-header">
@@ -804,24 +852,25 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- FAQ Section -->
                     <div class="faq-section">
                         <h3 class="faq-title">Frequently Asked Questions</h3>
-                        
+
                         <div class="faq-category">
                             <h4 class="faq-category-title">💰 Investment & Returns</h4>
-                            
+
                             <div class="faq-item" onclick="toggleFaq(this)">
                                 <div class="faq-question">
                                     <span>What is the minimum investment amount?</span>
                                     <span class="faq-toggle">+</span>
                                 </div>
                                 <div class="faq-answer">
-                                    <p>The minimum investment amount is $20. You can invest any amount above this threshold to start earning daily ROI and other income benefits.</p>
+                                    <p>The minimum investment amount is $20. You can invest any amount above this
+                                        threshold to start earning daily ROI and other income benefits.</p>
                                 </div>
                             </div>
-                            
+
                             <div class="faq-item" onclick="toggleFaq(this)">
                                 <div class="faq-question">
                                     <span>How is Daily ROI calculated?</span>
@@ -829,49 +878,56 @@
                                 </div>
                                 <div class="faq-answer">
                                     <p>Daily ROI is calculated based on your investment slab:<br>
-                                    • $20 - $499: 0.5% daily<br>
-                                    • $500 - $2,499: 0.6% daily<br>
-                                    • $2,500 - $4,999: 0.7% daily<br>
-                                    • $5,000 - $9,999: 0.8% daily<br>
-                                    • $10,000+: 1.0% daily<br>
-                                    ROI is credited to your wallet daily for 100 days.</p>
+                                        • $20 - $499: 0.5% daily<br>
+                                        • $500 - $2,499: 0.6% daily<br>
+                                        • $2,500 - $4,999: 0.7% daily<br>
+                                        • $5,000 - $9,999: 0.8% daily<br>
+                                        • $10,000+: 1.0% daily<br>
+                                        ROI is credited to your wallet daily for 100 days.</p>
                                 </div>
                             </div>
-                            
+
                             <div class="faq-item" onclick="toggleFaq(this)">
                                 <div class="faq-question">
                                     <span>What is the investment validity period?</span>
                                     <span class="faq-toggle">+</span>
                                 </div>
                                 <div class="faq-answer">
-                                    <p>Each investment is valid for 100 days from the date of investment. You'll receive daily ROI credits throughout this period. After 100 days, you can make a new investment to continue earning.</p>
+                                    <p>Each investment is valid for 100 days from the date of investment. You'll receive
+                                        daily ROI credits throughout this period. After 100 days, you can make a new
+                                        investment to continue earning.</p>
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div class="faq-category">
                             <h4 class="faq-category-title">👥 Referral & Team</h4>
-                            
+
                             <div class="faq-item" onclick="toggleFaq(this)">
                                 <div class="faq-question">
                                     <span>How do I refer someone?</span>
                                     <span class="faq-toggle">+</span>
                                 </div>
                                 <div class="faq-answer">
-                                    <p>Go to your Dashboard and copy your unique referral link. Share this link with friends and family. When they sign up using your link and make an investment, you'll earn 5% direct referral income on their investment amount.</p>
+                                    <p>Go to your Dashboard and copy your unique referral link. Share this link with
+                                        friends and family. When they sign up using your link and make an investment,
+                                        you'll earn 5% direct referral income on their investment amount.</p>
                                 </div>
                             </div>
-                            
+
                             <div class="faq-item" onclick="toggleFaq(this)">
                                 <div class="faq-question">
                                     <span>What is Direct Income?</span>
                                     <span class="faq-toggle">+</span>
                                 </div>
                                 <div class="faq-answer">
-                                    <p>Direct Income is 5% of every investment made by users you directly refer. For example, if your referral invests $1000, you earn $50 instantly. Note: You must be an active user (have made at least one investment) to receive referral bonuses.</p>
+                                    <p>Direct Income is 5% of every investment made by users you directly refer. For
+                                        example, if your referral invests $1000, you earn $50 instantly. Note: You must
+                                        be an active user (have made at least one investment) to receive referral
+                                        bonuses.</p>
                                 </div>
                             </div>
-                            
+
                             <div class="faq-item" onclick="toggleFaq(this)">
                                 <div class="faq-question">
                                     <span>What are the different income types?</span>
@@ -879,79 +935,93 @@
                                 </div>
                                 <div class="faq-answer">
                                     <p><strong>5 Income Types:</strong><br>
-                                    1. <strong>Daily ROI</strong> - Daily returns on your investment (0.5-1%)<br>
-                                    2. <strong>Direct Income</strong> - 5% on direct referrals' investments<br>
-                                    3. <strong>Slab Income</strong> - Level-based team investment bonus<br>
-                                    4. <strong>Royalty Income</strong> - Based on company performance<br>
-                                    5. <strong>Salary Income</strong> - Monthly salary based on team business</p>
+                                        1. <strong>Daily ROI</strong> - Daily returns on your investment (0.5-1%)<br>
+                                        2. <strong>Direct Income</strong> - 5% on direct referrals' investments<br>
+                                        3. <strong>Slab Income</strong> - Level-based team investment bonus<br>
+                                        4. <strong>Royalty Income</strong> - Based on company performance<br>
+                                        5. <strong>Salary Income</strong> - Monthly salary based on team business</p>
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div class="faq-category">
                             <h4 class="faq-category-title">💸 Withdrawals & Transfers</h4>
-                            
+
                             <div class="faq-item" onclick="toggleFaq(this)">
                                 <div class="faq-question">
                                     <span>How do I withdraw funds?</span>
                                     <span class="faq-toggle">+</span>
                                 </div>
                                 <div class="faq-answer">
-                                    <p>Go to the Withdraw section, enter the amount, choose your crypto payout currency, and provide your crypto wallet address. Minimum withdrawal is $10. Withdrawals are allowed only from 10:00 AM to 11:00 PM (IST) and include a 10% admin commission deduction.</p>
+                                    <p>Go to the Withdraw section, enter the amount, choose your crypto payout currency,
+                                        and provide your crypto wallet address. Minimum withdrawal is $10. Withdrawals
+                                        are allowed only from 10:00 AM to 11:00 PM (IST) and include a 10% admin
+                                        commission deduction.</p>
                                 </div>
                             </div>
-                            
+
                             <div class="faq-item" onclick="toggleFaq(this)">
                                 <div class="faq-question">
                                     <span>What is P2P Transfer?</span>
                                     <span class="faq-toggle">+</span>
                                 </div>
                                 <div class="faq-answer">
-                                    <p>P2P (Peer-to-Peer) Transfer allows you to send funds from your main wallet to another user's account using their referral code. An OTP verification is required for security. Transfer fees may apply.</p>
+                                    <p>P2P (Peer-to-Peer) Transfer allows you to send funds from your main wallet to
+                                        another user's account using their referral code. An OTP verification is
+                                        required for security. Transfer fees may apply.</p>
                                 </div>
                             </div>
-                            
+
                             <div class="faq-item" onclick="toggleFaq(this)">
                                 <div class="faq-question">
                                     <span>Why is my withdrawal pending?</span>
                                     <span class="faq-toggle">+</span>
                                 </div>
                                 <div class="faq-answer">
-                                    <p>Withdrawals are submitted to NOWPayments for automated crypto payout. Depending on network conditions, confirmation can take additional time. If it remains pending, contact support with your withdrawal request details.</p>
+                                    <p>Withdrawals are submitted to NOWPayments for automated crypto payout. Depending
+                                        on network conditions, confirmation can take additional time. If it remains
+                                        pending, contact support with your withdrawal request details.</p>
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div class="faq-category">
                             <h4 class="faq-category-title">🔐 Account & Security</h4>
-                            
+
                             <div class="faq-item" onclick="toggleFaq(this)">
                                 <div class="faq-question">
                                     <span>How do I change my password?</span>
                                     <span class="faq-toggle">+</span>
                                 </div>
                                 <div class="faq-answer">
-                                    <p>Currently, password changes must be done through support. Please contact our support team via email or WhatsApp with your registered email address to request a password reset.</p>
+                                    <p>Currently, password changes must be done through support. Please contact our
+                                        support team via email or WhatsApp with your registered email address to request
+                                        a password reset.</p>
                                 </div>
                             </div>
-                            
+
                             <div class="faq-item" onclick="toggleFaq(this)">
                                 <div class="faq-question">
                                     <span>What does "Inactive" status mean?</span>
                                     <span class="faq-toggle">+</span>
                                 </div>
                                 <div class="faq-answer">
-                                    <p>New accounts start with "Inactive" status. Your account becomes "Active" once you make your first investment. Active status is required to receive referral bonuses from your team.</p>
+                                    <p>New accounts start with "Inactive" status. Your account becomes "Active" once you
+                                        make your first investment. Active status is required to receive referral
+                                        bonuses from your team.</p>
                                 </div>
                             </div>
-                            
+
                             <div class="faq-item" onclick="toggleFaq(this)">
                                 <div class="faq-question">
                                     <span>Is my investment safe?</span>
                                     <span class="faq-toggle">+</span>
                                 </div>
                                 <div class="faq-answer">
-                                    <p>We use industry-standard security practices including encrypted data transmission, secure payment processing, and regular security audits. However, as with any investment, please invest responsibly and only what you can afford.</p>
+                                    <p>We use industry-standard security practices including encrypted data
+                                        transmission, secure payment processing, and regular security audits. However,
+                                        as with any investment, please invest responsibly and only what you can afford.
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -963,4 +1033,5 @@
 
     <script src="/api/user/script.js"></script>
 </body>
+
 </html>
