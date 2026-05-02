@@ -482,7 +482,7 @@ async def lookup_referrer(code: str):
     
     return {"found": False, "message": "Referrer not found"}
 
-    async def send_welcome_email(recipient_email: str, recipient_name: str, password: str) -> bool:
+async def send_welcome_email(recipient_email: str, recipient_name: str, password: str) -> bool:
     """Send welcome email with credentials using Gmail SMTP"""
     sender_email = "solutionssmoney@gmail.com"
     app_password = "ioco chdi xkpv qtvp"
