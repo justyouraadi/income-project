@@ -1298,11 +1298,20 @@ async function requestWithdrawal() {
     const details = document.getElementById('withdrawDetails').value;
     const messageDiv = document.getElementById('withdrawMessage');
     const now = new Date();
-    const istHour = Number(now.toLocaleString('en-US', {
+    const istParts = new Intl.DateTimeFormat('en-US', {
         timeZone: 'Asia/Kolkata',
         hour12: false,
+        weekday: 'short',
+        month: 'numeric',
+        day: 'numeric',
         hour: '2-digit'
-    }));
+    }).formatToParts(now);
+    const getIstPart = (type) => istParts.find(part => part.type === type)?.value;
+    const istHour = Number(getIstPart('hour'));
+    const istWeekday = getIstPart('weekday');
+    const istMonth = Number(getIstPart('month'));
+    const istDay = Number(getIstPart('day'));
+    const isNonWorkingDay = istWeekday === 'Sat' || istWeekday === 'Sun' || (istMonth === 12 && istDay === 25);
     const commissionAmount = amount ? amount * 0.10 : 0;
     const payoutAmount = amount ? amount - commissionAmount : 0;
     
@@ -1314,6 +1323,12 @@ async function requestWithdrawal() {
 
     if (istHour < 10 || istHour > 23) {
         messageDiv.textContent = 'Withdrawals are allowed only between 10:00 AM and 11:00 PM (IST)';
+        messageDiv.className = 'message error';
+        return;
+    }
+
+    if (isNonWorkingDay) {
+        messageDiv.textContent = 'Withdrawals are not allowed on non-working days: Saturday, Sunday, and December 25 (Christmas)';
         messageDiv.className = 'message error';
         return;
     }

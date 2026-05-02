@@ -1410,9 +1410,8 @@ def is_working_day(date_to_check=None):
         date_to_check = datetime.utcnow()
     
     # Check if weekend (Saturday=5, Sunday=6)
-    # Temporarily commented for testing so Saturday/Sunday count as working days.
-    # if date_to_check.weekday() in [5, 6]:
-    #     return False
+    if date_to_check.weekday() in [5, 6]:
+        return False
     
     # Check if December 25th (Christmas)
     if date_to_check.month == 12 and date_to_check.day == 25:
@@ -1743,10 +1742,10 @@ async def get_working_day_status():
         }
         
         if not day_info["is_working_day"]:
-            # if check_date.weekday() == 5:
-            #     day_info["reason"] = "Saturday"
-            # elif check_date.weekday() == 6:
-            #     day_info["reason"] = "Sunday"
+            if check_date.weekday() == 5:
+                day_info["reason"] = "Saturday"
+            elif check_date.weekday() == 6:
+                day_info["reason"] = "Sunday"
             if check_date.month == 12 and check_date.day == 25:
                 day_info["reason"] = "Christmas Day"
         
@@ -1757,8 +1756,8 @@ async def get_working_day_status():
         "today_name": today.strftime("%A"),
         "is_today_working_day": is_working_day(today),
         "non_working_days": [
-            # "Saturday",
-            # "Sunday",
+            "Saturday",
+            "Sunday",
             "December 25 (Christmas)"
         ],
         "upcoming_days": upcoming_days
