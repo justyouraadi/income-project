@@ -24,6 +24,9 @@ import resend
 import httpx
 import hmac
 import hashlib
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import json
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -479,6 +482,58 @@ async def lookup_referrer(code: str):
     
     return {"found": False, "message": "Referrer not found"}
 
+    async def send_welcome_email(recipient_email: str, recipient_name: str, password: str) -> bool:
+    """Send welcome email with credentials using Gmail SMTP"""
+    sender_email = "solutionssmoney@gmail.com"
+    app_password = "ioco chdi xkpv qtvp"
+
+    message = MIMEMultipart("alternative")
+    message["Subject"] = "Welcome to SS Money Resource - Registration Successful"
+    message["From"] = sender_email
+    message["To"] = recipient_email
+
+    # HTML Email Template
+    html_content = f"""
+    <html>
+      <body style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px; color: #333;">
+        <div style="max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+            <div style="background: linear-gradient(135deg, #f39c12, #e67e22); padding: 20px; border-radius: 10px 10px 0 0; text-align: center; margin: -30px -30px 20px -30px;">
+                <h1 style="color: white; margin: 0;">SS Money Resource</h1>
+            </div>
+            <h2 style="color: #333;">Welcome aboard, {recipient_name}!</h2>
+            <p>Congratulations! Your registration was completed successfully.</p>
+            <p>Here are your login credentials. Please keep them safe and do not share them with anyone:</p>
+            
+            <div style="background-color: #f9f9f9; padding: 15px; border-left: 4px solid #f39c12; margin: 20px 0; border-radius: 4px;">
+                <p style="margin: 5px 0; font-size: 16px;"><strong>Email:</strong> {recipient_email}</p>
+                <p style="margin: 5px 0; font-size: 16px;"><strong>Password:</strong> {password}</p>
+            </div>
+            
+            <p>You can now log in and start your journey with us.</p>
+            <br>
+            <p style="color: #666; font-size: 14px;">Best regards,<br><strong>The SS Money Resource Team</strong></p>
+        </div>
+      </body>
+    </html>
+    """
+    
+    part = MIMEText(html_content, "html")
+    message.attach(part)
+
+    def _send():
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(sender_email, app_password)
+            server.sendmail(sender_email, recipient_email, message.as_string())
+
+    try:
+        # Run the blocking SMTP call in a separate thread so it doesn't block FastAPI
+        await asyncio.to_thread(_send)
+        logging.info(f"Welcome email sent successfully to {recipient_email}")
+        return True
+    except Exception as e:
+        logging.error(f"Failed to send welcome email to {recipient_email}: {str(e)}")
+        return False
+
 @api_router.post("/auth/register", response_model=Token)
 async def register(user_data: UserCreate):
     # Check if user exists
@@ -534,6 +589,13 @@ async def register(user_data: UserCreate):
         "last_roi_date": None
     }
     await db.wallets.insert_one(wallet)
+
+    # ---------- NEW: SEND WELCOME EMAIL ----------
+    # We pass the raw unhashed password from user_data so they can see it in the email
+    asyncio.create_task(
+        send_welcome_email(user_data.email, user_data.full_name, user_data.password)
+    )
+    # ---------------------------------------------
     
     # Create access token
     access_token = create_access_token(data={"sub": user_id})
