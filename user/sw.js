@@ -1,5 +1,5 @@
 // Service Worker for SS Money Resource PWA
-const CACHE_NAME = 'ss-money-v4';
+const CACHE_NAME = 'ss-money-v5';
 const urlsToCache = [
   '/api/user/',
   '/api/user/styles.css',
