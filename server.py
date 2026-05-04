@@ -86,7 +86,6 @@ except ZoneInfoNotFoundError:
 
 # In-memory OTP storage (for production, use Redis or DB)
 otp_storage: Dict[str, dict] = {}
-withdrawal_otp_storage: Dict[str, dict] = {}
 WITHDRAWAL_OTP_TTL_MINUTES = int(os.environ.get("WITHDRAWAL_OTP_TTL_MINUTES", "10"))
 
 # ==================== FIXED LEVEL INCOME SLABS ====================
@@ -3429,6 +3428,27 @@ def prepare_withdrawal_payment_details(request: "WithdrawalRequest") -> Dict[str
         "payout_amount": payout_amount
     }
 
+
+async def ensure_withdrawal_otp_indexes() -> None:
+    try:
+        await db.withdrawal_otps.create_index("id", unique=True)
+        await db.withdrawal_otps.create_index("expires_at", expireAfterSeconds=0)
+        await db.withdrawal_otps.create_index([("user_id", 1), ("created_at", -1)])
+    except Exception as exc:
+        logging.error(f"Failed to ensure withdrawal OTP indexes: {str(exc)}")
+
+
+async def create_withdrawal_otp_record(doc: dict) -> None:
+    await db.withdrawal_otps.insert_one(doc)
+
+
+async def get_withdrawal_otp_record(withdrawal_id: str) -> Optional[dict]:
+    return await db.withdrawal_otps.find_one({"id": withdrawal_id})
+
+
+async def delete_withdrawal_otp_record(withdrawal_id: str) -> None:
+    await db.withdrawal_otps.delete_one({"id": withdrawal_id})
+
 class WithdrawalRequest(BaseModel):
     amount: float
     payment_method: str = "crypto_wallet"
@@ -3473,7 +3493,7 @@ async def create_withdrawal_request(
     withdrawal_id = str(uuid.uuid4())
     otp = generate_otp()
 
-    withdrawal_otp_storage[withdrawal_id] = {
+    otp_doc = {
         "otp": otp,
         "user_id": current_user["id"],
         "amount": request.amount,
@@ -3483,8 +3503,11 @@ async def create_withdrawal_request(
         "wallet_type": request.wallet_type,
         "created_at": datetime.utcnow(),
         "expires_at": datetime.utcnow() + timedelta(minutes=WITHDRAWAL_OTP_TTL_MINUTES),
-        "verified": False
+        "verified": False,
+        "id": withdrawal_id
     }
+
+    await create_withdrawal_otp_record(otp_doc)
 
     email_sent = await send_withdrawal_otp_email(
         current_user["email"],
@@ -3495,6 +3518,7 @@ async def create_withdrawal_request(
     )
 
     if not email_sent and RESEND_API_KEY:
+        await delete_withdrawal_otp_record(withdrawal_id)
         raise HTTPException(status_code=500, detail="Failed to send OTP. Please try again.")
 
     return {
@@ -3516,22 +3540,39 @@ async def verify_withdrawal_request(
     current_user: dict = Depends(get_current_user)
 ):
     """Verify OTP and process the withdrawal via NOWPayments payout API."""
-    pending = withdrawal_otp_storage.get(request.withdrawal_id)
+    now = datetime.utcnow()
+    pending = await get_withdrawal_otp_record(request.withdrawal_id)
 
     if not pending:
         raise HTTPException(status_code=400, detail="Invalid or expired withdrawal request. Please request a new OTP.")
 
-    if pending["user_id"] != current_user["id"]:
+    if pending.get("user_id") != current_user["id"]:
         raise HTTPException(status_code=403, detail="Unauthorized withdrawal verification")
 
-    if datetime.utcnow() > pending["expires_at"]:
-        del withdrawal_otp_storage[request.withdrawal_id]
+    if pending.get("verified"):
+        raise HTTPException(status_code=400, detail="Withdrawal already processed")
+
+    expires_at = pending.get("expires_at")
+    if expires_at and expires_at <= now:
+        await delete_withdrawal_otp_record(request.withdrawal_id)
         raise HTTPException(status_code=400, detail="OTP expired. Please request a new OTP.")
 
-    if pending["otp"] != request.otp:
+    if pending.get("otp") != request.otp:
         raise HTTPException(status_code=400, detail="Invalid OTP")
 
-    if pending.get("verified"):
+    pending = await db.withdrawal_otps.find_one_and_update(
+        {
+            "id": request.withdrawal_id,
+            "user_id": current_user["id"],
+            "verified": False,
+            "otp": request.otp,
+            "expires_at": {"$gt": now}
+        },
+        {"$set": {"verified": True, "verified_at": now}},
+        return_document=ReturnDocument.AFTER
+    )
+
+    if not pending:
         raise HTTPException(status_code=400, detail="Withdrawal already processed")
 
     if not is_withdrawal_window_open():
@@ -3623,8 +3664,7 @@ async def verify_withdrawal_request(
     }
     await db.transactions.insert_one(transaction)
 
-    pending["verified"] = True
-    del withdrawal_otp_storage[request.withdrawal_id]
+    await delete_withdrawal_otp_record(request.withdrawal_id)
 
     return {
         "message": "Withdrawal submitted and processed via NOWPayments",
@@ -5547,6 +5587,7 @@ async def scheduled_daily_roi_calculation():
 @app.on_event("startup")
 async def start_scheduler():
     """Start the background scheduler for daily ROI calculations"""
+    await ensure_withdrawal_otp_indexes()
     # Run daily at 22:00 IST (India Standard Time)
     # IST is UTC+5:30, so 22:00 IST = 16:30 UTC
     scheduler.add_job(
