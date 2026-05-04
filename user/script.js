@@ -5,6 +5,7 @@ const API_URL = window.location.origin;
 let authToken = localStorage.getItem('userToken');
 let currentUser = null;
 let currentTransferId = null;
+let pendingWithdrawalId = null;
 
 // PWA Install prompt
 let deferredPrompt = null;
@@ -1290,6 +1291,26 @@ async function loadTeam() {
     }
 }
 
+function setWithdrawalOtpUi(isVisible) {
+    const otpGroup = document.getElementById('withdrawOtpGroup');
+    const otpButton = document.getElementById('withdrawOtpButton');
+    if (otpGroup) {
+        otpGroup.style.display = isVisible ? 'block' : 'none';
+    }
+    if (otpButton) {
+        otpButton.style.display = isVisible ? 'block' : 'none';
+    }
+}
+
+function resetWithdrawalOtpState() {
+    pendingWithdrawalId = null;
+    const otpInput = document.getElementById('withdrawOtp');
+    if (otpInput) {
+        otpInput.value = '';
+    }
+    setWithdrawalOtpUi(false);
+}
+
 // Request Withdrawal
 async function requestWithdrawal() {
     const amount = parseFloat(document.getElementById('withdrawAmount').value);
@@ -1363,16 +1384,76 @@ async function requestWithdrawal() {
         const data = await response.json();
         
         if (response.ok) {
-            const netAmount = Number(data.payout_amount ?? payoutAmount);
-            const feeAmount = Number(data.commission_amount ?? commissionAmount);
+            if (data.status === 'otp_sent') {
+                pendingWithdrawalId = data.withdrawal_id;
+                setWithdrawalOtpUi(true);
+                const expiry = data.expires_in_minutes ? ` OTP expires in ${data.expires_in_minutes} minutes.` : '';
+                messageDiv.textContent = `${data.message || 'OTP sent to your email.'}${expiry}`;
+                messageDiv.className = 'message success';
+            } else {
+                const netAmount = Number(data.payout_amount ?? payoutAmount);
+                const feeAmount = Number(data.commission_amount ?? commissionAmount);
+                const backendMessage = data.message ? `${data.message} ` : '';
+                messageDiv.textContent = `${backendMessage}Fee: $${feeAmount.toFixed(2)} | Net payout: $${netAmount.toFixed(2)}`;
+                messageDiv.className = 'message success';
+                document.getElementById('withdrawAmount').value = '';
+                document.getElementById('withdrawDetails').value = '';
+                resetWithdrawalOtpState();
+                loadWithdrawals();
+            }
+        } else {
+            messageDiv.textContent = data.detail || 'Withdrawal request failed';
+            messageDiv.className = 'message error';
+        }
+    } catch (error) {
+        messageDiv.textContent = 'Network error. Please try again.';
+        messageDiv.className = 'message error';
+    }
+}
+
+async function verifyWithdrawalOtp() {
+    const otp = document.getElementById('withdrawOtp')?.value.trim();
+    const messageDiv = document.getElementById('withdrawMessage');
+
+    if (!pendingWithdrawalId) {
+        messageDiv.textContent = 'Please request an OTP first.';
+        messageDiv.className = 'message error';
+        return;
+    }
+
+    if (!otp || otp.length < 4) {
+        messageDiv.textContent = 'Please enter the OTP sent to your email.';
+        messageDiv.className = 'message error';
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/user/withdrawal-request/verify`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                withdrawal_id: pendingWithdrawalId,
+                otp: otp
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            const netAmount = Number(data.payout_amount ?? 0);
+            const feeAmount = Number(data.commission_amount ?? 0);
             const backendMessage = data.message ? `${data.message} ` : '';
             messageDiv.textContent = `${backendMessage}Fee: $${feeAmount.toFixed(2)} | Net payout: $${netAmount.toFixed(2)}`;
             messageDiv.className = 'message success';
             document.getElementById('withdrawAmount').value = '';
             document.getElementById('withdrawDetails').value = '';
+            resetWithdrawalOtpState();
             loadWithdrawals();
         } else {
-            messageDiv.textContent = data.detail || 'Withdrawal request failed';
+            messageDiv.textContent = data.detail || 'OTP verification failed';
             messageDiv.className = 'message error';
         }
     } catch (error) {

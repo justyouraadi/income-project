@@ -86,6 +86,8 @@ except ZoneInfoNotFoundError:
 
 # In-memory OTP storage (for production, use Redis or DB)
 otp_storage: Dict[str, dict] = {}
+withdrawal_otp_storage: Dict[str, dict] = {}
+WITHDRAWAL_OTP_TTL_MINUTES = int(os.environ.get("WITHDRAWAL_OTP_TTL_MINUTES", "10"))
 
 # ==================== FIXED LEVEL INCOME SLABS ====================
 # Level Income is based on USER's TEAM TOTAL INVESTMENT (sum of all downline investments)
@@ -3340,6 +3342,93 @@ async def toggle_user_status(user_id: str, admin_user: dict = Depends(get_admin_
 
 # ==================== WITHDRAWAL REQUESTS ====================
 
+def mask_wallet_address(wallet_address: str) -> str:
+    if not wallet_address:
+        return ""
+    if len(wallet_address) <= 10:
+        return wallet_address
+    return f"{wallet_address[:6]}...{wallet_address[-4:]}"
+
+
+async def send_withdrawal_otp_email(
+    email: str,
+    otp: str,
+    amount: float,
+    payout_currency: str,
+    wallet_address: str
+) -> bool:
+    """Send withdrawal OTP via email using Resend."""
+    if not RESEND_API_KEY:
+        # If no API key, log OTP for testing
+        logging.info(f"[TEST MODE] Withdrawal OTP for {email}: {otp}")
+        return True
+
+    masked_address = mask_wallet_address(wallet_address)
+    html_content = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #f39c12, #e67e22); padding: 20px; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; text-align: center;">SS Money Resource</h1>
+        </div>
+        <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+            <h2 style="color: #333;">Withdrawal Verification</h2>
+            <p style="color: #666; font-size: 16px;">
+                You requested a withdrawal of <strong style="color: #f39c12;">${amount:.2f}</strong>
+                in <strong>{payout_currency.upper()}</strong> to <strong>{masked_address}</strong>.
+            </p>
+            <div style="background: #fff; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
+                <p style="color: #666; margin: 0 0 10px 0;">Your OTP Code:</p>
+                <h1 style="color: #f39c12; letter-spacing: 8px; margin: 0; font-size: 36px;">{otp}</h1>
+            </div>
+            <p style="color: #999; font-size: 14px;">
+                This OTP is valid for {WITHDRAWAL_OTP_TTL_MINUTES} minutes. Do not share this code with anyone.
+            </p>
+            <p style="color: #999; font-size: 12px; margin-top: 30px;">
+                If you did not initiate this withdrawal, please contact support immediately.
+            </p>
+        </div>
+    </div>
+    """
+
+    try:
+        params = {
+            "from": SENDER_EMAIL,
+            "to": [email],
+            "subject": f"SS Money Resource - Withdrawal OTP: {otp}",
+            "html": html_content
+        }
+        await asyncio.to_thread(resend.Emails.send, params)
+        return True
+    except Exception as e:
+        logging.error(f"Failed to send withdrawal OTP email: {str(e)}")
+        return False
+
+
+def prepare_withdrawal_payment_details(request: "WithdrawalRequest") -> Dict[str, object]:
+    payment_method = (request.payment_method or "").strip().lower()
+    if payment_method in ("crypto", "crypto_wallet"):
+        payment_method = "crypto_wallet"
+    else:
+        raise HTTPException(status_code=400, detail="Only crypto wallet withdrawals are supported")
+
+    wallet_address = (request.payment_info or request.bank_details or request.upi_id or "").strip()
+    if not wallet_address:
+        raise HTTPException(status_code=400, detail="Crypto wallet address is required")
+
+    payout_currency = (request.payout_currency or WITHDRAWAL_DEFAULT_CURRENCY).strip().lower()
+    commission_amount = round(request.amount * WITHDRAWAL_ADMIN_COMMISSION_RATE, 2)
+    payout_amount = round(request.amount - commission_amount, 2)
+
+    if payout_amount <= 0:
+        raise HTTPException(status_code=400, detail="Invalid withdrawal amount after commission")
+
+    return {
+        "payment_method": payment_method,
+        "wallet_address": wallet_address,
+        "payout_currency": payout_currency,
+        "commission_amount": commission_amount,
+        "payout_amount": payout_amount
+    }
+
 class WithdrawalRequest(BaseModel):
     amount: float
     payment_method: str = "crypto_wallet"
@@ -3350,12 +3439,17 @@ class WithdrawalRequest(BaseModel):
     bank_details: Optional[str] = None
     upi_id: Optional[str] = None
 
+
+class WithdrawalOtpVerify(BaseModel):
+    withdrawal_id: str
+    otp: str
+
 @api_router.post("/user/withdrawal-request")
 async def create_withdrawal_request(
     request: WithdrawalRequest,
     current_user: dict = Depends(get_current_user)
 ):
-    """User creates an automated crypto withdrawal request via NOWPayments payout API."""
+    """Initiate withdrawal by sending OTP to user's email."""
     if not is_withdrawal_window_open():
         raise HTTPException(
             status_code=400,
@@ -3374,37 +3468,107 @@ async def create_withdrawal_request(
     if request.amount > total_available:
         raise HTTPException(status_code=400, detail="Insufficient balance")
 
-    payment_method = (request.payment_method or "").strip().lower()
-    if payment_method in ("crypto", "crypto_wallet"):
-        payment_method = "crypto_wallet"
-    else:
-        raise HTTPException(status_code=400, detail="Only crypto wallet withdrawals are supported")
+    details = prepare_withdrawal_payment_details(request)
 
-    wallet_address = (request.payment_info or request.bank_details or request.upi_id or "").strip()
-    if not wallet_address:
-        raise HTTPException(status_code=400, detail="Crypto wallet address is required")
+    withdrawal_id = str(uuid.uuid4())
+    otp = generate_otp()
 
-    payout_currency = (request.payout_currency or WITHDRAWAL_DEFAULT_CURRENCY).strip().lower()
-    commission_amount = round(request.amount * WITHDRAWAL_ADMIN_COMMISSION_RATE, 2)
-    payout_amount = round(request.amount - commission_amount, 2)
+    withdrawal_otp_storage[withdrawal_id] = {
+        "otp": otp,
+        "user_id": current_user["id"],
+        "amount": request.amount,
+        "payment_method": details["payment_method"],
+        "wallet_address": details["wallet_address"],
+        "payout_currency": details["payout_currency"],
+        "wallet_type": request.wallet_type,
+        "created_at": datetime.utcnow(),
+        "expires_at": datetime.utcnow() + timedelta(minutes=WITHDRAWAL_OTP_TTL_MINUTES),
+        "verified": False
+    }
 
-    if payout_amount <= 0:
-        raise HTTPException(status_code=400, detail="Invalid withdrawal amount after commission")
+    email_sent = await send_withdrawal_otp_email(
+        current_user["email"],
+        otp,
+        request.amount,
+        details["payout_currency"],
+        details["wallet_address"]
+    )
 
-    deductions = build_withdrawal_deductions(wallet, request.amount)
+    if not email_sent and RESEND_API_KEY:
+        raise HTTPException(status_code=500, detail="Failed to send OTP. Please try again.")
+
+    return {
+        "message": "OTP sent to your email. Enter the OTP to confirm withdrawal.",
+        "status": "otp_sent",
+        "withdrawal_id": withdrawal_id,
+        "amount": request.amount,
+        "commission_amount": details["commission_amount"],
+        "payout_amount": details["payout_amount"],
+        "payout_currency": details["payout_currency"],
+        "otp_sent_to": current_user["email"],
+        "expires_in_minutes": WITHDRAWAL_OTP_TTL_MINUTES
+    }
+
+
+@api_router.post("/user/withdrawal-request/verify")
+async def verify_withdrawal_request(
+    request: WithdrawalOtpVerify,
+    current_user: dict = Depends(get_current_user)
+):
+    """Verify OTP and process the withdrawal via NOWPayments payout API."""
+    pending = withdrawal_otp_storage.get(request.withdrawal_id)
+
+    if not pending:
+        raise HTTPException(status_code=400, detail="Invalid or expired withdrawal request. Please request a new OTP.")
+
+    if pending["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Unauthorized withdrawal verification")
+
+    if datetime.utcnow() > pending["expires_at"]:
+        del withdrawal_otp_storage[request.withdrawal_id]
+        raise HTTPException(status_code=400, detail="OTP expired. Please request a new OTP.")
+
+    if pending["otp"] != request.otp:
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+
+    if pending.get("verified"):
+        raise HTTPException(status_code=400, detail="Withdrawal already processed")
+
+    if not is_withdrawal_window_open():
+        raise HTTPException(
+            status_code=400,
+            detail=f"Withdrawals are allowed only between {WITHDRAWAL_WINDOW_START_HOUR}:00 and {WITHDRAWAL_WINDOW_END_HOUR}:00 ({WITHDRAWAL_TIMEZONE_LABEL})"
+        )
+
+    wallet = await db.wallets.find_one({"user_id": current_user["id"]})
+    if not wallet:
+        raise HTTPException(status_code=400, detail="Wallet not found")
+
+    total_available = get_total_withdrawable_balance(wallet)
+    if pending["amount"] > total_available:
+        raise HTTPException(status_code=400, detail="Insufficient balance")
+
+    pending_request = WithdrawalRequest(
+        amount=pending["amount"],
+        payment_method=pending["payment_method"],
+        payment_info=pending["wallet_address"],
+        payout_currency=pending["payout_currency"],
+        wallet_type=pending.get("wallet_type", "earning")
+    )
+    details = prepare_withdrawal_payment_details(pending_request)
+
+    deductions = build_withdrawal_deductions(wallet, pending_request.amount)
     if not deductions:
         raise HTTPException(status_code=400, detail="Insufficient balance")
 
-    withdrawal_id = str(uuid.uuid4())
     processed_time = datetime.utcnow()
 
-    # Fully automatic payout flow: no admin approval fallback.
     payout_response = await create_nowpayments_withdrawal_payout(
-        withdrawal_id=withdrawal_id,
+        withdrawal_id=request.withdrawal_id,
         user_id=current_user["id"],
-        wallet_address=wallet_address,
-        payout_currency=payout_currency,
-        payout_amount=payout_amount
+        wallet_address=details["wallet_address"],
+        payout_currency=details["payout_currency"],
+        payout_amount=details["payout_amount"]
     )
     nowpayments_payout_id = extract_nowpayments_payout_id(payout_response)
 
@@ -3413,23 +3577,23 @@ async def create_withdrawal_request(
         {
             "$inc": {
                 **deductions,
-                "total_withdrawn": request.amount,
-                "withdrawal_balance": payout_amount
+                "total_withdrawn": pending_request.amount,
+                "withdrawal_balance": details["payout_amount"]
             }
         }
     )
 
     withdrawal = {
-        "id": withdrawal_id,
+        "id": request.withdrawal_id,
         "user_id": current_user["id"],
-        "amount": request.amount,
-        "commission_amount": commission_amount,
-        "payout_amount": payout_amount,
-        "wallet_type": request.wallet_type,
-        "payment_method": payment_method,
-        "payment_info": wallet_address,
-        "wallet_address": wallet_address,
-        "payout_currency": payout_currency,
+        "amount": pending_request.amount,
+        "commission_amount": details["commission_amount"],
+        "payout_amount": details["payout_amount"],
+        "wallet_type": pending_request.wallet_type,
+        "payment_method": details["payment_method"],
+        "payment_info": details["wallet_address"],
+        "wallet_address": details["wallet_address"],
+        "payout_currency": details["payout_currency"],
         "bank_details": None,
         "upi_id": None,
         "status": "approved",  # pending, approved, cancelled
@@ -3444,28 +3608,32 @@ async def create_withdrawal_request(
     await db.withdrawals.insert_one(withdrawal)
 
     transaction_description = (
-        f"Crypto withdrawal via NOWPayments ({payout_currency.upper()}) - "
-        f"requested ${request.amount:.2f}, fee ${commission_amount:.2f}, payout ${payout_amount:.2f}"
+        f"Crypto withdrawal via NOWPayments ({details['payout_currency'].upper()}) - "
+        f"requested ${pending_request.amount:.2f}, fee ${details['commission_amount']:.2f}, "
+        f"payout ${details['payout_amount']:.2f}"
     )
 
     transaction = {
         "id": str(uuid.uuid4()),
         "user_id": current_user["id"],
         "type": "withdrawal",
-        "amount": -request.amount,
+        "amount": -pending_request.amount,
         "description": transaction_description,
         "date": processed_time
     }
     await db.transactions.insert_one(transaction)
 
+    pending["verified"] = True
+    del withdrawal_otp_storage[request.withdrawal_id]
+
     return {
         "message": "Withdrawal submitted and processed via NOWPayments",
-        "request_id": withdrawal_id,
+        "request_id": request.withdrawal_id,
         "status": "approved",
-        "amount": request.amount,
-        "commission_amount": commission_amount,
-        "payout_amount": payout_amount,
-        "payout_currency": payout_currency,
+        "amount": pending_request.amount,
+        "commission_amount": details["commission_amount"],
+        "payout_amount": details["payout_amount"],
+        "payout_currency": details["payout_currency"],
         "nowpayments_payout_id": nowpayments_payout_id
     }
 

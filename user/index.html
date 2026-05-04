@@ -656,11 +656,16 @@
                                 <input type="text" id="withdrawDetails"
                                     placeholder="Enter destination crypto wallet address">
                             </div>
+                            <div class="form-group" id="withdrawOtpGroup" style="display: none;">
+                                <label>Email OTP</label>
+                                <input type="text" id="withdrawOtp" placeholder="Enter 6-digit OTP"
+                                    inputmode="numeric" maxlength="6">
+                            </div>
                             <small>Withdrawals are not available on Saturday, Sunday, and December 25 (Christmas).</small><br>
                             <small>Withdrawals are available from 10:00 AM to 11:00 PM only (IST).</small><br>
                             <small>A 10% admin commission is deducted from every withdrawal request.</small><br>
-                            <button class="btn btn-primary btn-full" onclick="requestWithdrawal()">Request
-                                Withdrawal</button>
+                            <button class="btn btn-primary btn-full" onclick="requestWithdrawal()">Send OTP</button>
+                            <button class="btn btn-primary btn-full" id="withdrawOtpButton" onclick="verifyWithdrawalOtp()" style="display: none;">Verify &amp; Submit</button>
                             <div id="withdrawMessage" class="message"></div>
                         </div>
                     </div>
