@@ -1275,7 +1275,7 @@ async function loadTeam() {
                                     <div class="team-member-info">
                                         <span class="team-member-name">${escapeHtml(m.full_name || 'User')}</span>
                                         <span class="team-member-date">Joined: ${formatTeamJoinedDate(m.joined_date)}</span>
-                                        <span class="team-member-investment">Investments: ${Number(m.investment_count || 0)}</span>
+                                        <span class="team-member-investment">Total Investment: $${Number(m.total_investment || 0).toFixed(2)}</span>
                                     </div>
                                     <span class="team-member-code">${m.referral_code ? '#' + escapeHtml(m.referral_code) : ''}</span>
                                 </div>
