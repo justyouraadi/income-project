@@ -1949,6 +1949,7 @@ async def get_team_members(
         member_ids = [member.get("id") for member in all_members if member.get("id")]
 
         investment_map: Dict[str, float] = {}
+        investment_count_map: Dict[str, int] = {}
         team_size_map: Dict[str, int] = {}
         children_map: Dict[str, List[str]] = {}
 
@@ -1961,6 +1962,16 @@ async def get_team_members(
                 wallet.get("user_id"): wallet.get("total_invested", 0)
                 for wallet in wallets
                 if wallet.get("user_id")
+            }
+
+            investment_counts = await db.investments.aggregate([
+                {"$match": {"user_id": {"$in": member_ids}}},
+                {"$group": {"_id": "$user_id", "count": {"$sum": 1}}}
+            ]).to_list(len(member_ids))
+            investment_count_map = {
+                row.get("_id"): int(row.get("count", 0))
+                for row in investment_counts
+                if row.get("_id")
             }
 
             child_counts = await db.users.aggregate([
@@ -2011,6 +2022,7 @@ async def get_team_members(
                 "status": member.get("status", "inactive"),
                 "joined_date": created_at.isoformat() if hasattr(created_at, 'isoformat') else str(created_at),
                 "total_investment": investment_map.get(member_id, 0),
+                "investment_count": investment_count_map.get(member_id, 0),
                 "team_total_investment": team_total_investment,
                 "level_income_slab_level": int(slab_info.get("level", 0)),
                 "level_income_percent": float(slab_info.get("percent", 0)),
@@ -2036,6 +2048,7 @@ async def get_team_members(
                 "status": referral.get("status", "inactive"),
                 "joined_date": referral["created_at"].isoformat() if hasattr(referral["created_at"], 'isoformat') else str(referral["created_at"]),
                 "total_investment": wallet.get("total_invested", 0) if wallet else 0,
+                "investment_count": await db.investments.count_documents({"user_id": referral["id"]}),
                 "team_total_investment": team_total_investment,
                 "level_income_slab_level": int(slab_info.get("level", 0)),
                 "level_income_percent": float(slab_info.get("percent", 0)),
