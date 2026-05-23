@@ -98,6 +98,38 @@ body {
     color: var(--text-muted);
 }
 
+.password-field {
+    position: relative;
+}
+
+.password-field input {
+    padding-right: 80px;
+}
+
+.password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: var(--primary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 6px;
+}
+
+.password-toggle:hover {
+    color: var(--primary-dark);
+}
+
+.password-toggle:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 6px;
+}
+
 .form-group small {
     display: block;
     margin-top: 6px;

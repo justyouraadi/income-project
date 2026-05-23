@@ -180,6 +180,19 @@ function showForgotPassword() {
     document.getElementById('forgotForm').style.display = 'block';
 }
 
+function togglePasswordVisibility(button, inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) {
+        return;
+    }
+
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    button.textContent = show ? 'Hide' : 'Show';
+    button.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    button.setAttribute('aria-pressed', show ? 'true' : 'false');
+}
+
 // Login Handler
 async function handleLogin(event) {
     event.preventDefault();
