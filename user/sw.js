@@ -1,5 +1,5 @@
 // Service Worker for SS Money Resource PWA
-const CACHE_NAME = 'ss-money-v8';
+const CACHE_NAME = 'ss-money-v9';
 const urlsToCache = [
   '/api/user/',
   '/api/user/styles.css',
@@ -14,6 +14,14 @@ const urlsToCache = [
   '/api/user/icons/icon-384x384.png',
   '/api/user/icons/icon-512x512.png'
 ];
+
+const isCacheableRequest = request => {
+  if (request.method !== 'GET') {
+    return false;
+  }
+  const url = new URL(request.url);
+  return url.protocol === 'http:' || url.protocol === 'https:';
+};
 
 // Install event - cache resources
 self.addEventListener('install', event => {
@@ -50,9 +58,11 @@ self.addEventListener('fetch', event => {
         .then(response => {
           if (response && response.status === 200) {
             const responseClone = response.clone();
-            caches.open(CACHE_NAME).then(cache => {
-              cache.put(event.request, responseClone);
-            });
+            if (isCacheableRequest(event.request)) {
+              caches.open(CACHE_NAME).then(cache => {
+                cache.put(event.request, responseClone);
+              });
+            }
           }
           return response;
         })
@@ -74,7 +84,7 @@ self.addEventListener('fetch', event => {
             return response;
           }
           // Cache successful responses
-          if (response.status === 200) {
+          if (response.status === 200 && isCacheableRequest(event.request)) {
             const responseClone = response.clone();
             caches.open(CACHE_NAME).then(cache => {
               cache.put(event.request, responseClone);
